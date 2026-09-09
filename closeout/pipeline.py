@@ -70,6 +70,8 @@ def file_context(store: Store, ev: dict, batch_evidence: list[dict]) -> tuple[st
     meta = ev["metadata"] or {}
     lines = []
     t = _capture_time(meta)
+    if meta.get("folder"):
+        lines.append(f"Folder the contractor put it in: {meta['folder']} (file_metadata; a folder name is a claim about the file, not a location fact)")
     lines.append(f"Captured: {meta.get('DateTimeOriginal') or meta.get('DateTime') or 'no capture time in EXIF'}"
                  + (f"; camera: {meta.get('Make', '')} {meta.get('Model', '')}".rstrip() if meta.get("Model") else ""))
     neighbours: list[str] = []
@@ -152,9 +154,9 @@ def _sum_usage(jobs: list[dict]) -> dict:
 
 
 def process_batch(store: Store, files: list[Path], label: str, settings: Settings = SETTINGS,
-                  progress: Progress = _noop, reprocess_all: bool = False) -> dict:
+                  progress: Progress = _noop, reprocess_all: bool = False, root: Path | None = None) -> dict:
     """Ingest a batch and run the agent over it. Returns a summary with run_id and packet paths."""
-    ingest = ingest_batch(store, files, label, settings.data_dir / "evidence")
+    ingest = ingest_batch(store, files, label, settings.data_dir / "evidence", root=root)
     progress("ingested", {"batch_id": ingest.batch_id, "new": len(ingest.new), "existing": len(ingest.existing),
                           "duplicates": ingest.duplicates_in_batch, "rejected": ingest.rejected})
 

@@ -20,6 +20,8 @@ SUPPORTED = {
     ".jpg": ("image", "image/jpeg"),
     ".jpeg": ("image", "image/jpeg"),
     ".png": ("image", "image/png"),
+    ".heic": ("image", "image/heic"),   # converted to JPEG on ingest (macOS sips); EXIF incl. GPS is kept
+    ".heif": ("image", "image/heic"),
     ".pdf": ("pdf", "application/pdf"),
     ".txt": ("text", "text/plain"),
     ".md": ("text", "text/markdown"),
@@ -119,7 +121,16 @@ def image_bytes_for_model(path: Path) -> tuple[bytes, str]:
         return buf.getvalue(), "jpeg"
 
 
-def ingest_batch(store: Store, files: list[Path], label: str, storage_dir: Path) -> IngestResult:
+def _heic_to_jpeg(src: Path, dest: Path) -> None:
+    """macOS-only conversion; keeps the EXIF block (capture time, GPS, altitude)."""
+    import subprocess
+    subprocess.run(["sips", "-s", "format", "jpeg", "-s", "formatOptions", "90", str(src), "--out", str(dest)],
+                   check=True, capture_output=True)
+
+
+def ingest_batch(store: Store, files: list[Path], label: str, storage_dir: Path, root: Path | None = None) -> IngestResult:
+    """`root` is the folder the batch was dropped as; each file remembers its sub-folder (a real signal: contractors
+    sort responses into folders like 'Firestopping/L2')."""
     batch_id = store.create_batch(label)
     storage_dir.mkdir(parents=True, exist_ok=True)
     res = IngestResult(batch_id=batch_id, new=[], existing=[], duplicates_in_batch=[], rejected=[])
@@ -147,14 +158,27 @@ def ingest_batch(store: Store, files: list[Path], label: str, storage_dir: Path)
             continue
 
         eid = f"ev_{sha[:12]}"
-        stored = storage_dir / f"{eid}{ext}"
-        shutil.copyfile(path, stored)
-
         metadata: dict = {"original_name": path.name}
+        if root is not None:
+            folder = path.parent.relative_to(root).as_posix()
+            if folder and folder != ".":
+                metadata["folder"] = folder
+        if ext in (".heic", ".heif"):
+            stored = storage_dir / f"{eid}.jpg"
+            try:
+                _heic_to_jpeg(path, stored)
+            except Exception as e:  # noqa: BLE001
+                res.rejected.append((path.name, f"could not convert HEIC: {e}"))
+                continue
+            mime = "image/jpeg"
+        else:
+            stored = storage_dir / f"{eid}{ext}"
+            shutil.copyfile(path, stored)
+
         text: list[str] = []
         pages = 1
         if kind == "image":
-            metadata.update(_exif(path))
+            metadata.update(_exif(stored))
         elif kind == "pdf":
             try:
                 text = _pdf_text(path)

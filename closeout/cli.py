@@ -35,10 +35,12 @@ def main(argv=None) -> int:
         if args.register:
             items = import_register(store, args.register)
             print(f"[register] imported {len(items)} items")
-        files = sorted((p for p in args.batch.iterdir() if p.is_file() and not p.name.startswith(".")),
-                       key=lambda p: (re.sub(r" \(\d+\)$", "", p.stem).lower(), len(p.name), p.name))
+        files = sorted((p for p in args.batch.rglob("*")
+                        if p.is_file() and not any(part.startswith(".") for part in p.relative_to(args.batch).parts)),
+                       key=lambda p: (str(p.parent.relative_to(args.batch)).lower(),
+                                      re.sub(r" \(\d+\)$", "", p.stem).lower(), len(p.name), p.name))
         res = process_batch(store, files, args.label or args.batch.name, SETTINGS, progress=_print_progress,
-                            reprocess_all=args.reprocess_all)
+                            reprocess_all=args.reprocess_all, root=args.batch)
         print(json.dumps(res, indent=2))
         return 0 if res["status"] == "done" else 1
     if args.cmd == "retry":
