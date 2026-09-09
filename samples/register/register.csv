@@ -1,0 +1,7 @@
+item_id,location,description,evidence_required,review_date,discipline
+D-01,"Level 2, Corridor 2-C, outside Suite 210","Fire stopping missing at 100 mm PVC penetration through rated corridor wall","photo: completed fire stop at the penetration with product label or product name visible",2026-08-28,Fire protection
+D-02,"Level 1, Stair 1, landing between L1 and L2","Guard opening between pickets exceeds 100 mm at two locations","photo: corrected guard; photo: tape measure across a picket opening showing the corrected dimension",2026-08-28,Structural
+D-03,"Roof, mechanical unit RTU-2 curb","RTU-2 curb anchor bolts not installed at any corner","photo: installed anchors at all four corners; report: installer's anchor installation or torque report",2026-08-28,Structural
+D-04,"Level 1, Corridor 1-A, outside Suite 105","Fire stopping missing at 50 mm steel conduit penetration through rated corridor wall","photo: completed fire stop at the penetration with product label or product name visible",2026-08-28,Fire protection
+D-05,"Level 3, Suite 305, ceiling space","Sprinkler head obstructed by new supply duct within 450 mm","photo: relocated sprinkler head with duct clearance visible; letter: sprinkler contractor's confirmation of relocation",2026-08-28,Fire protection
+D-06,"Exterior, north elevation, gridline 4, at grade","Brick veneer damaged and loose at grade, approx. 600 mm x 300 mm area","photo: repaired brick veneer area",2026-08-28,Building envelope

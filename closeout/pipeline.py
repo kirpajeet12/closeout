@@ -1,0 +1,187 @@
+"""Batch pipeline: ingest -> match jobs -> completeness -> draft jobs -> packet. Retry-able per job."""
+from __future__ import annotations
+
+import json
+import logging
+import traceback
+from pathlib import Path
+from typing import Callable
+
+from .agent import run_draft_job, run_match_job
+from .completeness import compute_item_status
+from .config import SETTINGS, Settings, make_model
+from .ingest import ingest_batch
+from .packet import save_packet
+from .register import load_register, register_as_text, Deficiency
+from .store import Store
+
+log = logging.getLogger("closeout")
+Progress = Callable[[str, dict], None]
+
+
+def _noop(_event: str, _data: dict) -> None:
+    pass
+
+
+def open_store(settings: Settings = SETTINGS) -> Store:
+    return Store(settings.data_dir / "closeout.db")
+
+
+def import_register(store: Store, csv_path: Path) -> list[Deficiency]:
+    items = load_register(csv_path)
+    store.upsert_deficiencies(items)
+    return items
+
+
+def _register_text(store: Store) -> str:
+    lines = []
+    for d in store.deficiencies():
+        lines.append(f"{d['item_id']} | location: {d['location']} | {d['description']}")
+        for s in d["slots"]:
+            lines.append(f"    slot {s['index']} [{s['type']}]: {s['description']}")
+    return "\n".join(lines)
+
+
+def _notes_text(evidence: list[dict]) -> str:
+    parts = []
+    for e in evidence:
+        if e["kind"] == "text":
+            parts.append(f"### {e['filename']}\n{e['text'][0]}")
+    return "\n\n".join(parts)
+
+
+def _sum_usage(jobs: list[dict]) -> dict:
+    total: dict[str, int] = {}
+    for j in jobs:
+        for k, v in (json.loads(j.get("usage_json") or "{}")).items():
+            total[k] = total.get(k, 0) + int(v)
+    return total
+
+
+def process_batch(store: Store, files: list[Path], label: str, settings: Settings = SETTINGS,
+                  progress: Progress = _noop, reprocess_all: bool = False) -> dict:
+    """Ingest a batch and run the agent over it. Returns a summary with run_id and packet paths."""
+    ingest = ingest_batch(store, files, label, settings.data_dir / "evidence")
+    progress("ingested", {"batch_id": ingest.batch_id, "new": len(ingest.new), "existing": len(ingest.existing),
+                          "duplicates": ingest.duplicates_in_batch, "rejected": ingest.rejected})
+
+    run_id = store.create_run(ingest.batch_id, settings.model_id)
+    batch_evidence = store.batch_evidence(ingest.batch_id)
+    # Notes are context for the agent, recorded as findings without a model call.
+    for e in batch_evidence:
+        if e["kind"] == "text":
+            store.add_finding(run_id=run_id, evidence_id=e["id"], status="note", provenance="contractor_claim",
+                              rationale="Contractor note; used as context for other files in this batch.",
+                              sources=[{"evidence_id": e["id"], "page": None}])
+    # Match jobs for everything that needs the model. Re-runs of already-processed evidence are allowed
+    # (that is how reprocessing works); existing findings stay in history.
+    to_process = [e for e in batch_evidence if e["kind"] != "text"]
+    if not reprocess_all:
+        to_process = [e for e in to_process if e in ingest.new or not store.findings_for_evidence(e["id"])]
+    for e in to_process:
+        store.create_job(run_id, "match", e["id"])
+    progress("jobs_created", {"run_id": run_id, "match_jobs": len(to_process)})
+    return continue_run(store, run_id, settings, progress)
+
+
+def continue_run(store: Store, run_id: str, settings: Settings = SETTINGS, progress: Progress = _noop) -> dict:
+    """Run every pending/failed job in the run, then completeness, drafts, packet. Safe to call again after a failure."""
+    run = store.run(run_id)
+    batch_evidence = store.batch_evidence(run["batch_id"])
+    register_text = _register_text(store)
+    notes_text = _notes_text(batch_evidence)
+    filenames = [e["filename"] for e in batch_evidence]
+    model = make_model(settings)
+
+    for job in store.jobs(run_id):
+        if job["kind"] != "match" or job["status"] == "done":
+            continue
+        ev = store.evidence(job["subject"])
+        progress("job_start", {"job_id": job["id"], "kind": "match", "filename": ev["filename"], "attempt": job["attempts"] + 1})
+        store.job_start(job["id"])
+        store.delete_findings(job["id"])  # a retry replaces its own partial output only
+        try:
+            res = run_match_job(store, run_id, job["id"], ev["id"], register_text, notes_text, filenames, model=model)
+            store.job_finish(job["id"], "done", usage=res["usage"])
+            progress("job_done", {"job_id": job["id"], "filename": ev["filename"], "findings": res["findings"], "usage": res["usage"]})
+        except Exception as e:  # noqa: BLE001 - we want every failure recorded and retryable
+            err = f"{type(e).__name__}: {e}"
+            log.error("match job %s failed: %s\n%s", job["id"], err, traceback.format_exc())
+            store.job_finish(job["id"], "failed", error=err[:1000])
+            progress("job_failed", {"job_id": job["id"], "filename": ev["filename"], "error": err})
+
+    # Completeness over the current findings of ALL evidence, snapshot per run (history).
+    findings = store.current_findings()
+    statuses = {}
+    for d in store.deficiencies():
+        st = compute_item_status(d, findings)
+        statuses[d["item_id"]] = st
+        store.add_item_status(run_id, d["item_id"], st["completeness"], st["missing_slots"], st["filled_slots"], st["unresolved"])
+    progress("completeness", {k: v["completeness"] for k, v in statuses.items()})
+
+    # Drafts for anything not complete.
+    existing_draft_items = {d["item_id"] for d in store.drafts_for_run(run_id)}
+    for item_id, st in statuses.items():
+        if st["completeness"] == "complete" or item_id in existing_draft_items:
+            continue
+        if not any(j["kind"] == "draft" and j["subject"] == item_id for j in store.jobs(run_id)):
+            store.create_job(run_id, "draft", item_id)
+    for job in store.jobs(run_id):
+        if job["kind"] != "draft" or job["status"] == "done":
+            continue
+        item_id = job["subject"]
+        brief = _item_brief(store, item_id, statuses[item_id], findings)
+        progress("job_start", {"job_id": job["id"], "kind": "draft", "item_id": item_id, "attempt": job["attempts"] + 1})
+        store.job_start(job["id"])
+        try:
+            res = run_draft_job(store, run_id, job["id"], item_id, brief, model=model)
+            store.job_finish(job["id"], "done", usage=res["usage"])
+            progress("job_done", {"job_id": job["id"], "item_id": item_id, "draft_id": res["draft_id"], "usage": res["usage"]})
+        except Exception as e:  # noqa: BLE001
+            err = f"{type(e).__name__}: {e}"
+            log.error("draft job %s failed: %s\n%s", job["id"], err, traceback.format_exc())
+            store.job_finish(job["id"], "failed", error=err[:1000])
+            progress("job_failed", {"job_id": job["id"], "item_id": item_id, "error": err})
+
+    jobs = store.jobs(run_id)
+    failed = [j for j in jobs if j["status"] != "done"]
+    usage = _sum_usage(jobs)
+    store.finish_run(run_id, "failed" if failed else "done", usage)
+    pj, pm = save_packet(store, run_id, settings.data_dir / "runs" / run_id)
+    progress("packet", {"json": str(pj), "markdown": str(pm), "failed_jobs": len(failed), "usage": usage})
+    return {"run_id": run_id, "batch_id": run["batch_id"], "status": "failed" if failed else "done",
+            "failed_jobs": [j["id"] for j in failed], "packet_json": str(pj), "packet_md": str(pm), "usage": usage}
+
+
+def _item_brief(store: Store, item_id: str, st: dict, findings: list[dict]) -> str:
+    d = store.deficiency(item_id)
+    lines = [f"Item {d['item_id']} — {d['description']}", f"Location: {d['location']}",
+             "Requested evidence:"]
+    for s in d["slots"]:
+        lines.append(f"  slot {s['index']} [{s['type']}]: {s['description']}")
+    lines.append(f"Completeness: {st['completeness']}")
+    if st["missing_slots"]:
+        lines.append("Missing: " + "; ".join(f"[{m['type']}] {m['description']}" for m in st["missing_slots"]))
+    filled_ids = {fid for fs in st["filled_slots"] for fid in fs["finding_ids"]}
+    linked = [f for f in findings if f["status"] == "matched" and f["item_id"] == item_id]
+    filled = [f for f in linked if f["id"] in filled_ids]
+    supporting = [f for f in linked if f["id"] in set(st["supporting"])]
+    if filled:
+        lines.append("Received and filling a slot (contractor-supplied, not verified; do not ask for these again):")
+        for f in filled:
+            ev = store.evidence(f["evidence_id"])
+            lines.append(f"  - slot {f['slot_index']}: {ev['filename']} ({f['tier']} match, {f['provenance']}; flags: {', '.join(f['flags']) or 'none'}): {f['rationale']}")
+    if supporting:
+        lines.append("Supporting references only (do not fill any slot):")
+        for f in supporting:
+            ev = store.evidence(f["evidence_id"])
+            pages = ", ".join(f"p.{s['page']}" for s in f["sources"] if s.get("page"))
+            lines.append(f"  - {ev['filename']}{' ' + pages if pages else ''} ({f['provenance']}): {f['rationale']}")
+    if st["unresolved"]:
+        lines.append("Unresolved evidence touching this item:")
+        for u in st["unresolved"]:
+            f = next((x for x in findings if x["id"] == u["finding_id"]), None)
+            if f:
+                ev = store.evidence(f["evidence_id"])
+                lines.append(f"  - {ev['filename']}: {u['kind']}; flags {', '.join(f['flags']) or 'none'}. {f['rationale']}")
+    return "\n".join(lines)
