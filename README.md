@@ -33,6 +33,20 @@ cp .env.example .env          # Bedrock by default; needs AWS credentials in you
 
 Output lands in `data/runs/<run_id>/packet.md` and `packet.json`. `data/` is gitignored.
 
+### Evidence Desk (web UI)
+
+```bash
+.venv/bin/uvicorn closeout.api:app --port 8765
+```
+
+Open <http://localhost:8765/>. Drop the register folder (`samples/register/`, CSV plus its
+`photos/`) on the left of the feed column, then drop an evidence folder (`samples/evidence/batch-01/`).
+The run streams job by job over server-sent events; when the packet is ready the ledger colours by
+completeness, each item shows its evidence cards with source links, the follow-up draft is editable,
+and Accept / Hold / Reject records the engineer's call in the packet. A failed run shows a
+*Retry failed jobs* button that re-runs only the failed jobs. The API is documented at `/docs`.
+Nothing on the desk sends email; the draft is copied by hand.
+
 Tests:
 
 ```bash
@@ -113,7 +127,8 @@ used here. The Strands Agents SDK and the Python packages in `requirements.txt` 
 
 ## Status
 
-Milestone 1 (pipeline on the sample batch, checklist-tested) is done. Next: the Evidence Desk
-web UI, editable drafts, downloadable packet, reprocessing with history.
+Milestone 1 (pipeline on the sample batch, checklist-tested) and Milestone 2 (FastAPI + Evidence
+Desk: folder drops, live SSE feed, evidence cards, editable drafts, decisions, retry) are done.
+Next: packet download polish, README diagram, demo video.
 
 License: MIT.

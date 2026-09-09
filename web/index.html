@@ -1,0 +1,415 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Closeout · Evidence Desk</title>
+<style>
+  :root {
+    --ink: #0e0f0d; --ink-2: #16181a; --ink-3: #1f2225; --line: #2a2e32; --line-2: #383d42;
+    --paper: #f3efe6; --paper-dim: #b9b3a6; --mute: #7c8189;
+    --go: #35d07f; --warn: #ffb020; --hot: #ff5a1f; --cold: #4da3ff;
+    --mono: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+    --sans: -apple-system, "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--ink); color: var(--paper); font: 14px/1.45 var(--sans); overflow: hidden; }
+  a { color: var(--cold); text-decoration: none; }
+  button { font: inherit; cursor: pointer; }
+  ::selection { background: var(--hot); color: #000; }
+
+  /* --- masthead ------------------------------------------------------ */
+  header { height: 64px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: 0 28px;
+           border-bottom: 1px solid var(--line); background: linear-gradient(180deg, #131517 0%, var(--ink) 100%); }
+  .wordmark { font-weight: 800; letter-spacing: .22em; font-size: 13px; }
+  .wordmark small { display: block; letter-spacing: .08em; font-weight: 500; color: var(--mute); font-size: 11px; margin-top: 2px; }
+  .stats { display: flex; gap: 34px; font-family: var(--mono); font-size: 11px; color: var(--mute); text-transform: uppercase; letter-spacing: .08em; }
+  .stats b { display: block; color: var(--paper); font-size: 22px; letter-spacing: 0; font-weight: 500; line-height: 1; margin-bottom: 4px; }
+  .stats b em { font-style: normal; color: var(--mute); font-size: 13px; }
+  .pill { justify-self: end; display: inline-flex; align-items: center; gap: 9px; padding: 7px 13px; border: 1px solid var(--line-2); border-radius: 999px;
+          font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--paper-dim); }
+  .pill i { width: 8px; height: 8px; border-radius: 50%; background: var(--mute); }
+  .pill.running i { background: var(--hot); box-shadow: 0 0 0 0 rgba(255,90,31,.7); animation: pulse 1.2s infinite; }
+  .pill.done i { background: var(--go); } .pill.failed i { background: var(--warn); }
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255,90,31,.6); } 100% { box-shadow: 0 0 0 10px rgba(255,90,31,0); } }
+
+  /* --- three columns ------------------------------------------------- */
+  main { display: grid; grid-template-columns: 330px 1fr 380px; height: calc(100% - 64px); }
+  main > section { overflow: auto; min-width: 0; }
+  .ledger { border-right: 1px solid var(--line); background: var(--ink-2); }
+  .feed { border-left: 1px solid var(--line); background: var(--ink-2); display: flex; flex-direction: column; }
+  .bench { padding: 30px 38px 80px; }
+  h6 { margin: 0; padding: 16px 22px 8px; font: 500 10px/1 var(--mono); letter-spacing: .18em; text-transform: uppercase; color: var(--mute); }
+
+  /* ledger rows */
+  .row { display: grid; grid-template-columns: 4px 1fr; gap: 0 16px; padding: 14px 22px 14px 18px; border-bottom: 1px solid var(--line); cursor: pointer; position: relative; }
+  .row:hover { background: var(--ink-3); }
+  .row.on { background: var(--ink-3); }
+  .row.on::after { content: ""; position: absolute; right: 0; top: 0; bottom: 0; width: 3px; background: var(--paper); }
+  .row .bar { border-radius: 2px; background: var(--line-2); }
+  .row .id { font: 600 20px/1 var(--mono); letter-spacing: -.02em; display: flex; justify-content: space-between; align-items: baseline; }
+  .row .id span { font: 500 10px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; }
+  .row .desc { margin-top: 7px; color: var(--paper-dim); font-size: 12.5px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .row .loc { margin-top: 5px; font: 11px var(--mono); color: var(--mute); }
+  .c-complete { color: var(--go); } .c-incomplete { color: var(--warn); } .c-needs_clarification { color: var(--hot); } .c-no_evidence { color: var(--mute); }
+  .b-complete { background: var(--go) !important; } .b-incomplete { background: var(--warn) !important; } .b-needs_clarification { background: var(--hot) !important; }
+
+  /* bench */
+  .empty { color: var(--mute); text-align: center; margin-top: 30vh; font-family: var(--mono); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; }
+  .hero { display: grid; grid-template-columns: auto 1fr; gap: 26px; align-items: start; margin-bottom: 26px; }
+  .hero .big { font: 600 76px/0.9 var(--mono); letter-spacing: -.05em; }
+  .hero h1 { margin: 6px 0 8px; font-size: 22px; font-weight: 600; letter-spacing: -.01em; line-height: 1.25; }
+  .hero .meta { font: 12px var(--mono); color: var(--mute); display: flex; gap: 18px; flex-wrap: wrap; }
+  .verdict { display: inline-flex; align-items: center; gap: 10px; margin-top: 14px; padding: 8px 14px; border-radius: 6px; border: 1px solid var(--line-2);
+             font: 500 12px var(--mono); letter-spacing: .06em; text-transform: uppercase; }
+  .verdict i { width: 9px; height: 9px; border-radius: 2px; background: currentColor; }
+  .block { margin-top: 30px; }
+  .block > h5 { margin: 0 0 12px; font: 500 10px/1 var(--mono); letter-spacing: .18em; text-transform: uppercase; color: var(--mute); display: flex; align-items: center; gap: 12px; }
+  .block > h5::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+  .slots { display: grid; gap: 8px; }
+  .slot { display: grid; grid-template-columns: 26px 1fr; gap: 12px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--ink-2); }
+  .slot .tick { font: 600 13px var(--mono); }
+  .slot.ok { border-color: rgba(53,208,127,.35); } .slot.ok .tick { color: var(--go); }
+  .slot.miss .tick { color: var(--hot); }
+  .slot small { display: block; font: 10px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--mute); margin-bottom: 3px; }
+
+  .pair { display: grid; grid-template-columns: 220px 1fr; gap: 18px; padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--ink-2); margin-bottom: 14px; }
+  .pair.unres { border-color: rgba(255,176,32,.35); }
+  .thumb { position: relative; border-radius: 8px; overflow: hidden; background: #000; aspect-ratio: 4/3; display: flex; align-items: center; justify-content: center; }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .thumb .doc { font: 500 11px var(--mono); letter-spacing: .1em; color: var(--paper-dim); text-align: center; padding: 14px; }
+  .thumb .doc b { display: block; font-size: 34px; letter-spacing: 0; margin-bottom: 8px; }
+  .thumb .tag { position: absolute; left: 8px; top: 8px; padding: 3px 7px; border-radius: 4px; background: rgba(0,0,0,.65); font: 500 10px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: #fff; backdrop-filter: blur(6px); }
+  .pair .head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+  .pair .file { font: 500 13px var(--mono); }
+  .chip { padding: 3px 8px; border-radius: 4px; font: 500 10px var(--mono); letter-spacing: .1em; text-transform: uppercase; border: 1px solid var(--line-2); color: var(--paper-dim); }
+  .chip.explicit, .chip.strong { border-color: rgba(53,208,127,.5); color: var(--go); }
+  .chip.weak { border-color: rgba(255,176,32,.5); color: var(--warn); }
+  .chip.ambiguous, .chip.conflict, .chip.flag { border-color: rgba(255,90,31,.5); color: var(--hot); }
+  .chip.prov { color: var(--cold); border-color: rgba(77,163,255,.4); }
+  .pair p { margin: 6px 0; color: var(--paper-dim); font-size: 13px; }
+  .obs { margin: 8px 0 0; padding: 0; list-style: none; }
+  .obs li { font: 12px var(--mono); color: var(--mute); padding: 4px 0 4px 12px; border-left: 2px solid var(--line-2); margin-top: 4px; }
+  .obs li b { color: var(--paper-dim); font-weight: 500; }
+  .src { margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap; }
+  .src a { font: 500 11px var(--mono); letter-spacing: .06em; padding: 5px 9px; border: 1px solid rgba(77,163,255,.35); border-radius: 5px; }
+  .src a:hover { background: rgba(77,163,255,.12); }
+  .ref { display: grid; grid-template-columns: 220px 1fr; gap: 18px; align-items: center; margin-bottom: 14px; padding: 12px 16px; border: 1px dashed var(--line-2); border-radius: 12px; }
+  .ref .thumb { aspect-ratio: 4/3; }
+  .ref p { margin: 0; color: var(--mute); font-size: 12.5px; }
+  .ref p b { color: var(--paper-dim); font-weight: 500; display: block; margin-bottom: 4px; }
+
+  textarea, input[type=text] { width: 100%; background: var(--ink-3); color: var(--paper); border: 1px solid var(--line-2); border-radius: 8px; padding: 12px 14px; font: 13px/1.5 var(--sans); resize: vertical; }
+  textarea:focus, input:focus { outline: none; border-color: var(--paper-dim); }
+  .draft .subject { font-family: var(--mono); font-size: 13px; margin-bottom: 8px; }
+  .actions { display: flex; gap: 10px; margin-top: 10px; align-items: center; flex-wrap: wrap; }
+  .btn { padding: 9px 16px; border-radius: 7px; border: 1px solid var(--line-2); background: transparent; color: var(--paper); font: 500 12px var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+  .btn:hover { border-color: var(--paper-dim); }
+  .btn.accept:hover { border-color: var(--go); color: var(--go); } .btn.reject:hover { border-color: var(--hot); color: var(--hot); } .btn.hold:hover { border-color: var(--warn); color: var(--warn); }
+  .btn.solid { background: var(--paper); color: #000; border-color: var(--paper); }
+  .btn[disabled] { opacity: .4; cursor: default; }
+  .note { flex: 1; min-width: 200px; }
+  .decided { font: 12px var(--mono); color: var(--mute); }
+  .decided b { color: var(--paper); font-weight: 500; }
+  .hist { list-style: none; padding: 0; margin: 0; font: 12px var(--mono); color: var(--mute); }
+  .hist li { padding: 6px 0; border-bottom: 1px solid var(--line); display: grid; grid-template-columns: 190px 1fr; gap: 12px; white-space: nowrap; }
+
+  /* feed column */
+  .drops { padding: 12px 18px 6px; display: grid; gap: 10px; }
+  .drop { position: relative; border: 1px dashed var(--line-2); border-radius: 10px; padding: 14px 16px; transition: .15s; }
+  .drop:hover, .drop.over { border-color: var(--paper-dim); background: var(--ink-3); }
+  .drop.over { border-style: solid; }
+  .drop input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
+  .drop b { display: block; font: 500 12px var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+  .drop span { display: block; margin-top: 3px; color: var(--mute); font-size: 12px; }
+  .drop.busy { opacity: .45; pointer-events: none; }
+  .opts { display: flex; gap: 14px; align-items: center; padding: 4px 18px 10px; font: 11px var(--mono); color: var(--mute); }
+  .opts label { display: flex; gap: 6px; align-items: center; cursor: pointer; }
+  .log { flex: 1; overflow: auto; padding: 0 18px 20px; font: 12px/1.55 var(--mono); }
+  .ev { display: grid; grid-template-columns: 54px 1fr; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--line); color: var(--paper-dim); }
+  .ev time { color: var(--mute); font-size: 10.5px; padding-top: 2px; }
+  .ev.job_failed, .ev.run_error { color: var(--hot); }
+  .ev.job_done { color: var(--paper); } .ev.packet { color: var(--go); }
+  .ev.job_start { color: var(--mute); }
+  .ev .k { display: inline-block; min-width: 86px; color: var(--mute); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; }
+  .ev.job_done .k { color: var(--go); } .ev.job_failed .k { color: var(--hot); }
+  .feed .tools { padding: 10px 18px; border-top: 1px solid var(--line); display: flex; gap: 8px; flex-wrap: wrap; }
+  .side { padding: 0 18px 10px; }
+  .side .mini { display: grid; grid-template-columns: 56px 1fr; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); cursor: pointer; }
+  .side .mini .thumb { aspect-ratio: 1; border-radius: 6px; }
+  .side .mini .file { font: 500 12px var(--mono); }
+  .side .mini p { margin: 2px 0 0; font-size: 11.5px; color: var(--mute); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .toast { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); background: var(--paper); color: #000; padding: 10px 16px; border-radius: 8px; font: 500 12px var(--mono); letter-spacing: .06em; opacity: 0; transition: .2s; pointer-events: none; }
+  .toast.show { opacity: 1; }
+  .toast.err { background: var(--hot); color: #fff; }
+  .bar-anim { height: 2px; background: linear-gradient(90deg, transparent, var(--hot), transparent); background-size: 200% 100%; animation: slide 1.2s linear infinite; }
+  @keyframes slide { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="wordmark">CLOSEOUT<small>Evidence Desk</small></div>
+  <div class="stats" id="stats"></div>
+  <div class="pill" id="pill"><i></i><span>idle</span></div>
+</header>
+<main>
+  <section class="ledger">
+    <h6>Deficiency register</h6>
+    <div id="ledger"></div>
+    <h6>Unmatched evidence</h6>
+    <div class="side" id="unmatched"></div>
+  </section>
+  <section class="bench" id="bench"><div class="empty">Import a register and drop a folder of contractor evidence</div></section>
+  <section class="feed">
+    <div class="drops">
+      <div class="drop" id="dropReg"><input type="file" webkitdirectory multiple><b>Register folder</b><span>register.csv + reference photos</span></div>
+      <div class="drop" id="dropEv"><input type="file" webkitdirectory multiple><b>Drop contractor evidence</b><span>a folder: photos, PDFs, HEIC, notes, sub-folders kept</span></div>
+    </div>
+    <div class="opts"><label><input type="checkbox" id="reprocess"> re-run files already reviewed</label></div>
+    <div id="runbar"></div>
+    <h6>Run feed</h6>
+    <div class="log" id="log"></div>
+    <div class="tools" id="tools"></div>
+  </section>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = (s, r = document) => r.querySelector(s);
+const when = s => { const d = new Date(s); return isNaN(d) ? String(s ?? "") : d.toLocaleString(undefined, { year: "numeric", month: "short", day: "2-digit", hour: "2-digit", minute: "2-digit" }); };
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const state = { ov: null, sel: null, es: null, events: [], runStatus: "idle" };
+const PRICE = { inputTokens: 3 / 1e6, outputTokens: 15 / 1e6 };   // Sonnet list price; shown as an estimate only
+
+function toast(msg, err) { const t = $("#toast"); t.textContent = msg; t.className = "toast show" + (err ? " err" : ""); setTimeout(() => t.className = "toast", 3200); }
+const fileUrl = (id, page) => `/api/evidence/${id}/file` + (page ? `#page=${page}` : "");
+const isImg = name => /\.(jpe?g|png|heic|heif|webp)$/i.test(name || "");
+
+async function load() {
+  state.ov = await (await fetch("/api/overview")).json();
+  if (state.ov.active_run_id && !state.es) follow(state.ov.active_run_id);
+  render();
+}
+
+function render() {
+  const ov = state.ov, p = ov.packet;
+  const items = p ? p.items : ov.register.map(d => ({ item: d, completeness: "no_evidence", completeness_label: "No evidence received", evidence: [], unresolved: [], missing_slots: d.slots, history: [] }));
+  if (!state.sel && items.length) state.sel = items[0].item.item_id;
+  renderStats(ov, items);
+  renderLedger(items);
+  renderUnmatched(p);
+  renderBench(items.find(i => i.item.item_id === state.sel), p);
+  renderTools(ov);
+}
+
+function renderStats(ov, items) {
+  const complete = items.filter(i => i.completeness === "complete").length;
+  const usage = ov.packet ? JSON.parse(ov.packet.run.usage_json || "{}") : {};
+  const cost = (usage.inputTokens || 0) * PRICE.inputTokens + (usage.outputTokens || 0) * PRICE.outputTokens;
+  $("#stats").innerHTML = `
+    <div><b>${complete}<em>/${items.length}</em></b>ready for review</div>
+    <div><b>${ov.packet ? ov.packet.evidence_index.length : 0}</b>evidence files</div>
+    <div><b>${ov.runs.length}</b>runs</div>
+    <div><b>${((usage.totalTokens || 0) / 1000).toFixed(1)}k<em> ≈ $${cost.toFixed(2)}</em></b>tokens, last run</div>
+    <div><b style="font-size:13px;margin-top:6px">${esc(ov.model_id.replace(/^us\./, ""))}</b>model</div>`;
+}
+
+function renderLedger(items) {
+  $("#ledger").innerHTML = items.map(i => `
+    <div class="row ${i.item.item_id === state.sel ? "on" : ""}" data-id="${esc(i.item.item_id)}">
+      <div class="bar b-${i.completeness}"></div>
+      <div>
+        <div class="id">${esc(i.item.item_id)}<span class="c-${i.completeness}">${esc(i.completeness.replace("_", " "))}</span></div>
+        <div class="desc">${esc(i.item.description)}</div>
+        <div class="loc">${esc(i.item.location)}</div>
+      </div>
+    </div>`).join("");
+  $("#ledger").querySelectorAll(".row").forEach(r => r.onclick = () => { state.sel = r.dataset.id; render(); });
+}
+
+function renderUnmatched(p) {
+  if (!p || !p.unmatched.length) { $("#unmatched").innerHTML = `<p class="decided">nothing left over</p>`; return; }
+  $("#unmatched").innerHTML = p.unmatched.map(u => `
+    <div class="mini" data-cands="${esc((u.candidates || []).join(","))}">
+      <div class="thumb">${isImg(u.filename) ? `<img src="${fileUrl(u.evidence_id)}" alt="">` : `<div class="doc"><b>${esc((u.filename || "").split(".").pop().toUpperCase())}</b></div>`}</div>
+      <div><div class="file">${esc(u.filename)} <span class="chip ${esc(u.status)}">${esc(u.status)}</span></div><p>${esc(u.rationale)}</p></div>
+    </div>`).join("");
+  $("#unmatched").querySelectorAll(".mini").forEach(m => m.onclick = () => { const c = m.dataset.cands.split(",")[0]; if (c) { state.sel = c; render(); } });
+}
+
+function thumb(ev, tag) {
+  const img = isImg(ev.filename);
+  return `<div class="thumb">${img ? `<img src="${fileUrl(ev.evidence_id)}" alt="">` : `<div class="doc"><b>${esc((ev.filename || "").split(".").pop().toUpperCase())}</b>${esc(ev.filename)}</div>`}${tag ? `<span class="tag">${esc(tag)}</span>` : ""}</div>`;
+}
+
+function evidenceCard(f, unresolved) {
+  const flags = (f.flags || []).map(x => `<span class="chip flag">${esc(x.replace(/_/g, " "))}</span>`).join("");
+  const tier = unresolved ? `<span class="chip ${esc(f.kind)}">${esc(f.kind.replace("_", " "))}</span>` : `<span class="chip ${esc(f.tier)}">${esc(f.tier)} match</span>`;
+  const slot = !unresolved && f.slot_index >= 0 ? `<span class="chip">slot ${f.slot_index + 1}</span>` : (!unresolved ? `<span class="chip">supporting only</span>` : "");
+  const cands = unresolved && f.candidates && f.candidates.length ? `<span class="chip">could be ${esc(f.candidates.join(" or "))}</span>` : "";
+  const obs = (f.observations || []).length ? `<ul class="obs">${f.observations.map(o => `<li><b>${esc(o.provenance.replace(/_/g, " "))}</b> ${esc(o.text)}</li>`).join("")}</ul>` : "";
+  const src = (f.sources || []).map(s => `<a href="${fileUrl(s.evidence_id, s.page)}" target="_blank">open ${esc(f.filename)}${s.page ? ` · p.${s.page}` : ""}</a>`).join("");
+  return `<div class="pair ${unresolved ? "unres" : ""}">
+    ${thumb(f, unresolved ? "unresolved" : f.provenance.replace(/_/g, " "))}
+    <div>
+      <div class="head"><span class="file">${esc(f.filename)}</span>${tier}${slot}${cands}${f.provenance ? `<span class="chip prov">${esc(f.provenance.replace(/_/g, " "))}</span>` : ""}${flags}</div>
+      <p>${esc(f.rationale)}</p>${obs}
+      <div class="src">${src}</div>
+    </div>
+  </div>`;
+}
+
+function renderBench(it, p) {
+  const b = $("#bench");
+  if (!it) { b.innerHTML = `<div class="empty">Import a register and drop a folder of contractor evidence</div>`; return; }
+  const d = it.item;
+  const filledIdx = new Set(it.evidence.filter(e => e.slot_index >= 0 && ["explicit", "strong"].includes(e.tier) && !(e.flags || []).some(x => ["location_unconfirmed", "conflicting_reference"].includes(x))).map(e => e.slot_index));
+  const slots = (d.slots || []).map(s => `<div class="slot ${filledIdx.has(s.index) ? "ok" : "miss"}"><div class="tick">${filledIdx.has(s.index) ? "✓" : "—"}</div><div><small>${esc(s.type)} ${s.index + 1}</small>${esc(s.description)}</div></div>`).join("");
+  const filling = it.evidence.filter(e => e.slot_index >= 0), supporting = it.evidence.filter(e => e.slot_index < 0);
+  const ref = d.reference_photo ? `<div class="ref"><div class="thumb"><img src="/api/register/${esc(d.item_id)}/reference" alt=""><span class="tag">engineer · before</span></div>
+      <p><b>Reference photo from the field review</b>${d.ref_meta && d.ref_meta.DateTimeOriginal ? esc(d.ref_meta.DateTimeOriginal) : ""}${d.ref_meta && d.ref_meta.gps ? ` · GPS ${d.ref_meta.gps.lat}, ${d.ref_meta.gps.lon}${d.ref_meta.gps.altitude_m != null ? `, alt ${d.ref_meta.gps.altitude_m} m` : ""}` : " · no GPS"}<br>The agent compares every contractor photo against this one and must name at least two shared features before it calls the location confirmed.</p></div>` : "";
+  const draft = it.followup_draft;
+  const dec = it.decision;
+  b.innerHTML = `
+    <div class="hero">
+      <div class="big c-${it.completeness}">${esc(d.item_id)}</div>
+      <div>
+        <div class="meta"><span>${esc(d.discipline || "")}</span><span>${esc(d.location)}</span><span>reviewed ${esc(d.review_date || "")}</span></div>
+        <h1>${esc(d.description)}</h1>
+        <div class="verdict c-${it.completeness}"><i></i>${esc(it.completeness_label)}</div>
+      </div>
+    </div>
+    <div class="block"><h5>Evidence the register asked for</h5><div class="slots">${slots}</div></div>
+    <div class="block"><h5>What the contractor sent · ${it.evidence.length + it.unresolved.length} file${it.evidence.length + it.unresolved.length === 1 ? "" : "s"}</h5>
+      ${ref}
+      ${filling.map(f => evidenceCard(f)).join("")}
+      ${it.unresolved.map(f => evidenceCard(f, true)).join("")}
+      ${supporting.map(f => evidenceCard(f)).join("")}
+      ${!it.evidence.length && !it.unresolved.length ? `<p class="decided">Nothing in any batch has been linked to this item.</p>` : ""}
+    </div>
+    ${draft ? `<div class="block draft"><h5>Follow-up to the contractor · ${esc(draft.status)}</h5>
+      <input type="text" class="subject" id="draftSubject" value="${esc(draft.subject)}">
+      <textarea id="draftBody" rows="9">${esc(draft.body)}</textarea>
+      <div class="actions"><button class="btn solid" id="saveDraft">Save edits</button><span class="decided">The desk never sends. Copy it into your own email when you are happy with it.</span></div>
+    </div>` : ""}
+    <div class="block"><h5>Engineer's call</h5>
+      ${dec ? `<p class="decided">Last decision: <b>${esc(dec.decision)}</b> at ${esc(when(dec.created_at))}${dec.note ? ` · ${esc(dec.note)}` : ""}</p>` : ""}
+      <div class="actions">
+        <button class="btn accept" data-d="accept">Accept evidence</button>
+        <button class="btn hold" data-d="hold">Hold</button>
+        <button class="btn reject" data-d="reject">Reject</button>
+        <input type="text" class="note" id="decNote" placeholder="note (optional)">
+      </div>
+      <p class="decided" style="margin-top:8px">Recorded in the packet as your decision. Nothing the agent wrote is an engineering determination.</p>
+    </div>
+    ${it.history && it.history.length ? `<div class="block"><h5>History across runs</h5><ul class="hist">${it.history.map(h => `<li><span>${esc(when(h.created_at || h.at || ""))}</span><span class="c-${esc(h.completeness)}">${esc(h.completeness)}</span></li>`).join("")}</ul></div>` : ""}`;
+  if (draft) $("#saveDraft").onclick = async () => {
+    const r = await fetch(`/api/drafts/${draft.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ subject: $("#draftSubject").value, body: $("#draftBody").value }) });
+    toast(r.ok ? "draft saved" : "save failed", !r.ok); if (r.ok) load();
+  };
+  b.querySelectorAll("[data-d]").forEach(btn => btn.onclick = async () => {
+    const r = await fetch(`/api/items/${d.item_id}/decision`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ decision: btn.dataset.d, note: $("#decNote").value || null }) });
+    toast(r.ok ? `${btn.dataset.d} recorded for ${d.item_id}` : "could not record", !r.ok); if (r.ok) load();
+  });
+}
+
+function renderTools(ov) {
+  const t = $("#tools"); const rid = ov.latest_run_id;
+  t.innerHTML = rid ? `<a class="btn" href="/api/runs/${rid}/packet.md" target="_blank">Packet · MD</a><a class="btn" href="/api/runs/${rid}/packet" target="_blank">Packet · JSON</a>
+    ${ov.packet && ov.packet.run.status === "failed" && !ov.active_run_id ? `<button class="btn solid" id="retry">Retry failed jobs</button>` : ""}` : "";
+  const r = $("#retry"); if (r) r.onclick = async () => { const res = await fetch(`/api/runs/${rid}/retry`, { method: "POST" }); if (res.ok) { state.events = []; follow(rid); } else toast((await res.json()).detail, true); };
+}
+
+/* --- live feed ------------------------------------------------------- */
+function setPill(status, text) { state.runStatus = status; const p = $("#pill"); p.className = "pill " + status; $("span", p).textContent = text; $("#runbar").innerHTML = status === "running" ? `<div class="bar-anim"></div>` : ""; document.querySelectorAll(".drop").forEach(d => d.classList.toggle("busy", status === "running")); }
+
+function describe(e) {
+  const d = e.data || {};
+  switch (e.event) {
+    case "uploaded": return `${d.files} files received as "${d.label}"`;
+    case "ingested": return `ingested · ${d.new} new, ${d.existing} seen before, ${(d.duplicates || []).length} duplicates, ${(d.rejected || []).length} rejected`;
+    case "jobs_created": return `${d.match_jobs} files to review`;
+    case "job_start": return `${d.kind === "draft" ? "drafting follow-up for " + d.item_id : "reviewing " + d.filename}${d.attempt > 1 ? ` (attempt ${d.attempt})` : ""}`;
+    case "job_done": return d.replay ? `${d.kind} ${d.subject}` : (d.item_id ? `draft ready for ${d.item_id}` : `${d.filename} · ${d.findings} finding${d.findings === 1 ? "" : "s"}`);
+    case "job_failed": return `${d.filename || d.item_id || d.subject} · ${d.error}`;
+    case "completeness": return Object.entries(d).map(([k, v]) => `${k} ${v.replace("_", " ")}`).join(" · ");
+    case "packet": return d.replay ? `run ${d.status}` : `packet written · ${d.failed_jobs} failed job${d.failed_jobs === 1 ? "" : "s"} · ${(d.usage && d.usage.totalTokens || 0).toLocaleString()} tokens`;
+    case "run_error": return d.error;
+    case "retry": return `retrying failed jobs of ${d.run_id}`;
+    default: return JSON.stringify(d);
+  }
+}
+
+function renderLog() {
+  const l = $("#log");
+  l.innerHTML = state.events.map(e => `<div class="ev ${esc(e.event)}"><time>${esc((e.at || "").slice(11, 19))}</time><div><span class="k">${esc(e.event.replace("_", " "))}</span>${esc(describe(e))}</div></div>`).join("");
+  l.scrollTop = l.scrollHeight;
+}
+
+function follow(runId) {
+  if (state.es) state.es.close();
+  setPill("running", "agent running");
+  const es = new EventSource(`/api/runs/${runId}/events`);
+  state.es = es;
+  const onAny = ev => {
+    const e = JSON.parse(ev.data);
+    if (e.event === "ping") return;
+    state.events.push(e); renderLog();
+    if (e.event === "packet" || e.event === "run_error") {
+      es.close(); state.es = null;
+      setPill(e.event === "packet" && !(e.data.failed_jobs > 0) && e.data.status !== "failed" ? "done" : "failed", e.event === "packet" ? (e.data.failed_jobs > 0 || e.data.status === "failed" ? "finished with failures" : "packet ready") : "run error");
+      load();
+    } else if (e.event === "completeness" || e.event === "job_done") load();
+  };
+  ["uploaded", "ingested", "jobs_created", "job_start", "job_done", "job_failed", "completeness", "packet", "run_error", "retry", "ping"].forEach(k => es.addEventListener(k, onAny));
+  es.onerror = () => { if (state.es === es) { es.close(); state.es = null; setPill("failed", "feed lost"); load(); } };
+}
+
+/* --- folder drops ---------------------------------------------------- */
+async function walk(entry, prefix, out) {
+  if (entry.isFile) { const f = await new Promise((res, rej) => entry.file(res, rej)); out.push({ file: f, path: prefix + entry.name }); }
+  else if (entry.isDirectory) {
+    const reader = entry.createReader(); let batch;
+    do { batch = await new Promise((res, rej) => reader.readEntries(res, rej)); for (const e of batch) if (!e.name.startsWith(".")) await walk(e, prefix + entry.name + "/", out); } while (batch.length);
+  }
+}
+async function filesFromDrop(dt) {
+  const out = [];
+  const entries = [...dt.items].map(i => i.webkitGetAsEntry && i.webkitGetAsEntry()).filter(Boolean);
+  if (entries.length) { for (const e of entries) await walk(e, "", out); }
+  else for (const f of dt.files) out.push({ file: f, path: f.name });
+  // A single dropped folder becomes the batch root, not a batch containing one folder.
+  const top = new Set(out.map(o => o.path.split("/")[0]));
+  if (top.size === 1 && out.every(o => o.path.includes("/"))) out.forEach(o => o.path = o.path.split("/").slice(1).join("/"));
+  return out.filter(o => !o.path.split("/").some(p => p.startsWith(".")));
+}
+function filesFromInput(input) {
+  return [...input.files].map(f => ({ file: f, path: (f.webkitRelativePath || f.name).split("/").slice(1).join("/") || f.name })).filter(o => !o.path.split("/").some(p => p.startsWith(".")));
+}
+async function send(kind, items, label) {
+  if (!items.length) return toast("nothing to upload", true);
+  const fd = new FormData();
+  items.forEach(o => { fd.append("files", o.file, o.file.name); fd.append("paths", o.path); });
+  if (kind === "batch") { if (label) fd.append("label", label); fd.append("reprocess_all", $("#reprocess").checked ? "true" : "false"); }
+  toast(`uploading ${items.length} files…`);
+  const r = await fetch(kind === "batch" ? "/api/batches" : "/api/register", { method: "POST", body: fd });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) return toast(j.detail || `upload failed (${r.status})`, true);
+  if (kind === "batch") { state.events = []; renderLog(); follow("pending"); }
+  else { toast(`register imported · ${j.imported} items`); state.sel = null; load(); }
+}
+function wireDrop(el, kind) {
+  const input = $("input", el);
+  el.addEventListener("dragover", e => { e.preventDefault(); el.classList.add("over"); });
+  el.addEventListener("dragleave", () => el.classList.remove("over"));
+  el.addEventListener("drop", async e => { e.preventDefault(); el.classList.remove("over"); const items = await filesFromDrop(e.dataTransfer); const label = items.length && e.dataTransfer.items[0].webkitGetAsEntry ? (e.dataTransfer.items[0].webkitGetAsEntry() || {}).name : null; send(kind, items, label); });
+  input.addEventListener("change", () => { const items = filesFromInput(input); const label = input.files[0] && input.files[0].webkitRelativePath ? input.files[0].webkitRelativePath.split("/")[0] : null; send(kind, items, label); input.value = ""; });
+}
+wireDrop($("#dropReg"), "register");
+wireDrop($("#dropEv"), "batch");
+
+load().then(() => { if (state.ov.packet && !state.ov.active_run_id) { setPill(state.ov.packet.run.status === "done" ? "done" : "failed", state.ov.packet.run.status === "done" ? "packet ready" : "last run had failures"); } });
+</script>
+</body>
+</html>
