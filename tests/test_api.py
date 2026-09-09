@@ -82,31 +82,59 @@ def _register_drop():
     return files, {"paths": paths}
 
 
-def _import_register(client):
+def _new_project(client, name="Demo Tower"):
+    r = client.post("/api/projects/blank", json={"name": name})
+    assert r.status_code == 200, r.text
+    return r.json()["slug"]
+
+
+def _import_register(client, slug):
     files, paths = _register_drop()
-    return client.post("/api/register", files=files, data=paths)
+    return client.post(f"/api/projects/{slug}/register", files=files, data=paths)
+
+
+def test_projects_home_starts_empty_and_lists_new_projects(client):
+    assert client.get("/api/projects").json()["projects"] == []
+    slug = _new_project(client)
+    assert slug == "demo-tower"
+    assert client.post("/api/projects/blank", json={"name": "Demo Tower"}).status_code == 409
+    cards = client.get("/api/projects").json()["projects"]
+    assert [c["slug"] for c in cards] == ["demo-tower"] and cards[0]["items"] == 0 and cards[0]["ready"] == 0
+    assert client.get("/api/projects/nope").status_code == 404
 
 
 def test_batch_needs_register(client):
-    r = client.post("/api/batches", files=_files(BATCH)[:1])
+    slug = _new_project(client)
+    r = client.post(f"/api/projects/{slug}/batches", files=_files(BATCH)[:1])
     assert r.status_code == 409
 
 
 def test_register_csv_alone_is_rejected_when_photos_missing(client):
-    r = client.post("/api/register", files=[("files", ("register.csv", REGISTER.read_bytes()))])
+    slug = _new_project(client)
+    r = client.post(f"/api/projects/{slug}/register", files=[("files", ("register.csv", REGISTER.read_bytes()))])
     assert r.status_code == 400 and "reference_photo" in r.text
 
 
+def test_two_projects_keep_their_lists_apart(client):
+    a, b = _new_project(client, "Site A"), _new_project(client, "Site B")
+    assert _import_register(client, a).status_code == 200
+    assert client.get(f"/api/projects/{a}").json()["card"]["items"] >= 6
+    assert client.get(f"/api/projects/{b}").json()["card"]["items"] == 0
+    assert client.get(f"/api/projects/{b}/register/D-01/reference").status_code == 404
+    assert client.post(f"/api/projects/{b}/items/D-01/decision", json={"decision": "hold"}).status_code == 404
+
+
 def test_full_flow_with_sse_and_retry(client):
-    r = _import_register(client)
+    slug = _new_project(client)
+    r = _import_register(client, slug)
     assert r.status_code == 200, r.text
     assert r.json()["imported"] >= 6
-    assert client.get("/api/register/D-01/reference").status_code == 200
+    assert client.get(f"/api/projects/{slug}/register/D-01/reference").status_code == 200
 
     files = _files(BATCH)
     client.fake.fail_once.add("IMG_2201_L2_corridor_firestop.jpg")
     data = {"paths": [f"Firestopping/{name}" if "firestop" in name else name for _, (name, _) in files], "label": "drop 1"}
-    r = client.post("/api/batches", files=files, data=data)
+    r = client.post(f"/api/projects/{slug}/batches", files=files, data=data)
     assert r.status_code == 200, r.text
     assert r.json()["files"] == len(files)
 
@@ -116,9 +144,12 @@ def test_full_flow_with_sse_and_retry(client):
     assert "job_failed" in kinds and "completeness" in kinds
     run_id = next(e["data"]["run_id"] for e in evs if e["event"] == "jobs_created")
 
-    ov = client.get("/api/overview").json()
+    ov = client.get(f"/api/projects/{slug}").json()
     assert ov["latest_run_id"] == run_id and ov["active_run_id"] is None
     assert ov["packet"]["run"]["status"] == "failed"
+    assert ov["batches"][0]["label"] == "drop 1" and ov["batches"][0]["files"] == len(files)
+    card = client.get("/api/projects").json()["projects"][0]
+    assert card["items"] >= 6 and card["drops"] == 1 and card["latest_run"]["id"] == run_id
     firestop = next(e for e in ov["packet"]["evidence_index"] if "firestop" in e["filename"])
     assert firestop["metadata"]["folder"] == "Firestopping"
     assert client.get(f"/api/evidence/{firestop['id']}/file").status_code == 200
@@ -139,10 +170,12 @@ def test_full_flow_with_sse_and_retry(client):
     d02 = next(i for i in packet["items"] if i["item"]["item_id"] == "D-02")
     draft = d02["followup_draft"]
     assert draft and client.patch(f"/api/drafts/{draft['id']}", json={"body": "edited"}).status_code == 200
-    assert client.post("/api/items/D-02/decision", json={"decision": "hold", "note": "waiting"}).status_code == 200
+    assert client.post(f"/api/projects/{slug}/items/D-02/decision", json={"decision": "hold", "note": "waiting"}).status_code == 200
     packet = client.get(f"/api/runs/{run_id}/packet").json()
     d02 = next(i for i in packet["items"] if i["item"]["item_id"] == "D-02")
     assert d02["followup_draft"]["body"] == "edited" and d02["decision"]["decision"] == "hold"
+    msgs = client.get(f"/api/projects/{slug}").json()["messages"]
+    assert any(m["item_id"] == "D-02" and m["body"] == "edited" for m in msgs)
 
     # replaying a finished run streams its history and terminates
     evs3 = _events(client, run_id)
@@ -150,7 +183,8 @@ def test_full_flow_with_sse_and_retry(client):
 
 
 def test_second_upload_while_running_is_refused(client, monkeypatch):
-    assert _import_register(client).status_code == 200
+    slug = _new_project(client)
+    assert _import_register(client, slug).status_code == 200
     gate = threading.Event()
     orig = client.fake.match
 
@@ -160,7 +194,7 @@ def test_second_upload_while_running_is_refused(client, monkeypatch):
 
     monkeypatch.setattr(pipeline, "run_match_job", slow)
     files = _files(BATCH)[:2]
-    assert client.post("/api/batches", files=files).status_code == 200
-    assert client.post("/api/batches", files=files).status_code == 409
+    assert client.post(f"/api/projects/{slug}/batches", files=files).status_code == 200
+    assert client.post(f"/api/projects/{slug}/batches", files=files).status_code == 409
     gate.set()
     assert _events(client)[-1]["event"] == "packet"

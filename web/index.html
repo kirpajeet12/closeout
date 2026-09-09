@@ -18,21 +18,58 @@
   button { font: inherit; cursor: pointer; }
   .wrap { max-width: 1080px; margin: 0 auto; padding: 0 28px 80px; }
 
-  header { display: flex; align-items: baseline; justify-content: space-between; padding: 26px 0 18px; border-bottom: 1px solid var(--line); }
-  .wordmark { font-weight: 800; letter-spacing: .2em; font-size: 12px; text-transform: uppercase; }
+  header { display: flex; align-items: center; justify-content: space-between; padding: 22px 0 16px; border-bottom: 1px solid var(--line); gap: 20px; }
+  .wordmark { font-weight: 800; letter-spacing: .2em; font-size: 12px; text-transform: uppercase; white-space: nowrap; }
   .wordmark a { color: inherit; }
-  .proj { text-align: right; }
-  .proj b { display: block; font-size: 15px; }
-  .proj span { color: var(--mute); font-size: 13px; }
+  .crumbs { font-size: 14px; color: var(--mute); display: flex; gap: 8px; align-items: center; min-width: 0; }
+  .crumbs b { color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .crumbs span { white-space: nowrap; }
 
-  /* home hero */
-  .hero { display: grid; grid-template-columns: 1.1fr 1fr; gap: 28px; align-items: stretch; padding: 40px 0 28px; }
-  .count { font-size: clamp(56px, 8vw, 96px); font-weight: 700; line-height: .95; letter-spacing: -.03em; margin: 0; }
-  .count small { display: block; font-size: 20px; font-weight: 500; letter-spacing: 0; color: var(--ink-2); margin-top: 12px; }
-  .bar { display: flex; height: 10px; border-radius: 6px; overflow: hidden; background: var(--none-bg); margin-top: 26px; }
+  /* projects home */
+  .homehead { display: flex; align-items: flex-end; justify-content: space-between; padding: 40px 0 20px; gap: 20px; }
+  .homehead h1 { margin: 0; font-size: 34px; letter-spacing: -.02em; }
+  .homehead p { margin: 6px 0 0; color: var(--mute); }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+  .pcard { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 22px 22px 18px; cursor: pointer; display: flex; flex-direction: column; gap: 10px; min-height: 190px; transition: border-color .15s, transform .15s; position: relative; }
+  .pcard:hover { border-color: var(--ink); transform: translateY(-1px); }
+  .pcard h2 { margin: 0; font-size: 20px; letter-spacing: -.01em; line-height: 1.25; }
+  .pcard .addr { color: var(--mute); font-size: 13px; min-height: 20px; }
+  .pcard .big { font-size: 40px; font-weight: 700; letter-spacing: -.03em; line-height: 1; margin-top: auto; }
+  .pcard .big small { font-size: 14px; font-weight: 500; letter-spacing: 0; color: var(--ink-2); margin-left: 8px; }
+  .pcard .meta { display: flex; gap: 14px; flex-wrap: wrap; color: var(--mute); font-size: 12px; margin-top: 4px; }
+  .pcard .live { position: absolute; top: 18px; right: 18px; width: 10px; height: 10px; border-radius: 50%; background: var(--hot); animation: pulse 1s infinite alternate; }
+  .bar { display: flex; height: 8px; border-radius: 6px; overflow: hidden; background: var(--none-bg); }
   .bar i { display: block; height: 100%; }
   .bar .ready { background: var(--ready); } .bar .needs { background: var(--needs); } .bar .unclear { background: var(--unclear); }
-  .legend { display: flex; gap: 18px; margin-top: 12px; font-size: 13px; color: var(--mute); }
+  .newp { border: 2px dashed var(--line-2); background: transparent; border-radius: 18px; padding: 22px; display: flex; flex-direction: column; gap: 12px; justify-content: center; min-height: 190px; position: relative; transition: border-color .15s, background .15s; }
+  .newp.over { border-color: var(--hot); background: #fff6ef; }
+  .newp h2 { margin: 0; font-size: 16px; }
+  .newp p { margin: 0; color: var(--mute); font-size: 13px; }
+  .newp form { display: flex; gap: 8px; }
+  .newp input[type=text] { flex: 1; font: inherit; border: 1px solid var(--line-2); border-radius: 10px; padding: 9px 12px; background: #fff; min-width: 0; }
+  .newp button { border: 1px solid var(--ink); background: var(--ink); color: #fff; border-radius: 10px; padding: 9px 14px; font-weight: 600; }
+  .newp .or { position: relative; border-top: 1px solid var(--line); margin: 4px 0; }
+  .newp .or span { position: absolute; top: -9px; left: 50%; transform: translateX(-50%); background: var(--paper); padding: 0 8px; font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--mute); }
+  .newp .folder { position: relative; text-align: center; padding: 8px; border-radius: 10px; font-size: 13px; color: var(--ink-2); }
+  .newp .folder input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .newp.over .folder, .newp .folder:hover { background: #fff; }
+
+  /* project page */
+  .phead { display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; padding: 30px 0 0; }
+  .phead h1 { margin: 0; font-size: 30px; letter-spacing: -.02em; line-height: 1.2; }
+  .phead .sub { color: var(--mute); margin-top: 4px; font-size: 14px; }
+  .phead .btn { white-space: nowrap; }
+  .tabs { display: flex; gap: 4px; margin-top: 22px; border-bottom: 1px solid var(--line); }
+  .tabs a { padding: 10px 14px; color: var(--mute); font-weight: 600; font-size: 14px; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .tabs a:hover { text-decoration: none; color: var(--ink); }
+  .tabs a.on { color: var(--ink); border-bottom-color: var(--ink); }
+  .tabs a small { font-weight: 500; color: var(--mute); margin-left: 6px; font-size: 12px; }
+
+  .hero { display: grid; grid-template-columns: 1.1fr 1fr; gap: 28px; align-items: stretch; padding: 30px 0 22px; }
+  .count { font-size: clamp(56px, 8vw, 96px); font-weight: 700; line-height: .95; letter-spacing: -.03em; margin: 0; }
+  .count small { display: block; font-size: 20px; font-weight: 500; letter-spacing: 0; color: var(--ink-2); margin-top: 12px; }
+  .hero .bar { height: 10px; margin-top: 26px; }
+  .legend { display: flex; gap: 18px; margin-top: 12px; font-size: 13px; color: var(--mute); flex-wrap: wrap; }
   .legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: 0; }
 
   .drop { position: relative; border: 2px dashed var(--line-2); border-radius: 18px; background: var(--card); display: flex; flex-direction: column;
@@ -42,9 +79,8 @@
   .drop h2 { margin: 0 0 6px; font-size: 22px; letter-spacing: -.01em; }
   .drop p { margin: 0; color: var(--mute); font-size: 14px; max-width: 34ch; }
   .drop input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
-  .drop.busy { pointer-events: none; opacity: .55; }
   .drop.small { min-height: 0; padding: 18px 20px; flex-direction: row; gap: 14px; text-align: left; justify-content: flex-start; }
-  .drop.small h2 { font-size: 15px; margin: 0; } .drop.small p { font-size: 13px; }
+  .drop.small h2 { font-size: 15px; margin: 0; } .drop.small p { font-size: 13px; max-width: none; }
   .drops { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }
 
   .status { display: flex; align-items: center; gap: 12px; padding: 14px 18px; margin: 14px 0 0; border-radius: 12px; background: var(--card); border: 1px solid var(--line); font-size: 14px; }
@@ -54,10 +90,10 @@
   @keyframes pulse { from { opacity: .35 } to { opacity: 1 } }
   .status .fill { flex: 1; }
   .status .mono { font-family: var(--mono); font-size: 12px; color: var(--mute); }
-  .status button, .btn { border: 1px solid var(--line-2); background: var(--card); border-radius: 8px; padding: 6px 12px; font-size: 13px; }
-  .status button:hover, .btn:hover { border-color: var(--ink); }
+  .status button, .btn { border: 1px solid var(--line-2); background: var(--card); border-radius: 8px; padding: 6px 12px; font-size: 13px; color: var(--ink); }
+  .status button:hover, .btn:hover { border-color: var(--ink); text-decoration: none; }
 
-  h3.sec { font-size: 13px; text-transform: uppercase; letter-spacing: .14em; color: var(--mute); margin: 44px 0 12px; font-weight: 600; }
+  h3.sec { font-size: 13px; text-transform: uppercase; letter-spacing: .14em; color: var(--mute); margin: 40px 0 12px; font-weight: 600; }
 
   table { width: 100%; border-collapse: collapse; background: var(--card); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
   th, td { text-align: left; padding: 14px 16px; border-top: 1px solid var(--line); vertical-align: top; }
@@ -67,6 +103,7 @@
   td .what { font-weight: 600; } td .where { color: var(--mute); font-size: 13px; margin-top: 2px; }
   td.st { width: 1%; white-space: nowrap; } td.call { width: 18%; color: var(--mute); font-size: 13px; }
   td.go { width: 1%; color: var(--mute); }
+  td.num { font-family: var(--mono); font-size: 13px; white-space: nowrap; }
   .pill { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; letter-spacing: .02em; white-space: nowrap; }
   .pill.ready { color: var(--ready); background: var(--ready-bg); } .pill.needs { color: var(--needs); background: var(--needs-bg); }
   .pill.unclear { color: var(--unclear); background: var(--unclear-bg); } .pill.none { color: var(--none); background: var(--none-bg); }
@@ -79,6 +116,26 @@
   .card .file { font-family: var(--mono); font-size: 12px; color: var(--ink-2); }
   .card p { margin: 4px 0 0; font-size: 14px; color: var(--ink-2); }
   .empty { color: var(--mute); padding: 14px 0; }
+
+  /* drawings tab */
+  .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; margin-top: 18px; }
+  .sheet { background: var(--card); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; cursor: pointer; transition: border-color .15s; }
+  .sheet:hover { border-color: var(--ink); }
+  .sheet img { width: 100%; aspect-ratio: 1.4; object-fit: cover; object-position: top left; display: block; background: #fff; border-bottom: 1px solid var(--line); }
+  .sheet .cap { padding: 10px 12px; }
+  .sheet .cap b { display: block; font-family: var(--mono); font-size: 12px; }
+  .sheet .cap span { display: block; font-size: 13px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sheet .cap small { color: var(--mute); font-size: 12px; }
+  .facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-top: 22px; }
+  .fact { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+  .fact b { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: .1em; color: var(--mute); font-weight: 600; margin-bottom: 4px; }
+  .fact span { font-size: 15px; }
+
+  /* messages tab */
+  .msg { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px 22px; margin-top: 12px; }
+  .msg .top { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; font-size: 13px; color: var(--mute); }
+  .msg h4 { margin: 6px 0 8px; font-size: 16px; }
+  .msg pre { white-space: pre-wrap; font: inherit; margin: 0; color: var(--ink-2); }
 
   footer { margin-top: 44px; padding-top: 16px; border-top: 1px solid var(--line); color: var(--mute); font-size: 13px; display: flex; gap: 22px; flex-wrap: wrap; }
 
@@ -96,7 +153,6 @@
   .asked ul { list-style: none; padding: 0; margin: 0; }
   .tick { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 800; }
   .tick.yes { background: var(--ready-bg); color: var(--ready); } .tick.no { background: var(--needs-bg); color: var(--needs); } .tick.maybe { background: var(--unclear-bg); color: var(--unclear); }
-  .asked .desc { font-size: 16px; margin: 0 0 14px; }
   .sent .card { grid-template-columns: 120px 1fr; }
   .sent .thumb { width: 120px; height: 120px; }
   .sent .how { font-size: 13px; margin-top: 6px; }
@@ -119,16 +175,16 @@
   .decided b { color: var(--ink); }
   .hist { margin-top: 10px; font-size: 13px; color: var(--mute); }
 
-  .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(20px); background: var(--ink); color: #fff; padding: 10px 16px; border-radius: 10px; font-size: 14px; opacity: 0; transition: .2s; pointer-events: none; }
+  .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(20px); background: var(--ink); color: #fff; padding: 10px 16px; border-radius: 10px; font-size: 14px; opacity: 0; transition: .2s; pointer-events: none; z-index: 9; }
   .toast.show { opacity: 1; transform: translateX(-50%); } .toast.err { background: var(--hot); }
-  @media (max-width: 760px) { .hero, .grid2, .drops, .refs { grid-template-columns: 1fr; } .wrap { padding: 0 16px 60px; } }
+  @media (max-width: 760px) { .hero, .grid2, .drops, .refs { grid-template-columns: 1fr; } .wrap { padding: 0 16px 60px; } .tabs { overflow-x: auto; } }
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
     <div class="wordmark"><a href="#/">Closeout</a></div>
-    <div class="proj" id="proj"></div>
+    <div class="crumbs" id="crumbs"></div>
   </header>
   <main id="main"></main>
 </div>
@@ -141,10 +197,18 @@ const when = s => { const d = new Date(s); return isNaN(d) ? String(s ?? "") : d
 const fileUrl = (id, page) => `/api/evidence/${id}/file` + (page ? `#page=${page}` : "");
 const isImg = name => /\.(jpe?g|png|heic|heif|webp)$/i.test(name || "");
 const PRICE = { inputTokens: 3 / 1e6, outputTokens: 15 / 1e6 };
-const state = { ov: null, project: null, es: null, run: { kind: "idle", text: "", done: 0, total: 0 } };
+const cost = r => { const u = JSON.parse((r && r.usage_json) || "{}"); return (u.inputTokens || 0) * PRICE.inputTokens + (u.outputTokens || 0) * PRICE.outputTokens; };
+const state = { home: null, p: null, slug: null, es: null, run: { kind: "idle", text: "", done: 0, total: 0 } };
 
 function toast(msg, err) { const t = $("#toast"); t.textContent = msg; t.className = "toast show" + (err ? " err" : ""); setTimeout(() => t.className = "toast", 3200); }
-function route() { const h = location.hash.replace(/^#\/?/, ""); const m = h.match(/^item\/(.+)$/); return m ? { page: "item", id: decodeURIComponent(m[1]) } : { page: "home" }; }
+function route() {
+  const h = location.hash.replace(/^#\/?/, "");
+  let m = h.match(/^p\/([^/]+)\/item\/(.+)$/); if (m) return { page: "item", slug: m[1], id: decodeURIComponent(m[2]) };
+  m = h.match(/^p\/([^/]+)\/?(drawings|evidence|messages)?$/); if (m) return { page: "project", slug: m[1], tab: m[2] || "list" };
+  return { page: "home" };
+}
+const pUrl = (slug, tail) => `/api/projects/${encodeURIComponent(slug)}${tail || ""}`;
+const pHash = (slug, tail) => `#/p/${encodeURIComponent(slug)}${tail || ""}`;
 
 /* ---- plain-English status ---------------------------------------------- */
 function status(i) {
@@ -155,45 +219,104 @@ function status(i) {
 }
 const CALL = { accept: "Ready to close", reject: "Not accepted", hold: "On hold" };
 function items() {
-  const ov = state.ov, p = ov.packet;
-  return p ? p.items : ov.register.map(d => ({ item: d, completeness: "no_evidence", evidence: [], unresolved: [], missing_slots: d.slots, history: [], followup_draft: null, decision: null }));
+  const p = state.p, pk = p.packet;
+  return pk ? pk.items : p.register.map(d => ({ item: d, completeness: "no_evidence", evidence: [], unresolved: [], missing_slots: d.slots, history: [], followup_draft: null, decision: null }));
 }
 
 /* ---- data ----------------------------------------------------------- */
 async function load() {
-  state.ov = await (await fetch("/api/overview")).json();
-  state.project = state.ov.project ? await (await fetch("/api/project")).json() : null;
-  if (state.ov.active_run_id && !state.es) follow(state.ov.active_run_id);
+  const r = route();
+  if (r.page === "home") {
+    state.home = await (await fetch("/api/projects")).json();
+    if (state.home.active_run_id && !state.es) follow(state.home.active_run_id);
+  } else {
+    const res = await fetch(pUrl(r.slug));
+    if (!res.ok) { state.p = null; state.slug = r.slug; render(); return; }
+    state.p = await res.json(); state.slug = r.slug;
+    if (state.p.active_run_id && !state.es) follow(state.p.active_run_id);
+  }
   render();
 }
 function render() {
-  const ov = state.ov, pr = state.project;
-  $("#proj").innerHTML = pr ? `<b>${esc(pr.name)}</b><span>${esc([pr.address, pr.city].filter(Boolean).join(", "))} · ${pr.sheets.length} sheets · ${pr.units.length} units</span>` : `<span>No project loaded yet</span>`;
-  const r = route();
-  if (r.page === "item") renderItem(r.id); else renderHome();
+  const r = route(), p = state.p;
+  const inP = r.page !== "home" && p;
+  $("#crumbs").innerHTML = inP ? `<a href="#/">Projects</a><span>›</span><b>${esc(p.project.name)}</b>${r.page === "item" ? `<span>›</span><span>${esc(r.id)}</span>` : ""}` : `<span>${state.home ? `${state.home.projects.length} project${state.home.projects.length === 1 ? "" : "s"}` : ""}</span>`;
+  if (r.page === "home") renderHome();
+  else if (!p) $("#main").innerHTML = `<a class="back" href="#/">← Projects</a><p class="empty">No project called “${esc(r.slug)}”.</p>`;
+  else if (r.page === "item") renderItem(r.id);
+  else renderProject(r.tab);
 }
 
-/* ---- home ------------------------------------------------------------ */
+/* ---- projects home --------------------------------------------------- */
 function renderHome() {
-  const ov = state.ov, list = items();
+  const h = state.home, list = h.projects;
+  $("#main").innerHTML = `
+    <div class="homehead"><div><h1>Projects</h1><p>${list.length ? "Open a project to review its deficiencies, drawings and the evidence contractors sent." : "Start with a project: give it a name, or drop the project folder with the drawings."}</p></div></div>
+    <div class="status ${esc(state.run.kind)}" id="status" ${state.run.kind === "idle" ? "hidden" : ""}></div>
+    <div class="cards" style="margin-top:18px">
+      ${list.map(c => { const pct = k => c.items ? (c[k] / c.items * 100) + "%" : "0%"; return `
+      <div class="pcard" data-slug="${esc(c.slug)}">
+        ${c.active ? `<span class="live" title="Agent is working"></span>` : ""}
+        <h2>${esc(c.name)}</h2>
+        <div class="addr">${esc([c.address, c.city].filter(Boolean).join(", ") || (c.sheets ? "" : "No drawings yet"))}</div>
+        <div class="big">${c.ready}<small>of ${c.items} ready to close</small></div>
+        <div class="bar"><i class="ready" style="width:${pct("ready")}"></i><i class="needs" style="width:${pct("needs")}"></i><i class="unclear" style="width:${pct("unclear")}"></i></div>
+        <div class="meta"><span>${c.sheets} sheets</span><span>${c.items} deficiencies</span><span>${c.drops} evidence drop${c.drops === 1 ? "" : "s"}</span><span>${c.last_activity ? "updated " + esc(when(c.last_activity)) : ""}</span></div>
+      </div>`; }).join("")}
+      <div class="newp" id="newp">
+        <h2>New project</h2>
+        <form id="newForm"><input type="text" id="newName" placeholder="Project name, e.g. Maple Court" autocomplete="off"><button type="submit">Create</button></form>
+        <div class="or"><span>or</span></div>
+        <div class="folder">Drop the project folder here<br><small style="color:var(--mute)">The agent reads every current sheet and names the project from the title block.</small><input type="file" webkitdirectory multiple></div>
+      </div>
+    </div>
+    <footer><span>Nothing here is an engineering determination. The engineer decides.</span>${h.model_id ? `<span>Agents run on ${esc(h.model_id.replace(/^us\./, ""))}</span>` : ""}</footer>`;
+  $("#main").querySelectorAll(".pcard").forEach(c => c.onclick = () => location.hash = pHash(c.dataset.slug));
+  $("#newForm").onsubmit = async e => {
+    e.preventDefault();
+    const name = $("#newName").value.trim(); if (!name) return toast("Give the project a name", true);
+    const r = await fetch("/api/projects/blank", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) return toast(j.detail || "Could not create the project", true);
+    toast(`Created ${name}`); location.hash = pHash(j.slug);
+  };
+  wireDrop($("#newp"), "project", null);
+  renderStatus();
+}
+
+/* ---- project page ----------------------------------------------------- */
+function renderProject(tab) {
+  const p = state.p, pr = p.project, c = p.card, slug = state.slug;
+  const T = { list: "Deficiencies", drawings: "Drawings", evidence: "Evidence drops", messages: "Messages" };
+  const counts = { list: c.items, drawings: c.sheets, evidence: c.drops, messages: p.messages.length };
+  $("#main").innerHTML = `
+    <div class="phead">
+      <div><h1>${esc(pr.name)}</h1><div class="sub">${esc([pr.address, pr.city, pr.building_type].filter(Boolean).join(" · ") || "No drawings read yet")}</div></div>
+      ${p.latest_run_id ? `<a class="btn" href="/api/runs/${p.latest_run_id}/packet.md" target="_blank">Review packet</a>` : ""}
+    </div>
+    <div class="tabs">${Object.keys(T).map(k => `<a href="${pHash(slug, k === "list" ? "" : "/" + k)}" class="${tab === k ? "on" : ""}">${T[k]}<small>${counts[k]}</small></a>`).join("")}</div>
+    <div id="tab"></div>`;
+  ({ list: renderList, drawings: renderDrawings, evidence: renderDrops, messages: renderMessages })[tab]();
+}
+
+function renderList() {
+  const p = state.p, slug = state.slug, list = items();
   const n = { ready: 0, needs: 0, unclear: 0, none: 0 };
   list.forEach(i => n[status(i).k]++);
   const pct = k => list.length ? (n[k] / list.length * 100) + "%" : "0%";
-  const usage = ov.packet ? JSON.parse(ov.packet.run.usage_json || "{}") : {};
-  const cost = (usage.inputTokens || 0) * PRICE.inputTokens + (usage.outputTokens || 0) * PRICE.outputTokens;
-  const rid = ov.latest_run_id;
-  $("#main").innerHTML = `
+  const rid = p.latest_run_id;
+  $("#tab").innerHTML = `
     <div class="hero">
       <div>
         <p class="count">${n.ready} of ${list.length}<small>ready to close</small></p>
         <div class="bar"><i class="ready" style="width:${pct("ready")}"></i><i class="needs" style="width:${pct("needs")}"></i><i class="unclear" style="width:${pct("unclear")}"></i></div>
         <div class="legend"><span><i style="background:var(--ready)"></i>${n.ready} ready</span><span><i style="background:var(--needs)"></i>${n.needs} need something</span><span><i style="background:var(--unclear)"></i>${n.unclear} unclear</span><span><i style="background:var(--none-bg);border:1px solid var(--line-2)"></i>${n.none} nothing yet</span></div>
       </div>
-      <div class="drop big" id="dropEv"><div class="arrow">↓</div><h2>Drop evidence</h2><p>Drag the contractor's folder of photos, reports and letters here. The agent files each one against the list.</p><input type="file" webkitdirectory multiple></div>
+      <div class="drop big" id="dropEv"><div class="arrow">↓</div><h2>Drop evidence</h2><p>${p.register.length ? "Drag the contractor's folder of photos, reports and letters here. The agent files each one against the list." : "Load the deficiency list first, then drop what the contractor sends."}</p><input type="file" webkitdirectory multiple></div>
     </div>
     <div class="drops">
-      <div class="drop small" id="dropReg"><div><h2>Deficiency list</h2><p>${ov.register.length ? `${ov.register.length} items loaded. Drop a folder with the CSV and photos to replace it.` : "Drop a folder with the register CSV and the field-review photos."}</p></div><input type="file" webkitdirectory multiple></div>
-      <div class="drop small" id="dropPrj"><div><h2>Project drawings</h2><p>${state.project ? `${state.project.sheets.length} sheets read. Drop a project folder to replace it.` : "Drop the project folder. Every current sheet is read so locations resolve to real rooms."}</p></div><input type="file" webkitdirectory multiple></div>
+      <div class="drop small" id="dropReg"><div><h2>Deficiency list</h2><p>${p.register.length ? `${p.register.length} items loaded. Drop a folder with the CSV and photos to replace it.` : "Drop a folder with the register CSV and the field-review photos."}</p></div><input type="file" webkitdirectory multiple></div>
+      <div class="drop small" id="dropPrj"><div><h2>Project drawings</h2><p>${p.project.sheets.length ? `${p.project.sheets.length} sheets read. Drop a project folder to replace them.` : "Drop the project folder. Every current sheet is read so locations resolve to real rooms."}</p></div><input type="file" webkitdirectory multiple></div>
     </div>
     <div class="status ${esc(state.run.kind)}" id="status"></div>
     <h3 class="sec">Deficiencies</h3>
@@ -205,16 +328,16 @@ function renderHome() {
         <td class="call">${i.decision ? esc(CALL[i.decision.decision] || i.decision.decision) : "—"}</td>
         <td class="go">›</td></tr>`; }).join("")}
     </tbody></table>` : `<p class="empty">No deficiency list yet. Drop one above to start.</p>`}
-    ${ov.packet && ov.packet.unmatched.length ? `<h3 class="sec">Files that did not fit any item</h3><div class="left">${ov.packet.unmatched.map(u => `
+    ${p.packet && p.packet.unmatched.length ? `<h3 class="sec">Files that did not fit any item</h3><div class="left">${p.packet.unmatched.map(u => `
       <div class="card"><div class="thumb">${isImg(u.filename) ? `<img src="${fileUrl(u.evidence_id)}" alt="">` : esc((u.filename || "").split(".").pop().toUpperCase())}</div>
       <div><div class="file">${esc(u.filename)}</div><p>${esc(leftover(u))}</p></div></div>`).join("")}</div>` : ""}
     <footer>
       ${rid ? `<a href="/api/runs/${rid}/packet.md" target="_blank">Review packet</a><a href="/api/runs/${rid}/packet" target="_blank">Packet as JSON</a>` : ""}
-      ${ov.packet ? `<span>${ov.packet.evidence_index.length} files on record</span><span>Last run ≈ $${cost.toFixed(2)} on ${esc(ov.model_id.replace(/^us\./, ""))}</span>` : ""}
+      ${p.packet ? `<span>${p.packet.evidence_index.length} files on record</span><span>Last run ≈ $${cost(p.packet.run).toFixed(2)} on ${esc(p.model_id.replace(/^us\./, ""))}</span>` : ""}
       <span>Nothing here is an engineering determination. The engineer decides.</span>
     </footer>`;
-  $("#main").querySelectorAll("tr.row").forEach(r => r.onclick = () => location.hash = "#/item/" + encodeURIComponent(r.dataset.id));
-  wireDrop($("#dropEv"), "batch"); wireDrop($("#dropReg"), "register"); wireDrop($("#dropPrj"), "project");
+  $("#tab").querySelectorAll("tr.row").forEach(r => r.onclick = () => location.hash = pHash(slug, "/item/" + encodeURIComponent(r.dataset.id)));
+  wireDrop($("#dropEv"), "batch", slug); wireDrop($("#dropReg"), "register", slug); wireDrop($("#dropPrj"), "drawings", slug);
   renderStatus();
 }
 function leftover(u) {
@@ -222,28 +345,80 @@ function leftover(u) {
   if (u.status === "ambiguous") return `Could be ${u.candidates.join(" or ")}. ${u.rationale}`;
   return u.rationale;
 }
+
+function renderDrawings() {
+  const pr = state.p.project, slug = state.slug;
+  const byDisc = {};
+  pr.sheets.forEach(sh => (byDisc[sh.discipline_name || sh.discipline] = byDisc[sh.discipline_name || sh.discipline] || []).push(sh));
+  $("#tab").innerHTML = pr.sheets.length ? `
+    ${pr.description ? `<p style="margin:22px 0 0;max-width:70ch;color:var(--ink-2)">${esc(pr.description)}</p>` : ""}
+    <div class="facts">
+      ${pr.units.length ? `<div class="fact"><b>Units</b><span>${esc(pr.units.map(u => (u.label || u.name || u)).join(", "))}</span></div>` : ""}
+      ${pr.levels.length ? `<div class="fact"><b>Levels</b><span>${esc(pr.levels.map(l => l.name || l).join(", "))}</span></div>` : ""}
+      <div class="fact"><b>Current sheets</b><span>${pr.sheets.length} across ${Object.keys(byDisc).length} discipline${Object.keys(byDisc).length === 1 ? "" : "s"}</span></div>
+      <div class="fact"><b>Documents in the folder</b><span>${pr.documents.length} (${pr.documents.filter(d => d.is_current).length} current)</span></div>
+    </div>
+    ${Object.keys(byDisc).map(k => `<h3 class="sec">${esc(k)}</h3><div class="gallery">${byDisc[k].map(sh => `
+      <div class="sheet" data-url="${sh.image_url}"><img src="${sh.thumb_url || sh.image_url}" alt="" loading="lazy"><div class="cap"><b>${esc(sh.sheet_number || "p." + sh.page)}</b><span>${esc(sh.title || "")}</span><small>${(sh.read && sh.read.spaces || []).length} spaces read</small></div></div>`).join("")}</div>`).join("")}
+    <p class="empty" style="margin-top:22px">Tap a sheet to open it full size. Adding a deficiency straight from a sheet comes next.</p>`
+  : `<div class="drop big" id="dropPrj" style="margin-top:24px"><div class="arrow">↓</div><h2>Drop the project folder</h2><p>The agent finds the current drawing sets, renders every sheet and reads rooms, units and levels off them.</p><input type="file" webkitdirectory multiple></div><div class="status ${esc(state.run.kind)}" id="status"></div>`;
+  $("#tab").querySelectorAll(".sheet").forEach(s => s.onclick = () => window.open(s.dataset.url, "_blank"));
+  wireDrop($("#dropPrj"), "drawings", slug); renderStatus();
+}
+
+function renderDrops() {
+  const p = state.p, slug = state.slug;
+  const rows = [...p.batches].reverse();
+  $("#tab").innerHTML = `
+    <div class="drop small" id="dropEv" style="margin-top:22px"><div><h2>Drop evidence</h2><p>Each folder the contractor sends is kept as its own drop. Files already on record are recognised and not re-read.</p></div><input type="file" webkitdirectory multiple></div>
+    <div class="status ${esc(state.run.kind)}" id="status"></div>
+    ${rows.length ? `<table style="margin-top:22px"><thead><tr><th>Drop</th><th>When</th><th>Files</th><th>Run</th><th>Cost</th></tr></thead><tbody>
+      ${rows.map(b => { const r = b.runs[b.runs.length - 1]; return `<tr>
+        <td><div class="what">${esc(b.label)}</div></td>
+        <td class="num">${esc(when(b.created_at))}</td>
+        <td class="num">${b.files}${b.duplicates ? ` <span style="color:var(--mute)">(${b.duplicates} already on record)</span>` : ""}</td>
+        <td>${r ? `<span class="pill ${r.status === "done" ? "ready" : r.status === "failed" ? "needs" : "unclear"}">${esc(r.status)}</span> ${r.status === "failed" ? `<button class="btn" data-retry="${r.id}">Try again</button>` : ""} <a href="/api/runs/${r.id}/packet.md" target="_blank" style="font-size:13px">packet</a>` : "—"}</td>
+        <td class="num">${r ? "$" + cost(r).toFixed(2) : ""}</td></tr>`; }).join("")}
+    </tbody></table>` : `<p class="empty">No evidence dropped yet.</p>`}`;
+  $("#tab").querySelectorAll("[data-retry]").forEach(b => b.onclick = () => retry(b.dataset.retry));
+  wireDrop($("#dropEv"), "batch", slug); renderStatus();
+}
+
+function renderMessages() {
+  const p = state.p, slug = state.slug;
+  $("#tab").innerHTML = p.messages.length ? p.messages.map(m => `
+    <div class="msg"><div class="top"><span>To the contractor about <a href="${pHash(slug, "/item/" + encodeURIComponent(m.item_id))}">${esc(m.item_id)}</a></span><span>${esc(when(m.updated_at || m.created_at))}</span></div>
+      <h4>${esc(m.subject)}</h4><pre>${esc(m.body)}</pre></div>`).join("")
+  : `<p class="empty" style="margin-top:22px">No messages yet. When evidence is missing or unclear, the agent drafts a follow-up here for you to edit and send.</p>`;
+}
+
 function renderStatus() {
   const el = $("#status"); if (!el) return;
-  const r = state.run, ov = state.ov;
+  const r = state.run, p = state.p;
+  el.hidden = false;
   el.className = "status " + (r.kind === "run" ? "run" : r.kind === "ok" ? "ok" : r.kind === "bad" ? "bad" : "");
   let text = r.text;
-  if (r.kind === "idle") text = ov.packet ? `Last run finished ${when(ov.packet.run.finished_at || ov.packet.run.started_at)}.` : "Waiting for a drop.";
-  const retry = r.kind === "bad" && ov.latest_run_id ? `<button id="retry">Try the failed parts again</button>` : "";
-  el.innerHTML = `<span class="dot"></span><span class="fill">${esc(text)}</span>${r.total ? `<span class="mono">${r.done}/${r.total}</span>` : ""}${retry}`;
-  const b = $("#retry"); if (b) b.onclick = async () => { const res = await fetch(`/api/runs/${ov.latest_run_id}/retry`, { method: "POST" }); if (res.ok) follow(ov.latest_run_id); else toast((await res.json()).detail, true); };
+  if (r.kind === "idle") text = p && p.packet ? `Last run finished ${when(p.packet.run.finished_at || p.packet.run.started_at)}.` : "Waiting for a drop.";
+  const retryBtn = r.kind === "bad" && p && p.latest_run_id ? `<button id="retry">Try the failed parts again</button>` : "";
+  el.innerHTML = `<span class="dot"></span><span class="fill">${esc(text)}</span>${r.total ? `<span class="mono">${r.done}/${r.total}</span>` : ""}${retryBtn}`;
+  const b = $("#retry"); if (b) b.onclick = () => retry(p.latest_run_id);
+}
+async function retry(runId) {
+  const res = await fetch(`/api/runs/${runId}/retry`, { method: "POST" });
+  if (res.ok) follow(runId); else toast((await res.json()).detail, true);
 }
 
 /* ---- item page ------------------------------------------------------- */
 function renderItem(id) {
-  const i = items().find(x => x.item.item_id === id);
-  if (!i) { $("#main").innerHTML = `<a class="back" href="#/">← Back</a><p class="empty">No item ${esc(id)}.</p>`; return; }
+  const slug = state.slug, i = items().find(x => x.item.item_id === id);
+  if (!i) { $("#main").innerHTML = `<a class="back" href="${pHash(slug)}">← Back</a><p class="empty">No item ${esc(id)}.</p>`; return; }
   const d = i.item, s = status(i);
   const filled = new Set(i.evidence.filter(f => f.slot_index >= 0 && (f.tier === "explicit" || f.tier === "strong")).map(f => f.slot_index));
   const weak = new Set(i.evidence.filter(f => f.slot_index >= 0 && f.tier === "weak").map(f => f.slot_index));
-  const sheet = state.project && d.sheet ? state.project.sheets.find(sh => sh.sheet_number === d.sheet) : null;
+  const sheet = d.sheet ? state.p.project.sheets.find(sh => sh.sheet_number === d.sheet) : null;
   const draft = i.followup_draft;
   $("#main").innerHTML = `
-    <a class="back" href="#/">← All deficiencies</a>
+    <a class="back" href="${pHash(slug)}">← All deficiencies</a>
     <div class="item-head">
       <div><div class="idm">${esc(d.item_id)} · ${esc(d.discipline || "")}${d.review_date ? ` · reviewed ${esc(d.review_date)}` : ""}</div><h1>${esc(d.description)}</h1><div class="where">${esc(d.location)}${d.sheet ? ` · sheet ${esc(d.sheet)}` : ""}</div></div>
       <span class="pill lg ${s.k}">${esc(s.t)}</span>
@@ -254,7 +429,7 @@ function renderItem(id) {
       </section>
       <section class="box"><h2>Where it is</h2>
         <div class="refs">
-          ${d.reference_photo ? `<figure><img src="/api/register/${esc(d.item_id)}/reference" alt=""><figcaption>Engineer's photo at the field review</figcaption></figure>` : ""}
+          ${d.reference_photo ? `<figure><img src="${pUrl(slug, "/register/" + encodeURIComponent(d.item_id) + "/reference")}" alt=""><figcaption>Engineer's photo at the field review</figcaption></figure>` : ""}
           ${sheet ? `<figure><a href="${sheet.image_url}" target="_blank"><img src="${sheet.image_url}" alt="" loading="lazy"></a><figcaption>Sheet ${esc(sheet.sheet_number)} · ${esc(sheet.title)}</figcaption></figure>` : `<p class="empty">No sheet ${esc(d.sheet || "")} in the project drawings.</p>`}
         </div>
       </section>
@@ -275,7 +450,7 @@ function renderItem(id) {
       ${i.history && i.history.length ? `<div class="hist">History: ${dedupe(i.history).map(h => `${esc(when(h.run_started_at))} → ${esc(status({ completeness: h.completeness, missing_slots: h.missing_slots || [] }).t)}`).join(" · ")}</div>` : ""}
     </section>`;
   $("#main").querySelectorAll(".call .btns button[data-d]").forEach(btn => btn.onclick = async () => {
-    const r = await fetch(`/api/items/${encodeURIComponent(d.item_id)}/decision`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ decision: btn.dataset.d, note: $("#decNote").value || null }) });
+    const r = await fetch(pUrl(slug, `/items/${encodeURIComponent(d.item_id)}/decision`), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ decision: btn.dataset.d, note: $("#decNote").value || null }) });
     if (r.ok) { toast("Recorded"); load(); } else toast("Could not record", true);
   });
   const sv = $("#saveDraft"); if (sv) sv.onclick = async () => {
@@ -314,7 +489,7 @@ function slotName(f) {
 }
 
 /* ---- live run feed --------------------------------------------------- */
-function follow(runId) {
+function follow(runId, onDone) {
   if (state.es) state.es.close();
   state.run = { kind: "run", text: "Starting…", done: 0, total: 0 }; renderStatus();
   const es = new EventSource(`/api/runs/${runId}/events`);
@@ -335,7 +510,8 @@ function follow(runId) {
         es.close(); state.es = null;
         const bad = e.event === "run_error" || d.failed_jobs > 0 || d.status === "failed";
         state.run = { kind: bad ? "bad" : "ok", text: e.event === "run_error" ? `Run error: ${d.error}` : bad ? `Finished, but ${d.failed_jobs} part(s) failed.` : e.event === "project_ready" ? `Project read: ${d.name}.` : "Done. Every file has been filed.", done: 0, total: 0 };
-        load(); return;
+        if (onDone) onDone(e.event, d); else load();
+        return;
     }
     renderStatus();
     if (e.event === "completeness" || e.event === "job_done") load();
@@ -364,29 +540,31 @@ async function filesFromDrop(dt, keepTop) {
 function filesFromInput(input, keepTop) {
   return [...input.files].map(f => ({ file: f, path: keepTop ? (f.webkitRelativePath || f.name) : ((f.webkitRelativePath || f.name).split("/").slice(1).join("/") || f.name) })).filter(o => !o.path.split("/").some(p => p.startsWith(".")));
 }
-async function send(kind, items, label) {
+async function send(kind, slug, items, label) {
   if (!items.length) return toast("Nothing to upload", true);
   const fd = new FormData();
   items.forEach(o => { fd.append("files", o.file, o.file.name); fd.append("paths", o.path); });
   if (kind === "batch" && label) fd.append("label", label);
   if (kind === "project") fd.append("slug", (label || "project").toLowerCase().replace(/[^a-z0-9]+/g, "-"));
   toast(`Uploading ${items.length} files…`);
-  const r = await fetch({ batch: "/api/batches", register: "/api/register", project: "/api/project" }[kind], { method: "POST", body: fd });
+  const url = kind === "project" ? "/api/projects" : pUrl(slug, { batch: "/batches", register: "/register", drawings: "/drawings" }[kind]);
+  const r = await fetch(url, { method: "POST", body: fd });
   const j = await r.json().catch(() => ({}));
   if (!r.ok) return toast(j.detail || `Upload failed (${r.status})`, true);
   if (kind === "register") { toast(`Deficiency list loaded: ${j.imported} items`); load(); }
+  else if (kind === "project") { load(); follow("pending", () => { location.hash = pHash(j.slug); load(); }); }
   else follow("pending");
 }
-function wireDrop(el, kind) {
+function wireDrop(el, kind, slug) {
   if (!el) return;
-  const input = $("input", el), keepTop = kind === "project";
+  const input = $("input[type=file]", el), keepTop = kind === "project" || kind === "drawings";
   el.addEventListener("dragover", e => { e.preventDefault(); el.classList.add("over"); });
   el.addEventListener("dragleave", () => el.classList.remove("over"));
-  el.addEventListener("drop", async e => { e.preventDefault(); el.classList.remove("over"); const items = await filesFromDrop(e.dataTransfer, keepTop); const ent = e.dataTransfer.items[0] && e.dataTransfer.items[0].webkitGetAsEntry && e.dataTransfer.items[0].webkitGetAsEntry(); send(kind, items, ent ? ent.name : null); });
-  input.addEventListener("change", () => { const items = filesFromInput(input, keepTop); const label = input.files[0] && input.files[0].webkitRelativePath ? input.files[0].webkitRelativePath.split("/")[0] : null; send(kind, items, label); input.value = ""; });
+  el.addEventListener("drop", async e => { e.preventDefault(); el.classList.remove("over"); const items = await filesFromDrop(e.dataTransfer, keepTop); const ent = e.dataTransfer.items[0] && e.dataTransfer.items[0].webkitGetAsEntry && e.dataTransfer.items[0].webkitGetAsEntry(); send(kind, slug, items, ent ? ent.name : null); });
+  input.addEventListener("change", () => { const items = filesFromInput(input, keepTop); const label = input.files[0] && input.files[0].webkitRelativePath ? input.files[0].webkitRelativePath.split("/")[0] : null; send(kind, slug, items, label); input.value = ""; });
 }
 
-window.addEventListener("hashchange", render);
+window.addEventListener("hashchange", () => { if (route().page === "home" && state.p) { state.p = null; } load(); });
 load();
 </script>
 </body>

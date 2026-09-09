@@ -10,7 +10,8 @@ from pathlib import Path
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS deficiencies (
-  item_id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL DEFAULT '',
+  item_id TEXT NOT NULL,
   location TEXT NOT NULL,
   description TEXT NOT NULL,
   evidence_required TEXT NOT NULL,
@@ -19,7 +20,9 @@ CREATE TABLE IF NOT EXISTS deficiencies (
   discipline TEXT,
   reference_photo TEXT NOT NULL DEFAULT '',
   ref_meta_json TEXT NOT NULL DEFAULT '{}',
-  imported_at TEXT NOT NULL
+  sheet TEXT NOT NULL DEFAULT '',
+  imported_at TEXT NOT NULL,
+  PRIMARY KEY (project_id, item_id)
 );
 CREATE TABLE IF NOT EXISTS evidence (
   id TEXT PRIMARY KEY,
@@ -37,6 +40,7 @@ CREATE TABLE IF NOT EXISTS evidence (
 );
 CREATE TABLE IF NOT EXISTS batches (
   id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL DEFAULT '',
   label TEXT NOT NULL,
   created_at TEXT NOT NULL
 );
@@ -50,6 +54,7 @@ CREATE TABLE IF NOT EXISTS batch_files (
 );
 CREATE TABLE IF NOT EXISTS runs (
   id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL DEFAULT '',
   batch_id TEXT NOT NULL,
   model_id TEXT NOT NULL,
   status TEXT NOT NULL,          -- running | done | failed
@@ -108,6 +113,7 @@ CREATE TABLE IF NOT EXISTS drafts (
 );
 CREATE TABLE IF NOT EXISTS decisions (
   id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL DEFAULT '',
   item_id TEXT NOT NULL,
   decision TEXT NOT NULL,        -- accepted | rejected | needs_more
   note TEXT,
@@ -202,46 +208,79 @@ class Store:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self.conn = _LockedConn(self.db_path)
         self.conn.executescript(SCHEMA)
+        self._migrate()
+
+    def _cols(self, table: str) -> list[str]:
+        return [r[1] for r in self.conn.execute(f"PRAGMA table_info({table})")]
+
+    def _migrate(self) -> None:
+        """Older databases: add columns, then tie every existing row to the one project they belonged to."""
         for table, col, ddl in (("deficiencies", "reference_photo", "TEXT NOT NULL DEFAULT ''"),
                                 ("deficiencies", "ref_meta_json", "TEXT NOT NULL DEFAULT '{}'"),
                                 ("deficiencies", "sheet", "TEXT NOT NULL DEFAULT ''"),
-                                ("runs", "kind", "TEXT NOT NULL DEFAULT 'batch'")):
-            if col not in [r[1] for r in self.conn.execute(f"PRAGMA table_info({table})")]:
+                                ("runs", "kind", "TEXT NOT NULL DEFAULT 'batch'"),
+                                ("batches", "project_id", "TEXT NOT NULL DEFAULT ''"),
+                                ("runs", "project_id", "TEXT NOT NULL DEFAULT ''"),
+                                ("decisions", "project_id", "TEXT NOT NULL DEFAULT ''")):
+            if col not in self._cols(table):
                 self.conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {ddl}")
+        if "project_id" not in self._cols("deficiencies"):
+            # the old table had item_id as its primary key: rebuild it with (project_id, item_id)
+            self.conn.executescript("""
+                ALTER TABLE deficiencies RENAME TO deficiencies_old;
+                CREATE TABLE deficiencies (
+                  project_id TEXT NOT NULL DEFAULT '', item_id TEXT NOT NULL, location TEXT NOT NULL, description TEXT NOT NULL,
+                  evidence_required TEXT NOT NULL, slots_json TEXT NOT NULL, review_date TEXT, discipline TEXT,
+                  reference_photo TEXT NOT NULL DEFAULT '', ref_meta_json TEXT NOT NULL DEFAULT '{}', sheet TEXT NOT NULL DEFAULT '',
+                  imported_at TEXT NOT NULL, PRIMARY KEY (project_id, item_id));
+                INSERT INTO deficiencies(item_id, location, description, evidence_required, slots_json, review_date, discipline,
+                                         reference_photo, ref_meta_json, sheet, imported_at)
+                  SELECT item_id, location, description, evidence_required, slots_json, review_date, discipline,
+                         reference_photo, ref_meta_json, sheet, imported_at FROM deficiencies_old;
+                DROP TABLE deficiencies_old;""")
+        projects = self.conn.execute("SELECT id FROM projects ORDER BY created_at").fetchall()
+        if len(projects) == 1:
+            pid = projects[0]["id"]
+            for table in ("deficiencies", "batches", "decisions"):
+                self.conn.execute(f"UPDATE {table} SET project_id=? WHERE project_id=''", (pid,))
+            self.conn.execute("UPDATE runs SET project_id=? WHERE project_id=''", (pid,))
+        # project runs carry their project in batch_id ('project:<id>') regardless of how many projects exist
+        self.conn.execute("UPDATE runs SET project_id=substr(batch_id, 9) WHERE project_id='' AND batch_id LIKE 'project:%'")
+        self.conn.commit()
 
     # --- register -------------------------------------------------------
-    def upsert_deficiencies(self, items) -> None:
-        """One register at a time: rows not in this import are removed (their findings stay in history)."""
+    def upsert_deficiencies(self, project_id: str, items, replace: bool = True) -> None:
+        """Import a register into one project. With replace=True (a CSV import) the project's rows not in this import are
+        removed (their findings stay in history); with replace=False (adding items one at a time) nothing is removed."""
         ids = [d.item_id for d in items]
-        if ids:
-            self.conn.execute(f"DELETE FROM deficiencies WHERE item_id NOT IN ({','.join('?' * len(ids))})", ids)
+        if replace and ids:
+            self.conn.execute(f"DELETE FROM deficiencies WHERE project_id=? AND item_id NOT IN ({','.join('?' * len(ids))})", [project_id, *ids])
         for d in items:
             self.conn.execute(
-                """INSERT INTO deficiencies(item_id, location, description, evidence_required, slots_json, review_date, discipline,
+                """INSERT INTO deficiencies(project_id, item_id, location, description, evidence_required, slots_json, review_date, discipline,
                                             reference_photo, ref_meta_json, sheet, imported_at)
-                   VALUES(?,?,?,?,?,?,?,?,?,?,?)
-                   ON CONFLICT(item_id) DO UPDATE SET location=excluded.location, description=excluded.description,
+                   VALUES(?,?,?,?,?,?,?,?,?,?,?,?)
+                   ON CONFLICT(project_id, item_id) DO UPDATE SET location=excluded.location, description=excluded.description,
                      evidence_required=excluded.evidence_required, slots_json=excluded.slots_json,
                      review_date=excluded.review_date, discipline=excluded.discipline,
                      reference_photo=excluded.reference_photo, ref_meta_json=excluded.ref_meta_json, sheet=excluded.sheet""",
-                (d.item_id, d.location, d.description, d.evidence_required,
+                (project_id, d.item_id, d.location, d.description, d.evidence_required,
                  json.dumps([s.__dict__ for s in d.slots]), d.review_date, d.discipline,
                  d.reference_photo, json.dumps(getattr(d, "ref_meta", {}) or {}), getattr(d, "sheet", "") or "", now()),
             )
         self.conn.commit()
 
-    def deficiencies(self) -> list[dict]:
-        rows = self.conn.execute("SELECT * FROM deficiencies ORDER BY item_id").fetchall()
-        out = []
-        for r in rows:
-            out.append(self._d(r))
-        return out
+    def deficiencies(self, project_id: str) -> list[dict]:
+        rows = self.conn.execute("SELECT * FROM deficiencies WHERE project_id=? ORDER BY item_id", (project_id,)).fetchall()
+        return [self._d(r) for r in rows]
 
-    def deficiency(self, item_id: str) -> dict | None:
-        r = self.conn.execute("SELECT * FROM deficiencies WHERE item_id=?", (item_id,)).fetchone()
-        if not r:
-            return None
-        return self._d(r)
+    def deficiency(self, project_id: str, item_id: str) -> dict | None:
+        r = self.conn.execute("SELECT * FROM deficiencies WHERE project_id=? AND item_id=?", (project_id, item_id)).fetchone()
+        return self._d(r) if r else None
+
+    def delete_deficiency(self, project_id: str, item_id: str) -> None:
+        self.conn.execute("DELETE FROM deficiencies WHERE project_id=? AND item_id=?", (project_id, item_id))
+        self.conn.commit()
 
     @staticmethod
     def _d(r) -> dict:
@@ -259,8 +298,14 @@ class Store:
         r = self.conn.execute("SELECT * FROM evidence WHERE id=?", (evidence_id,)).fetchone()
         return self._ev(r) if r else None
 
-    def all_evidence(self) -> list[dict]:
-        return [self._ev(r) for r in self.conn.execute("SELECT * FROM evidence ORDER BY created_at, filename")]
+    def all_evidence(self, project_id: str | None = None) -> list[dict]:
+        """Every evidence record, or only those that arrived in one project's batches."""
+        if project_id is None:
+            return [self._ev(r) for r in self.conn.execute("SELECT * FROM evidence ORDER BY created_at, filename")]
+        rows = self.conn.execute(
+            """SELECT DISTINCT e.* FROM evidence e JOIN batch_files bf ON bf.evidence_id=e.id JOIN batches b ON b.id=bf.batch_id
+               WHERE b.project_id=? ORDER BY e.created_at, e.filename""", (project_id,)).fetchall()
+        return [self._ev(r) for r in rows]
 
     @staticmethod
     def _ev(r) -> dict:
@@ -280,14 +325,16 @@ class Store:
         self.conn.commit()
         return eid
 
-    def create_batch(self, label: str) -> str:
+    def create_batch(self, project_id: str, label: str) -> str:
         bid = new_id("batch")
-        self.conn.execute("INSERT INTO batches(id, label, created_at) VALUES(?,?,?)", (bid, label, now()))
+        self.conn.execute("INSERT INTO batches(id, project_id, label, created_at) VALUES(?,?,?,?)", (bid, project_id, label, now()))
         self.conn.commit()
         return bid
 
-    def batches(self) -> list[dict]:
-        return [dict(r) for r in self.conn.execute("SELECT * FROM batches ORDER BY created_at")]
+    def batches(self, project_id: str | None = None) -> list[dict]:
+        if project_id is None:
+            return [dict(r) for r in self.conn.execute("SELECT * FROM batches ORDER BY created_at")]
+        return [dict(r) for r in self.conn.execute("SELECT * FROM batches WHERE project_id=? ORDER BY created_at", (project_id,))]
 
     def add_batch_file(self, batch_id: str, evidence_id: str, uploaded_name: str, duplicate_of_name: str | None) -> None:
         self.conn.execute(
@@ -307,10 +354,10 @@ class Store:
         return [self._ev(r) for r in rows]
 
     # --- runs and jobs --------------------------------------------------
-    def create_run(self, batch_id: str, model_id: str, kind: str = "batch") -> str:
+    def create_run(self, project_id: str, batch_id: str, model_id: str, kind: str = "batch") -> str:
         rid = new_id("run")
-        self.conn.execute("INSERT INTO runs(id, batch_id, model_id, status, started_at, kind) VALUES(?,?,?,?,?,?)",
-                          (rid, batch_id, model_id, "running", now(), kind))
+        self.conn.execute("INSERT INTO runs(id, project_id, batch_id, model_id, status, started_at, kind) VALUES(?,?,?,?,?,?,?)",
+                          (rid, project_id, batch_id, model_id, "running", now(), kind))
         self.conn.commit()
         return rid
 
@@ -323,8 +370,16 @@ class Store:
         r = self.conn.execute("SELECT * FROM runs WHERE id=?", (run_id,)).fetchone()
         return dict(r) if r else None
 
-    def runs(self) -> list[dict]:
-        return [dict(r) for r in self.conn.execute("SELECT * FROM runs ORDER BY started_at")]
+    def runs(self, project_id: str | None = None, kind: str | None = None) -> list[dict]:
+        q, args = "SELECT * FROM runs", []
+        conds = []
+        if project_id is not None:
+            conds.append("project_id=?"); args.append(project_id)
+        if kind is not None:
+            conds.append("kind=?"); args.append(kind)
+        if conds:
+            q += " WHERE " + " AND ".join(conds)
+        return [dict(r) for r in self.conn.execute(q + " ORDER BY started_at", args)]
 
     def create_job(self, run_id: str, kind: str, subject: str) -> str:
         jid = new_id("job")
@@ -372,15 +427,15 @@ class Store:
     def findings_for_run(self, run_id: str) -> list[dict]:
         return [self._f(r) for r in self.conn.execute("SELECT * FROM findings WHERE run_id=? ORDER BY created_at", (run_id,))]
 
-    def current_findings(self) -> list[dict]:
-        """Latest run's findings per evidence, across all runs (history-preserving reprocessing)."""
+    def current_findings(self, project_id: str) -> list[dict]:
+        """Latest run's findings per evidence within one project, across all its runs (history-preserving reprocessing)."""
         rows = self.conn.execute(
-            """SELECT f.* FROM findings f
-               JOIN (SELECT evidence_id, MAX(created_at) AS latest FROM findings GROUP BY evidence_id) l
-                 ON l.evidence_id = f.evidence_id
-               JOIN runs r ON r.id = f.run_id
-               WHERE f.run_id = (SELECT run_id FROM findings f2 WHERE f2.evidence_id=f.evidence_id ORDER BY created_at DESC LIMIT 1)
-               ORDER BY f.created_at""").fetchall()
+            """SELECT f.* FROM findings f JOIN runs r ON r.id = f.run_id
+               WHERE r.project_id = ?
+                 AND f.run_id = (SELECT f2.run_id FROM findings f2 JOIN runs r2 ON r2.id = f2.run_id
+                                 WHERE f2.evidence_id = f.evidence_id AND r2.project_id = r.project_id
+                                 ORDER BY f2.created_at DESC LIMIT 1)
+               ORDER BY f.created_at""", (project_id,)).fetchall()
         return [self._f(r) for r in rows]
 
     def findings_for_evidence(self, evidence_id: str) -> list[dict]:
@@ -413,10 +468,10 @@ class Store:
             out[d["item_id"]] = d
         return out
 
-    def item_history(self, item_id: str) -> list[dict]:
+    def item_history(self, project_id: str, item_id: str) -> list[dict]:
         rows = self.conn.execute(
             """SELECT s.*, r.started_at AS run_started_at, r.batch_id FROM item_status s JOIN runs r ON r.id=s.run_id
-               WHERE s.item_id=? ORDER BY s.id""", (item_id,)).fetchall()
+               WHERE r.project_id=? AND s.item_id=? ORDER BY s.id""", (project_id, item_id)).fetchall()
         out = []
         for r in rows:
             d = dict(r)
@@ -445,21 +500,26 @@ class Store:
     def drafts_for_run(self, run_id: str) -> list[dict]:
         return [dict(r) for r in self.conn.execute("SELECT * FROM drafts WHERE run_id=? ORDER BY item_id", (run_id,))]
 
-    def latest_drafts(self) -> dict[str, dict]:
+    def latest_drafts(self, project_id: str) -> dict[str, dict]:
         out = {}
-        for r in self.conn.execute("SELECT * FROM drafts ORDER BY updated_at"):
+        for r in self.conn.execute("SELECT d.* FROM drafts d JOIN runs r ON r.id=d.run_id WHERE r.project_id=? ORDER BY d.updated_at", (project_id,)):
             out[r["item_id"]] = dict(r)
         return out
 
-    def add_decision(self, item_id: str, decision: str, note: str | None) -> str:
+    def all_drafts(self, project_id: str) -> list[dict]:
+        """Every draft ever written for the project, newest first (the Messages tab)."""
+        return [dict(r) for r in self.conn.execute(
+            "SELECT d.* FROM drafts d JOIN runs r ON r.id=d.run_id WHERE r.project_id=? ORDER BY d.updated_at DESC", (project_id,))]
+
+    def add_decision(self, project_id: str, item_id: str, decision: str, note: str | None) -> str:
         did = new_id("dec")
-        self.conn.execute("INSERT INTO decisions(id, item_id, decision, note, created_at) VALUES(?,?,?,?,?)",
-                          (did, item_id, decision, note, now()))
+        self.conn.execute("INSERT INTO decisions(id, project_id, item_id, decision, note, created_at) VALUES(?,?,?,?,?,?)",
+                          (did, project_id, item_id, decision, note, now()))
         self.conn.commit()
         return did
 
-    def decisions(self) -> list[dict]:
-        return [dict(r) for r in self.conn.execute("SELECT * FROM decisions ORDER BY created_at")]
+    def decisions(self, project_id: str) -> list[dict]:
+        return [dict(r) for r in self.conn.execute("SELECT * FROM decisions WHERE project_id=? ORDER BY created_at", (project_id,))]
 
     # --- project --------------------------------------------------------
     def upsert_project(self, slug: str, name: str, source_root: str, model: dict | None = None) -> str:
@@ -483,8 +543,25 @@ class Store:
     def project(self, project_id: str | None = None) -> dict | None:
         q = "SELECT * FROM projects WHERE id=?" if project_id else "SELECT * FROM projects ORDER BY updated_at DESC LIMIT 1"
         r = self.conn.execute(q, (project_id,) if project_id else ()).fetchone()
-        if not r:
-            return None
+        return self._p(r) if r else None
+
+    def project_by_slug(self, slug: str) -> dict | None:
+        r = self.conn.execute("SELECT * FROM projects WHERE slug=?", (slug,)).fetchone()
+        return self._p(r) if r else None
+
+    def projects(self) -> list[dict]:
+        return [self._p(r) for r in self.conn.execute("SELECT * FROM projects ORDER BY updated_at DESC")]
+
+    def rename_project(self, project_id: str, name: str) -> None:
+        self.conn.execute("UPDATE projects SET name=?, updated_at=? WHERE id=?", (name, now(), project_id))
+        self.conn.commit()
+
+    def touch_project(self, project_id: str) -> None:
+        self.conn.execute("UPDATE projects SET updated_at=? WHERE id=?", (now(), project_id))
+        self.conn.commit()
+
+    @staticmethod
+    def _p(r) -> dict:
         d = dict(r)
         d["model"] = json.loads(d.pop("model_json") or "{}")
         return d

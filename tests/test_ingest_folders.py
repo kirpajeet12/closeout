@@ -28,12 +28,13 @@ def test_subfolders_and_hidden(tmp_path):
     files = _collect(root)
     assert [str(f.relative_to(root)) for f in files] == ["Firestopping/L2/IMG_2201_L2_corridor_firestop.jpg"]
     st = Store(tmp_path / "db.sqlite")
-    import_register(st, ROOT / "samples/register/register.csv")
-    r = ingest_batch(st, files, "t", tmp_path / "storage", root=root)
+    pid = st.upsert_project("t", "T", "")
+    import_register(st, pid, ROOT / "samples/register/register.csv")
+    r = ingest_batch(st, pid, files, "t", tmp_path / "storage", root=root)
     assert not r.rejected and len(r.new) == 1
     ev = r.new[0]
     assert ev["metadata"]["folder"] == "Firestopping/L2"
-    ctx, _ = file_context(st, ev, [])
+    ctx, _ = file_context(st, pid, ev, [])
     assert ctx.startswith("Folder the contractor put it in: Firestopping/L2")
 
 
@@ -42,7 +43,8 @@ def test_heic_converted_with_gps(tmp_path):
     heic = tmp_path / "brick.HEIC"
     subprocess.run(["sips", "-s", "format", "heic", str(SRC / "IMG_2210.jpg"), "--out", str(heic)], check=True, capture_output=True)
     st = Store(tmp_path / "db.sqlite")
-    r = ingest_batch(st, [heic], "t", tmp_path / "storage")
+    pid = st.upsert_project("t", "T", "")
+    r = ingest_batch(st, pid, [heic], "t", tmp_path / "storage")
     assert not r.rejected and len(r.new) == 1
     ev = r.new[0]
     assert ev["stored_path"].endswith(".jpg") and ev["mime"] == "image/jpeg"

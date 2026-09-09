@@ -453,7 +453,7 @@ def import_project(store: Store, root: Path, slug: str, settings: Settings = SET
     if not read_with_model:
         return {"project_id": project_id, "run_id": None, "sheets": len(sheets), "status": "scanned"}
 
-    run_id = store.create_run(f"project:{project_id}", settings.model_id, kind="project")
+    run_id = store.create_run(project_id, f"project:{project_id}", settings.model_id, kind="project")
     for s in sheets:
         store.create_job(run_id, "sheet", s.sheet_id)
     store.create_job(run_id, "project_summary", project_id)
@@ -464,7 +464,7 @@ def import_project(store: Store, root: Path, slug: str, settings: Settings = SET
 def continue_project_run(store: Store, run_id: str, settings: Settings = SETTINGS, progress: Progress = _noop, workers: int = 3) -> dict:
     """Run every pending/failed sheet job (in parallel), then the summary. Safe to call again after a failure."""
     run = store.run(run_id)
-    project_id = run["batch_id"].split(":", 1)[1]
+    project_id = run["project_id"] or run["batch_id"].split(":", 1)[1]
     prj = store.project(project_id)
     index = prj["model"].get("drawing_index", {})
     model = make_model(settings)

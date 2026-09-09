@@ -20,6 +20,7 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="closeout")
     sub = ap.add_subparsers(dest="cmd", required=True)
     r = sub.add_parser("run", help="import a register (optional) and process a batch folder")
+    r.add_argument("--project", required=True, help="project slug; created empty if it does not exist yet")
     r.add_argument("--register", type=Path)
     r.add_argument("--batch", type=Path, required=True)
     r.add_argument("--label", default=None)
@@ -32,14 +33,16 @@ def main(argv=None) -> int:
 
     store = open_store(SETTINGS)
     if args.cmd == "run":
+        prj = store.project_by_slug(args.project)
+        pid = prj["id"] if prj else store.upsert_project(args.project, args.project, "")
         if args.register:
-            items = import_register(store, args.register)
+            items = import_register(store, pid, args.register)
             print(f"[register] imported {len(items)} items")
         files = sorted((p for p in args.batch.rglob("*")
                         if p.is_file() and not any(part.startswith(".") for part in p.relative_to(args.batch).parts)),
                        key=lambda p: (str(p.parent.relative_to(args.batch)).lower(),
                                       re.sub(r" \(\d+\)$", "", p.stem).lower(), len(p.name), p.name))
-        res = process_batch(store, files, args.label or args.batch.name, SETTINGS, progress=_print_progress,
+        res = process_batch(store, pid, files, args.label or args.batch.name, SETTINGS, progress=_print_progress,
                             reprocess_all=args.reprocess_all, root=args.batch)
         print(json.dumps(res, indent=2))
         return 0 if res["status"] == "done" else 1

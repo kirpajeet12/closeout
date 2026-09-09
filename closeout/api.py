@@ -1,8 +1,9 @@
-"""Evidence Desk API: one FastAPI app over the pipeline. Runs execute on a worker thread and stream progress as SSE.
+"""Closeout API: one FastAPI app over the pipeline. Runs execute on a worker thread and stream progress as SSE.
 
     uvicorn closeout.api:app --reload
 
-Nothing here calls the model directly; it only drives `pipeline.process_batch` / `continue_run` and reads the store.
+Everything hangs off a project: /api/projects/{slug}/... Nothing here calls the model directly; it only drives
+`pipeline.process_batch` / `continue_run` / `project.import_project` and reads the store.
 """
 from __future__ import annotations
 
@@ -69,6 +70,11 @@ class Decision(BaseModel):
     note: str | None = None
 
 
+class NewProject(BaseModel):
+    name: str
+    address: str | None = None
+
+
 def _sorted_files(root: Path) -> list[Path]:
     return sorted((p for p in root.rglob("*")
                    if p.is_file() and not any(part.startswith(".") for part in p.relative_to(root).parts)),
@@ -83,8 +89,41 @@ def _safe_relpath(name: str) -> Path:
     return Path(*parts)
 
 
+def _slug(s: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", (s or "project").lower()).strip("-") or "project"
+
+
+def _stamp() -> str:
+    return datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+
+
+def project_card(st: Store, prj: dict, active_run_id: str | None) -> dict:
+    """What the projects home shows per project: name, address, sheets, how many items are ready to close."""
+    pid = prj["id"]
+    items = st.deficiencies(pid)
+    batch_runs = st.runs(pid, kind="batch")
+    latest = batch_runs[-1] if batch_runs else None
+    status = st.item_status_for_run(latest["id"]) if latest else {}
+    n = {"complete": 0, "incomplete": 0, "needs_clarification": 0, "no_evidence": 0}
+    for d in items:
+        n[(status.get(d["item_id"]) or {}).get("completeness", "no_evidence")] += 1
+    decisions = {d["item_id"]: d["decision"] for d in st.decisions(pid)}
+    m = prj["model"]
+    runs = st.runs(pid)
+    return {
+        "id": pid, "slug": prj["slug"], "name": prj["name"], "address": m.get("address", ""), "city": m.get("city", ""),
+        "building_type": m.get("building_type", ""), "sheets": len(st.sheets(pid)), "documents": len(st.documents(pid)),
+        "items": len(items), "ready": n["complete"], "needs": n["incomplete"], "unclear": n["needs_clarification"], "nothing": n["no_evidence"],
+        "closed": sum(1 for v in decisions.values() if v == "accept"),
+        "drops": len(st.batches(pid)), "last_activity": prj["updated_at"],
+        "latest_run": {k: latest[k] for k in ("id", "status", "started_at", "finished_at")} if latest else None,
+        "active": bool(active_run_id) and any(r["id"] == active_run_id for r in runs),
+        "created_at": prj["created_at"],
+    }
+
+
 def create_app(settings: Settings = SETTINGS) -> FastAPI:
-    app = FastAPI(title="Closeout Evidence Desk", version="0.2")
+    app = FastAPI(title="Closeout", version="0.3")
     feeds: dict[str, RunFeed] = {}
     pending: list[RunFeed] = []  # feeds whose run_id is not known yet (ingest still running)
     lock = threading.Lock()
@@ -93,9 +132,28 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
     def store() -> Store:
         return pipeline.open_store(settings)
 
+    def _project(st: Store, slug: str) -> dict:
+        prj = st.project_by_slug(slug)
+        if not prj:
+            raise HTTPException(404, f"no project '{slug}'")
+        return prj
+
     def _feed_for(run_id: str) -> RunFeed | None:
         with lock:
             return feeds.get(run_id)
+
+    def _reserve() -> RunFeed:
+        with lock:
+            if state["active"] or pending:
+                raise HTTPException(409, "a run is already in progress")
+            feed = RunFeed()
+            pending.append(feed)
+            return feed
+
+    def _release(feed: RunFeed) -> None:
+        with lock:  # never leave a dead pending feed blocking the desk
+            if feed in pending:
+                pending.remove(feed)
 
     def _launch(target, feed: RunFeed) -> None:
         def progress(event: str, data: dict) -> None:
@@ -117,104 +175,150 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
                 with lock:
                     if state["active"] == feed.run_id:
                         state["active"] = None
+                    if feed in pending:
+                        pending.remove(feed)
                 if not feed.done:
                     feed.push("run_error", {"error": "run ended without a packet"})
 
         threading.Thread(target=body, name="closeout-run", daemon=True).start()
 
-    # --- overview -------------------------------------------------------
-    @app.get("/api/overview")
-    def overview() -> dict:
+    async def _save_upload(files: list[UploadFile], paths: list[str] | None, folder: str) -> tuple[Path, list[str]]:
+        root = settings.data_dir / "uploads" / folder
+        root.mkdir(parents=True, exist_ok=True)
+        rel = paths if paths and len(paths) == len(files) else [f.filename or "file" for f in files]
+        for f, name in zip(files, rel):
+            dest = root / _safe_relpath(name)
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            dest.write_bytes(await f.read())
+        return root, rel
+
+    # --- projects -------------------------------------------------------
+    @app.get("/api/projects")
+    def projects() -> dict:
         st = store()
-        runs = st.runs()
-        latest = runs[-1]["id"] if runs else None
-        packet = build_packet(st, latest) if latest else None
         with lock:
             active = state["active"]
-        prj = project_mod.project_view(st)
-        return {"model_id": settings.model_id, "register": st.deficiencies(), "runs": runs, "latest_run_id": latest,
-                "active_run_id": active, "packet": packet, "batches": st.batches(),
-                "project": {k: prj[k] for k in prj if k != "sheets"} | {"sheet_count": len(prj["sheets"])} if prj else None}
+        return {"model_id": settings.model_id, "active_run_id": active,
+                "projects": [project_card(st, p, active) for p in st.projects()]}
 
-    # --- project --------------------------------------------------------
-    @app.get("/api/project")
-    def project() -> dict:
-        prj = project_mod.project_view(store())
-        if not prj:
-            raise HTTPException(404, "no project yet: drop a project folder first")
-        for sh in prj["sheets"]:
-            sh["image_url"] = f"/api/project/sheets/{sh['id']}/image"
+    @app.post("/api/projects/blank")
+    def new_project(body: NewProject) -> dict:
+        """A project started by name only; drawings, list and evidence come later."""
+        st = store()
+        name = body.name.strip()
+        if not name:
+            raise HTTPException(400, "give the project a name")
+        slug = _slug(name)
+        if st.project_by_slug(slug):
+            raise HTTPException(409, f"a project called '{name}' already exists")
+        pid = st.upsert_project(slug, name, "", {"address": (body.address or "").strip(), "provenance": "user"})
+        return {"id": pid, "slug": slug, "name": name}
+
+    async def _drawings_drop(slug: str | None, files: list[UploadFile], paths: list[str] | None, read_with_model: bool) -> dict:
+        """A project folder is dropped as-is: the drawing sets, letters and forms in their sub-folders."""
+        feed = _reserve()
+        try:
+            root, rel = await _save_upload(files, paths, f"project-{_stamp()}")
+            top = {_safe_relpath(n).parts[0] for n in rel}
+            # the browser sends "<dropped folder>/<sub path>"; the dropped folder itself is the project root
+            if len(top) == 1 and (root / next(iter(top))).is_dir():
+                root = root / next(iter(top))
+            slug_v = _slug(slug or (next(iter(top)) if len(top) == 1 else "project"))
+        except Exception:
+            _release(feed)
+            raise
+
+        def target(progress):
+            project_mod.import_project(store(), root, slug_v, settings, progress=progress, read_with_model=read_with_model)
+
+        feed.push("uploaded", {"label": f"project {slug_v}", "files": len(files), "folder": str(root), "slug": slug_v})
+        _launch(target, feed)
+        return {"slug": slug_v, "files": len(files), "feed": "/api/runs/pending/events"}
+
+    @app.post("/api/projects")
+    async def upload_project(files: list[UploadFile] = File(...), paths: list[str] | None = Form(None),
+                             slug: str | None = Form(None), read_with_model: bool = Form(True)) -> dict:
+        """New project from a dropped folder. The folder name becomes the project until the agent reads its title block."""
+        return await _drawings_drop(slug, files, paths, read_with_model)
+
+    @app.post("/api/projects/{slug}/drawings")
+    async def upload_drawings(slug: str, files: list[UploadFile] = File(...), paths: list[str] | None = Form(None),
+                              read_with_model: bool = Form(True)) -> dict:
+        """Drop (or re-drop) the drawings folder into an existing project."""
+        _project(store(), slug)
+        return await _drawings_drop(slug, files, paths, read_with_model)
+
+    @app.get("/api/projects/{slug}")
+    def project_detail(slug: str) -> dict:
+        """Everything one project page needs: drawings, deficiency list, latest packet, drops, messages."""
+        st = store()
+        prj = _project(st, slug)
+        pid = prj["id"]
+        view = project_mod.project_view(st, pid) or {"id": pid, "slug": prj["slug"], "name": prj["name"], "sheets": [], "units": [],
+                                                    "levels": [], "spaces": [], "documents": [], "disciplines": [], "address": "", "city": ""}
+        for sh in view["sheets"]:
+            sh["image_url"] = f"/api/sheets/{sh['id']}/image"
+            sh["thumb_url"] = f"/api/sheets/{sh['id']}/thumb"
             sh.pop("image_path", None)
-        return prj
+        batch_runs = st.runs(pid, kind="batch")
+        latest = batch_runs[-1]["id"] if batch_runs else None
+        with lock:
+            active = state["active"]
+        runs = st.runs(pid)
+        batches = st.batches(pid)
+        for b in batches:
+            files = st.batch_files(b["id"])
+            b["files"] = len(files)
+            b["duplicates"] = sum(1 for f in files if f["duplicate_of_name"])
+            b["runs"] = [{k: r[k] for k in ("id", "status", "started_at", "finished_at", "usage_json")} for r in runs if r["batch_id"] == b["id"]]
+        return {"project": view, "card": project_card(st, prj, active), "register": st.deficiencies(pid),
+                "runs": runs, "latest_run_id": latest, "active_run_id": active if any(r["id"] == active for r in runs) else None,
+                "packet": build_packet(st, latest) if latest else None, "batches": batches,
+                "messages": st.all_drafts(pid), "decisions": st.decisions(pid), "model_id": settings.model_id}
 
-    @app.get("/api/project/sheets/{sheet_id}/image")
+    @app.get("/api/sheets/{sheet_id}/image")
     def sheet_image(sheet_id: str):
         sh = store().sheet(sheet_id)
         if not sh or not Path(sh["image_path"]).exists():
             raise HTTPException(404, "no such sheet")
         return FileResponse(sh["image_path"], media_type="image/png")
 
-    @app.post("/api/project")
-    async def upload_project(files: list[UploadFile] = File(...), paths: list[str] | None = Form(None),
-                             slug: str | None = Form(None), read_with_model: bool = Form(True)) -> dict:
-        """A project folder is dropped as-is: the drawing sets, letters and forms in their sub-folders."""
-        with lock:
-            if state["active"] or pending:
-                raise HTTPException(409, "a run is already in progress")
-            feed = RunFeed()
-            pending.append(feed)
-        try:
-            stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
-            root = settings.data_dir / "uploads" / f"project-{stamp}"
-            root.mkdir(parents=True, exist_ok=True)
-            rel = paths if paths and len(paths) == len(files) else [f.filename or "file" for f in files]
-            top = {_safe_relpath(n).parts[0] for n in rel}
-            for f, name in zip(files, rel):
-                dest = root / _safe_relpath(name)
-                dest.parent.mkdir(parents=True, exist_ok=True)
-                dest.write_bytes(await f.read())
-            # the browser sends "<dropped folder>/<sub path>"; the dropped folder itself is the project root
-            if len(top) == 1 and (root / next(iter(top))).is_dir():
-                root = root / next(iter(top))
-            slug_v = re.sub(r"[^a-z0-9]+", "-", (slug or "project").lower()).strip("-") or "project"
-        except Exception:
-            with lock:
-                if feed in pending:
-                    pending.remove(feed)
-            raise
-
-        def target(progress):
-            project_mod.import_project(store(), root, slug_v, settings, progress=progress, read_with_model=read_with_model)
-
-        feed.push("uploaded", {"label": f"project {slug_v}", "files": len(files), "folder": str(root)})
-        _launch(target, feed)
-        return {"slug": slug_v, "files": len(files), "feed": "/api/runs/pending/events"}
+    @app.get("/api/sheets/{sheet_id}/thumb")
+    def sheet_thumb(sheet_id: str):
+        """A small JPEG for the gallery; made once from the full render and kept next to it."""
+        sh = store().sheet(sheet_id)
+        if not sh or not Path(sh["image_path"]).exists():
+            raise HTTPException(404, "no such sheet")
+        src = Path(sh["image_path"])
+        thumb = src.with_name(src.stem + ".thumb.jpg")
+        if not thumb.exists() or thumb.stat().st_mtime < src.stat().st_mtime:
+            from PIL import Image
+            with Image.open(src) as im:
+                im = im.convert("RGB")
+                im.thumbnail((640, 640))
+                im.save(thumb, "JPEG", quality=82)
+        return FileResponse(thumb, media_type="image/jpeg")
 
     # --- register -------------------------------------------------------
-    @app.post("/api/register")
-    async def upload_register(files: list[UploadFile] = File(...), paths: list[str] | None = Form(None)) -> dict:
+    @app.post("/api/projects/{slug}/register")
+    async def upload_register(slug: str, files: list[UploadFile] = File(...), paths: list[str] | None = Form(None)) -> dict:
         """The register is dropped as a folder: one CSV plus the reference photos it points at (relative paths)."""
-        stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
-        root = settings.data_dir / "uploads" / f"register-{stamp}"
-        rel = paths if paths and len(paths) == len(files) else [f.filename or "file" for f in files]
-        csvs = []
-        for f, name in zip(files, rel):
-            dest = root / _safe_relpath(name)
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            dest.write_bytes(await f.read())
-            if dest.suffix.lower() == ".csv":
-                csvs.append(dest)
+        st = store()
+        prj = _project(st, slug)
+        root, rel = await _save_upload(files, paths, f"register-{_stamp()}")
+        csvs = [p for p in root.rglob("*.csv")]
         if len(csvs) != 1:
             raise HTTPException(400, f"expected exactly one .csv in the register drop, got {len(csvs)}")
         try:
-            items = pipeline.import_register(store(), csvs[0])
+            items = pipeline.import_register(st, prj["id"], csvs[0])
         except Exception as e:  # noqa: BLE001
             raise HTTPException(400, f"register rejected: {e}") from e
         return {"imported": len(items), "items": [d.item_id for d in items]}
 
-    @app.get("/api/register/{item_id}/reference")
-    def reference_photo(item_id: str):
-        d = store().deficiency(item_id)
+    @app.get("/api/projects/{slug}/register/{item_id}/reference")
+    def reference_photo(slug: str, item_id: str):
+        st = store()
+        d = st.deficiency(_project(st, slug)["id"], item_id)
         if not d or not d.get("reference_photo"):
             raise HTTPException(404, "no reference photo")
         p = Path(d["reference_photo"])
@@ -223,35 +327,24 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         return FileResponse(p, media_type=mimetypes.guess_type(p.name)[0] or "application/octet-stream")
 
     # --- batches / runs -------------------------------------------------
-    @app.post("/api/batches")
-    async def upload_batch(files: list[UploadFile] = File(...), paths: list[str] | None = Form(None),
+    @app.post("/api/projects/{slug}/batches")
+    async def upload_batch(slug: str, files: list[UploadFile] = File(...), paths: list[str] | None = Form(None),
                            label: str | None = Form(None), reprocess_all: bool = Form(False)) -> dict:
-        if not store().deficiencies():
-            raise HTTPException(409, "import a register first")
-        with lock:
-            if state["active"] or pending:
-                raise HTTPException(409, "a run is already in progress")
-            feed = RunFeed()
-            pending.append(feed)
+        st = store()
+        prj = _project(st, slug)
+        if not st.deficiencies(prj["id"]):
+            raise HTTPException(409, "this project has no deficiency list yet")
+        feed = _reserve()
         try:
-            stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
-            label = (label or f"batch-{stamp}").strip()
-            root = settings.data_dir / "uploads" / (re.sub(r"[^A-Za-z0-9._-]+", "_", label) + f"-{stamp}")
-            root.mkdir(parents=True, exist_ok=True)
-            rel = paths if paths and len(paths) == len(files) else [f.filename or "file" for f in files]
-            for f, name in zip(files, rel):
-                dest = root / _safe_relpath(name)
-                dest.parent.mkdir(parents=True, exist_ok=True)
-                dest.write_bytes(await f.read())
+            label = (label or f"drop-{_stamp()}").strip()
+            root, _ = await _save_upload(files, paths, re.sub(r"[^A-Za-z0-9._-]+", "_", label) + f"-{_stamp()}")
             file_list = _sorted_files(root)
         except Exception:
-            with lock:  # never leave a dead pending feed blocking the desk
-                if feed in pending:
-                    pending.remove(feed)
+            _release(feed)
             raise
 
         def target(progress):
-            pipeline.process_batch(store(), file_list, label, settings, progress=progress,
+            pipeline.process_batch(store(), prj["id"], file_list, label, settings, progress=progress,
                                    reprocess_all=reprocess_all, root=root)
 
         feed.push("uploaded", {"label": label, "files": len(file_list), "folder": str(root)})
@@ -359,14 +452,16 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
             raise HTTPException(404, "no such draft") from None
         return {"ok": True}
 
-    @app.post("/api/items/{item_id}/decision")
-    def decide(item_id: str, body: Decision) -> dict:
+    @app.post("/api/projects/{slug}/items/{item_id}/decision")
+    def decide(slug: str, item_id: str, body: Decision) -> dict:
         st = store()
-        if not st.deficiency(item_id):
+        pid = _project(st, slug)["id"]
+        if not st.deficiency(pid, item_id):
             raise HTTPException(404, "no such item")
         if body.decision not in ("accept", "reject", "hold"):
             raise HTTPException(400, "decision must be accept, reject or hold")
-        return {"decision_id": st.add_decision(item_id, body.decision, body.note)}
+        st.touch_project(pid)
+        return {"decision_id": st.add_decision(pid, item_id, body.decision, body.note)}
 
     # --- UI -------------------------------------------------------------
     @app.get("/", include_in_schema=False)

@@ -109,6 +109,7 @@ class JobContext:
     store: Store
     run_id: str
     job_id: str
+    project_id: str = ""
     recorded: list[str] = field(default_factory=list)
     saved_draft: str | None = None
     errors: list[str] = field(default_factory=list)
@@ -124,11 +125,11 @@ def _validate_finding(ctx: JobContext, evidence_id: str, item_id, status, tier, 
         if fl not in LOCATION_FLAGS | OTHER_FLAGS:
             return f"unknown flag '{fl}'; use only {sorted(LOCATION_FLAGS | OTHER_FLAGS)} (a location flag must be spelled exactly)"
     if status == "matched":
-        if not item_id or not ctx.store.deficiency(item_id):
+        if not item_id or not ctx.store.deficiency(ctx.project_id, item_id):
             return "matched findings need a valid item_id from the register"
         if tier not in TIERS:
             return f"matched findings need tier in {sorted(TIERS)}"
-        d = ctx.store.deficiency(item_id)
+        d = ctx.store.deficiency(ctx.project_id, item_id)
         if slot_index is not None and slot_index >= 0 and slot_index >= len(d["slots"]):
             return f"{item_id} has slots 0..{len(d['slots'])-1}"
         if "location_unconfirmed" in (flags or []) and tier != "weak":
@@ -151,7 +152,7 @@ def _validate_finding(ctx: JobContext, evidence_id: str, item_id, status, tier, 
         if item_id:
             return f"status {status} must not carry an item_id; use candidates instead"
     for c in candidates or []:
-        if not ctx.store.deficiency(c):
+        if not ctx.store.deficiency(ctx.project_id, c):
             return f"candidate {c} is not in the register"
     if not ctx.store.evidence(evidence_id):
         return f"unknown evidence_id {evidence_id}"
@@ -196,7 +197,7 @@ def make_match_tools(ctx: JobContext, evidence_id: str):
         Args:
             item_id: e.g. D-03
         """
-        d = ctx.store.deficiency(item_id)
+        d = ctx.store.deficiency(ctx.project_id, item_id)
         if not d:
             return {"status": "error", "content": [{"text": f"no such item {item_id}"}]}
         ref = d.get("reference_photo")
@@ -289,7 +290,8 @@ def run_match_job(store: Store, run_id: str, job_id: str, evidence_id: str, regi
                   filenames: list[str], model=None, file_context: str = "", neighbours: list[str] | None = None,
                   project_text: str = "") -> dict:
     """Run the agent on one evidence file. Raises on failure so the pipeline can mark the job failed."""
-    ctx = JobContext(store=store, run_id=run_id, job_id=job_id, neighbours=list(neighbours or []))
+    ctx = JobContext(store=store, run_id=run_id, job_id=job_id, neighbours=list(neighbours or []),
+                     project_id=(store.run(run_id) or {}).get("project_id", ""))
     ev = store.evidence(evidence_id)
     system = MATCH_SYSTEM.format(register=register_text, notes=notes_text or "(none)", filenames="\n".join(filenames),
                                  project=project_text or "(no project drawings imported)")

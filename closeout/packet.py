@@ -22,13 +22,14 @@ def _src(store: Store, s: dict) -> str:
 
 def build_packet(store: Store, run_id: str) -> dict:
     run = store.run(run_id)
-    items = store.deficiencies()
-    findings = store.current_findings()
+    pid = run["project_id"]
+    items = store.deficiencies(pid)
+    findings = store.current_findings(pid)
     status = store.item_status_for_run(run_id)
     drafts = {d["item_id"]: d for d in store.drafts_for_run(run_id)}
     by_id = {f["id"]: f for f in findings}
     decisions = {}
-    for d in store.decisions():
+    for d in store.decisions(pid):
         decisions[d["item_id"]] = d
 
     packet_items = []
@@ -54,7 +55,7 @@ def build_packet(store: Store, run_id: str) -> dict:
             } for f in unresolved],
             "followup_draft": drafts.get(d["item_id"]),
             "decision": decisions.get(d["item_id"]),
-            "history": store.item_history(d["item_id"]),
+            "history": store.item_history(pid, d["item_id"]),
         })
 
     in_batch = {e['id'] for e in store.batch_evidence(run['batch_id'])}
@@ -73,7 +74,7 @@ def build_packet(store: Store, run_id: str) -> dict:
             "provenance": f["provenance"], "rationale": f["rationale"], "sources": f["sources"],
         } for f in notes],
         "evidence_index": [{k: e[k] for k in ("id", "filename", "kind", "pages", "size", "sha256", "stored_path")}
-                           | {"metadata": e["metadata"], "in_batch": e["id"] in in_batch} for e in store.all_evidence()],
+                           | {"metadata": e["metadata"], "in_batch": e["id"] in in_batch} for e in store.all_evidence(pid)],
     }
 
 

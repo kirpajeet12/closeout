@@ -128,10 +128,10 @@ def _heic_to_jpeg(src: Path, dest: Path) -> None:
                    check=True, capture_output=True)
 
 
-def ingest_batch(store: Store, files: list[Path], label: str, storage_dir: Path, root: Path | None = None) -> IngestResult:
+def ingest_batch(store: Store, project_id: str, files: list[Path], label: str, storage_dir: Path, root: Path | None = None) -> IngestResult:
     """`root` is the folder the batch was dropped as; each file remembers its sub-folder (a real signal: contractors
     sort responses into folders like 'Firestopping/L2')."""
-    batch_id = store.create_batch(label)
+    batch_id = store.create_batch(project_id, label)
     storage_dir.mkdir(parents=True, exist_ok=True)
     res = IngestResult(batch_id=batch_id, new=[], existing=[], duplicates_in_batch=[], rejected=[])
     seen_hashes: dict[str, str] = {}  # sha -> first uploaded name in this batch
