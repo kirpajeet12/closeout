@@ -18,13 +18,13 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, StreamingResponse
 from pydantic import BaseModel
 
-from . import pipeline
+from . import pipeline, project as project_mod
 from .config import SETTINGS, Settings
 from .packet import build_packet, packet_markdown
 from .store import Store
 
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
-TERMINAL_EVENTS = {"packet", "run_error"}
+TERMINAL_EVENTS = {"packet", "project_ready", "run_error"}
 
 
 class RunFeed:
@@ -131,8 +131,64 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         packet = build_packet(st, latest) if latest else None
         with lock:
             active = state["active"]
+        prj = project_mod.project_view(st)
         return {"model_id": settings.model_id, "register": st.deficiencies(), "runs": runs, "latest_run_id": latest,
-                "active_run_id": active, "packet": packet, "batches": st.batches()}
+                "active_run_id": active, "packet": packet, "batches": st.batches(),
+                "project": {k: prj[k] for k in prj if k != "sheets"} | {"sheet_count": len(prj["sheets"])} if prj else None}
+
+    # --- project --------------------------------------------------------
+    @app.get("/api/project")
+    def project() -> dict:
+        prj = project_mod.project_view(store())
+        if not prj:
+            raise HTTPException(404, "no project yet: drop a project folder first")
+        for sh in prj["sheets"]:
+            sh["image_url"] = f"/api/project/sheets/{sh['id']}/image"
+            sh.pop("image_path", None)
+        return prj
+
+    @app.get("/api/project/sheets/{sheet_id}/image")
+    def sheet_image(sheet_id: str):
+        sh = store().sheet(sheet_id)
+        if not sh or not Path(sh["image_path"]).exists():
+            raise HTTPException(404, "no such sheet")
+        return FileResponse(sh["image_path"], media_type="image/png")
+
+    @app.post("/api/project")
+    async def upload_project(files: list[UploadFile] = File(...), paths: list[str] | None = Form(None),
+                             slug: str | None = Form(None), read_with_model: bool = Form(True)) -> dict:
+        """A project folder is dropped as-is: the drawing sets, letters and forms in their sub-folders."""
+        with lock:
+            if state["active"] or pending:
+                raise HTTPException(409, "a run is already in progress")
+            feed = RunFeed()
+            pending.append(feed)
+        try:
+            stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+            root = settings.data_dir / "uploads" / f"project-{stamp}"
+            root.mkdir(parents=True, exist_ok=True)
+            rel = paths if paths and len(paths) == len(files) else [f.filename or "file" for f in files]
+            top = {_safe_relpath(n).parts[0] for n in rel}
+            for f, name in zip(files, rel):
+                dest = root / _safe_relpath(name)
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                dest.write_bytes(await f.read())
+            # the browser sends "<dropped folder>/<sub path>"; the dropped folder itself is the project root
+            if len(top) == 1 and (root / next(iter(top))).is_dir():
+                root = root / next(iter(top))
+            slug_v = re.sub(r"[^a-z0-9]+", "-", (slug or "project").lower()).strip("-") or "project"
+        except Exception:
+            with lock:
+                if feed in pending:
+                    pending.remove(feed)
+            raise
+
+        def target(progress):
+            project_mod.import_project(store(), root, slug_v, settings, progress=progress, read_with_model=read_with_model)
+
+        feed.push("uploaded", {"label": f"project {slug_v}", "files": len(files), "folder": str(root)})
+        _launch(target, feed)
+        return {"slug": slug_v, "files": len(files), "feed": "/api/runs/pending/events"}
 
     # --- register -------------------------------------------------------
     @app.post("/api/register")
@@ -215,7 +271,10 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
             state["active"] = run_id
 
         def target(progress):
-            pipeline.continue_run(st, run_id, settings, progress=progress)
+            if st.run(run_id).get("kind") == "project":
+                project_mod.continue_project_run(st, run_id, settings, progress=progress)
+            else:
+                pipeline.continue_run(st, run_id, settings, progress=progress)
 
         feed.push("retry", {"run_id": run_id})
         _launch(target, feed)
@@ -254,7 +313,8 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
             for j in st.jobs(run_id):
                 feed.push("job_done" if j["status"] == "done" else "job_failed",
                           {"job_id": j["id"], "kind": j["kind"], "subject": j["subject"], "error": j.get("error"), "replay": True})
-            feed.push("packet", {"run_id": run_id, "replay": True, "status": run["status"]})
+            feed.push("project_ready" if run.get("kind") == "project" else "packet",
+                      {"run_id": run_id, "replay": True, "status": run["status"]})
 
         def gen():
             for ev in feed.stream(start):

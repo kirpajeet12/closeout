@@ -113,6 +113,41 @@ CREATE TABLE IF NOT EXISTS decisions (
   note TEXT,
   created_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS projects (
+  id TEXT PRIMARY KEY,
+  slug TEXT UNIQUE NOT NULL,
+  name TEXT NOT NULL,
+  source_root TEXT NOT NULL,
+  model_json TEXT NOT NULL DEFAULT '{}',   -- address, units, levels, parties, summary (model_observation + document)
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS documents (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL,
+  rel_path TEXT NOT NULL,
+  discipline TEXT NOT NULL,
+  dated TEXT,                    -- YYYY-MM-DD from the folder or file name
+  pages INTEGER NOT NULL,
+  kind TEXT NOT NULL,            -- drawing | document
+  sha256 TEXT NOT NULL,
+  size INTEGER NOT NULL,
+  is_current INTEGER NOT NULL DEFAULT 0   -- 1 = newest drawing set of its discipline
+);
+CREATE TABLE IF NOT EXISTS sheets (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL,
+  document_id TEXT NOT NULL,
+  page INTEGER NOT NULL,
+  discipline TEXT NOT NULL,
+  sheet_number TEXT NOT NULL DEFAULT '',
+  title TEXT NOT NULL DEFAULT '',
+  image_path TEXT NOT NULL,
+  text TEXT NOT NULL DEFAULT '',
+  read_json TEXT NOT NULL DEFAULT '{}',    -- what the agent read: levels, units, spaces, elements, notes
+  read_status TEXT NOT NULL DEFAULT 'pending',  -- pending | done | failed
+  created_at TEXT NOT NULL
+);
 """
 
 
@@ -124,6 +159,16 @@ def new_id(prefix: str) -> str:
     return f"{prefix}_{uuid.uuid4().hex[:10]}"
 
 
+class _Rows(list):
+    """Fully materialised query result with the two cursor methods the store uses."""
+
+    def fetchone(self):
+        return self[0] if self else None
+
+    def fetchall(self):
+        return list(self)
+
+
 class _LockedConn:
     """Serialises access to one SQLite connection. Strands runs tools on worker threads."""
 
@@ -133,8 +178,10 @@ class _LockedConn:
         self._lock = threading.RLock()
 
     def execute(self, *a, **kw):
+        """Rows are fetched under the lock: a cursor read after another thread's execute/commit is not safe."""
         with self._lock:
-            return self._conn.execute(*a, **kw)
+            cur = self._conn.execute(*a, **kw)
+            return _Rows(cur.fetchall() if cur.description else [])
 
     def executescript(self, *a, **kw):
         with self._lock:
@@ -155,9 +202,12 @@ class Store:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self.conn = _LockedConn(self.db_path)
         self.conn.executescript(SCHEMA)
-        for col, ddl in (("reference_photo", "TEXT NOT NULL DEFAULT ''"), ("ref_meta_json", "TEXT NOT NULL DEFAULT '{}'")):
-            if col not in [r[1] for r in self.conn.execute("PRAGMA table_info(deficiencies)")]:
-                self.conn.execute(f"ALTER TABLE deficiencies ADD COLUMN {col} {ddl}")
+        for table, col, ddl in (("deficiencies", "reference_photo", "TEXT NOT NULL DEFAULT ''"),
+                                ("deficiencies", "ref_meta_json", "TEXT NOT NULL DEFAULT '{}'"),
+                                ("deficiencies", "sheet", "TEXT NOT NULL DEFAULT ''"),
+                                ("runs", "kind", "TEXT NOT NULL DEFAULT 'batch'")):
+            if col not in [r[1] for r in self.conn.execute(f"PRAGMA table_info({table})")]:
+                self.conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {ddl}")
 
     # --- register -------------------------------------------------------
     def upsert_deficiencies(self, items) -> None:
@@ -253,10 +303,10 @@ class Store:
         return [self._ev(r) for r in rows]
 
     # --- runs and jobs --------------------------------------------------
-    def create_run(self, batch_id: str, model_id: str) -> str:
+    def create_run(self, batch_id: str, model_id: str, kind: str = "batch") -> str:
         rid = new_id("run")
-        self.conn.execute("INSERT INTO runs(id, batch_id, model_id, status, started_at) VALUES(?,?,?,?,?)",
-                          (rid, batch_id, model_id, "running", now()))
+        self.conn.execute("INSERT INTO runs(id, batch_id, model_id, status, started_at, kind) VALUES(?,?,?,?,?,?)",
+                          (rid, batch_id, model_id, "running", now(), kind))
         self.conn.commit()
         return rid
 
@@ -406,3 +456,80 @@ class Store:
 
     def decisions(self) -> list[dict]:
         return [dict(r) for r in self.conn.execute("SELECT * FROM decisions ORDER BY created_at")]
+
+    # --- project --------------------------------------------------------
+    def upsert_project(self, slug: str, name: str, source_root: str, model: dict | None = None) -> str:
+        r = self.conn.execute("SELECT id FROM projects WHERE slug=?", (slug,)).fetchone()
+        if r:
+            self.conn.execute("UPDATE projects SET name=?, source_root=?, updated_at=? WHERE id=?", (name, source_root, now(), r["id"]))
+            if model is not None:
+                self.conn.execute("UPDATE projects SET model_json=? WHERE id=?", (json.dumps(model), r["id"]))
+            self.conn.commit()
+            return r["id"]
+        pid = new_id("prj")
+        self.conn.execute("INSERT INTO projects(id, slug, name, source_root, model_json, created_at, updated_at) VALUES(?,?,?,?,?,?,?)",
+                          (pid, slug, name, source_root, json.dumps(model or {}), now(), now()))
+        self.conn.commit()
+        return pid
+
+    def set_project_model(self, project_id: str, model: dict) -> None:
+        self.conn.execute("UPDATE projects SET model_json=?, updated_at=? WHERE id=?", (json.dumps(model), now(), project_id))
+        self.conn.commit()
+
+    def project(self, project_id: str | None = None) -> dict | None:
+        q = "SELECT * FROM projects WHERE id=?" if project_id else "SELECT * FROM projects ORDER BY updated_at DESC LIMIT 1"
+        r = self.conn.execute(q, (project_id,) if project_id else ()).fetchone()
+        if not r:
+            return None
+        d = dict(r)
+        d["model"] = json.loads(d.pop("model_json") or "{}")
+        return d
+
+    def replace_documents(self, project_id: str, docs: list[dict]) -> list[str]:
+        self.conn.execute("DELETE FROM documents WHERE project_id=?", (project_id,))
+        ids = []
+        for d in docs:
+            did = new_id("doc")
+            self.conn.execute("INSERT INTO documents(id, project_id, rel_path, discipline, dated, pages, kind, sha256, size, is_current) "
+                              "VALUES(?,?,?,?,?,?,?,?,?,?)",
+                              (did, project_id, d["rel_path"], d["discipline"], d.get("dated"), d["pages"], d["kind"], d["sha256"],
+                               d["size"], 1 if d.get("is_current") else 0))
+            ids.append(did)
+        self.conn.commit()
+        return ids
+
+    def documents(self, project_id: str) -> list[dict]:
+        return [dict(r) for r in self.conn.execute("SELECT * FROM documents WHERE project_id=? ORDER BY discipline, dated, rel_path", (project_id,))]
+
+    def replace_sheets(self, project_id: str, sheets: list[dict]) -> list[str]:
+        self.conn.execute("DELETE FROM sheets WHERE project_id=?", (project_id,))
+        ids = []
+        for sh in sheets:
+            sid = new_id("sht")
+            self.conn.execute("INSERT INTO sheets(id, project_id, document_id, page, discipline, sheet_number, title, image_path, text, created_at) "
+                              "VALUES(?,?,?,?,?,?,?,?,?,?)",
+                              (sid, project_id, sh["document_id"], sh["page"], sh["discipline"], sh.get("sheet_number", ""),
+                               sh.get("title", ""), sh["image_path"], sh.get("text", ""), now()))
+            ids.append(sid)
+        self.conn.commit()
+        return ids
+
+    def sheet_read(self, sheet_id: str, read: dict, sheet_number: str | None = None, title: str | None = None,
+                   status: str = "done") -> None:
+        self.conn.execute("UPDATE sheets SET read_json=?, read_status=?, sheet_number=COALESCE(?, sheet_number), "
+                          "title=COALESCE(?, title) WHERE id=?", (json.dumps(read), status, sheet_number, title, sheet_id))
+        self.conn.commit()
+
+    def sheet(self, sheet_id: str) -> dict | None:
+        r = self.conn.execute("SELECT * FROM sheets WHERE id=?", (sheet_id,)).fetchone()
+        return self._sh(r) if r else None
+
+    def sheets(self, project_id: str) -> list[dict]:
+        return [self._sh(r) for r in self.conn.execute("SELECT * FROM sheets WHERE project_id=? ORDER BY discipline, document_id, page", (project_id,))]
+
+    @staticmethod
+    def _sh(r) -> dict:
+        d = dict(r)
+        d["read"] = json.loads(d.pop("read_json") or "{}")
+        return d
+
