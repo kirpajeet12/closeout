@@ -7,7 +7,7 @@ packet that an engineer can review. Built for the AWS **Agents for Humans Hackat
 **What it does**
 
 1. Import the deficiency register (CSV) from a field review.
-2. Upload the contractor's evidence batch: JPEG/PNG photos, text-based PDFs, text notes.
+2. Upload the contractor's evidence batch as the folder they sent it: JPEG/PNG/HEIC photos, text-based PDFs, text notes. Sub-folders are walked and remembered.
 3. One Strands agent, one narrow job at a time, reads each file and records what it supports,
    with a match tier (explicit / strong / weak / ambiguous / unrelated / conflict), the evidence
    slot it fills, and the provenance of every claim.
