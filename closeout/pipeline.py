@@ -14,6 +14,7 @@ from .completeness import compute_item_status
 from .config import SETTINGS, Settings, make_model
 from .ingest import ingest_batch, _exif
 from .packet import save_packet
+from .project import sheet_text_for_agent
 from .register import load_register, register_as_text, Deficiency
 from .store import Store
 
@@ -131,7 +132,8 @@ def _offset(a: dict, b: dict) -> tuple[float, str]:
 def _register_text(store: Store) -> str:
     lines = []
     for d in store.deficiencies():
-        lines.append(f"{d['item_id']} | location: {d['location']} | {d['description']}")
+        lines.append(f"{d['item_id']} | location: {d['location']}" + (f" | sheet {d['sheet']}" if d.get("sheet") else "")
+                     + f" | {d['description']}")
         for s in d["slots"]:
             lines.append(f"    slot {s['index']} [{s['type']}]: {s['description']}")
     return "\n".join(lines)
@@ -186,6 +188,7 @@ def continue_run(store: Store, run_id: str, settings: Settings = SETTINGS, progr
     register_text = _register_text(store)
     notes_text = _notes_text(batch_evidence)
     filenames = [e["filename"] for e in batch_evidence]
+    project_text = sheet_text_for_agent(store)   # "" when no project has been imported
     model = make_model(settings)
 
     for job in store.jobs(run_id):
@@ -198,7 +201,7 @@ def continue_run(store: Store, run_id: str, settings: Settings = SETTINGS, progr
         try:
             fctx, neighbours = file_context(store, ev, batch_evidence)
             res = run_match_job(store, run_id, job["id"], ev["id"], register_text, notes_text, filenames, model=model,
-                                file_context=fctx, neighbours=neighbours)
+                                file_context=fctx, neighbours=neighbours, project_text=project_text)
             store.job_finish(job["id"], "done", usage=res["usage"])
             progress("job_done", {"job_id": job["id"], "filename": ev["filename"], "findings": res["findings"], "usage": res["usage"]})
         except Exception as e:  # noqa: BLE001 - we want every failure recorded and retryable

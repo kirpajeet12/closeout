@@ -74,6 +74,11 @@ A file that supports an item without clearly filling a slot (e.g. a daily log en
 Do not write "compliant", "acceptable", "meets code", "closed", "approved", "certified" or "passes".
 Write what is present, what is missing, and what could not be established.
 
+## The project, as read from its drawings (document + model_observation provenance)
+Use it to resolve where a location is: which building, unit and level a room belongs to, and which sheet shows it.
+Room names alone (Bath, Mech, Kitchen) repeat in every unit; a room name never establishes a location by itself.
+{project}
+
 ## Deficiency register
 {register}
 
@@ -274,11 +279,13 @@ def _usage(result) -> dict:
 
 
 def run_match_job(store: Store, run_id: str, job_id: str, evidence_id: str, register_text: str, notes_text: str,
-                  filenames: list[str], model=None, file_context: str = "", neighbours: list[str] | None = None) -> dict:
+                  filenames: list[str], model=None, file_context: str = "", neighbours: list[str] | None = None,
+                  project_text: str = "") -> dict:
     """Run the agent on one evidence file. Raises on failure so the pipeline can mark the job failed."""
     ctx = JobContext(store=store, run_id=run_id, job_id=job_id, neighbours=list(neighbours or []))
     ev = store.evidence(evidence_id)
-    system = MATCH_SYSTEM.format(register=register_text, notes=notes_text or "(none)", filenames="\n".join(filenames))
+    system = MATCH_SYSTEM.format(register=register_text, notes=notes_text or "(none)", filenames="\n".join(filenames),
+                                 project=project_text or "(no project drawings imported)")
     agent = Agent(model=model or make_model(SETTINGS), tools=make_match_tools(ctx, evidence_id),
                   system_prompt=system, callback_handler=None)
     result = agent(

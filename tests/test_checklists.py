@@ -1,7 +1,7 @@
-"""Checks the latest real run of samples/evidence/batch-01 against the checklist written before the first run.
+"""Checks the latest real run of each sample batch against the checklist written before its first run.
 
-Needs a run on disk (python -m closeout.cli run --register samples/register/register.csv --batch samples/evidence/batch-01).
-Skips, never fakes, when there is none.
+samples/expected/<name>.json  <->  the newest data/runs/*/packet.json whose register has exactly that checklist's items.
+Needs runs on disk (python -m closeout.cli run --register ... --batch ...). Skips, never fakes, when there is none.
 """
 from __future__ import annotations
 
@@ -15,21 +15,35 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA = Path(os.environ.get("CLOSEOUT_DATA_DIR", ROOT / "data"))
-EXPECTED = json.loads((ROOT / "samples/expected/batch-01.json").read_text())
+CHECKLISTS = {p.stem: json.loads(p.read_text()) for p in sorted((ROOT / "samples/expected").glob("*.json"))}
 FORBIDDEN = ("compliant", "complies", "acceptable", "meets code", "closed", "approved", "certif", "passes")
 PROVENANCE = {"register", "contractor_claim", "file_metadata", "model_observation"}
 
 
-def _latest_packet() -> dict | None:
+def _latest_packet(expected: dict) -> dict | None:
     runs = sorted((DATA / "runs").glob("run_*/packet.json"), key=lambda p: p.stat().st_mtime) if (DATA / "runs").exists() else []
-    return json.loads(runs[-1].read_text()) if runs else None
+    for path in reversed(runs):
+        pk = json.loads(path.read_text())
+        if {it["item"]["item_id"] for it in pk["items"]} == set(expected["items"]):
+            return pk
+    return None
+
+
+@pytest.fixture(scope="module", params=sorted(CHECKLISTS))
+def checklist(request):
+    return request.param
 
 
 @pytest.fixture(scope="module")
-def packet():
-    p = _latest_packet()
+def EXPECTED(checklist):
+    return CHECKLISTS[checklist]
+
+
+@pytest.fixture(scope="module")
+def packet(checklist, EXPECTED):
+    p = _latest_packet(EXPECTED)
     if p is None:
-        pytest.skip("no run on disk; run the batch first")
+        pytest.skip(f"no run on disk for {checklist}; run that batch first")
     return p
 
 
@@ -50,12 +64,18 @@ def by_file(packet):
     return out
 
 
-def test_evidence_count_after_dedupe(packet):
+def test_evidence_count_after_dedupe(packet, EXPECTED):
     assert len(packet["evidence_index"]) == EXPECTED["evidence_records"]["count_after_dedupe"]
 
 
-@pytest.mark.parametrize("filename", sorted(EXPECTED["files"]))
-def test_file_expectation(filename, by_file, items):
+ALL_FILES = sorted({f for c in CHECKLISTS.values() for f in c["files"]})
+ALL_ITEMS = sorted({i for c in CHECKLISTS.values() for i in c["items"]})
+
+
+@pytest.mark.parametrize("filename", ALL_FILES)
+def test_file_expectation(filename, by_file, items, EXPECTED):
+    if filename not in EXPECTED["files"]:
+        pytest.skip("not in this checklist")
     exp = EXPECTED["files"][filename]
     fs = by_file.get(filename, [])
     if "supports" in exp:
@@ -95,8 +115,10 @@ def test_file_expectation(filename, by_file, items):
         assert set(exp["flags_include"]) <= flags, f"{filename} flags {flags}"
 
 
-@pytest.mark.parametrize("item_id", sorted(EXPECTED["items"]))
-def test_item_expectation(item_id, items):
+@pytest.mark.parametrize("item_id", ALL_ITEMS)
+def test_item_expectation(item_id, items, EXPECTED):
+    if item_id not in EXPECTED["items"]:
+        pytest.skip("not in this checklist")
     exp = EXPECTED["items"][item_id]
     it = items[item_id]
     allowed = exp.get("completeness_in") or [exp["completeness"]]
@@ -143,12 +165,15 @@ def test_every_finding_has_provenance_and_source(packet):
 
 
 def test_rerun_created_no_new_evidence_records():
+    """Re-uploading a folder never creates evidence rows: one row per distinct file content, across every sample batch."""
     db = DATA / "closeout.db"
     if not db.exists():
         pytest.skip("no database")
     c = sqlite3.connect(db)
     batches = c.execute("SELECT COUNT(*) FROM batches").fetchone()[0]
     evidence = c.execute("SELECT COUNT(*) FROM evidence").fetchone()[0]
-    assert evidence == EXPECTED["evidence_records"]["count_after_dedupe"], f"{evidence} evidence rows after {batches} batch upload(s)"
+    distinct = c.execute("SELECT COUNT(DISTINCT sha256) FROM evidence").fetchone()[0]
+    assert evidence == distinct, f"{evidence} evidence rows but {distinct} distinct files after {batches} upload(s)"
+    assert evidence <= sum(cl["evidence_records"]["count_after_dedupe"] for cl in CHECKLISTS.values())
     if batches < 2:
         pytest.skip("only one upload so far; upload the same folder again to prove the invariant")

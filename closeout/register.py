@@ -8,7 +8,7 @@ from pathlib import Path
 
 SLOT_TYPES = {"photo", "report", "letter", "document"}
 REQUIRED_COLUMNS = {"item_id", "location", "description", "evidence_required"}
-OPTIONAL_COLUMNS = {"review_date", "discipline", "reference_photo"}
+OPTIONAL_COLUMNS = {"review_date", "discipline", "reference_photo", "sheet"}
 
 
 @dataclass
@@ -28,6 +28,7 @@ class Deficiency:
     review_date: str = ""
     discipline: str = ""
     reference_photo: str = ""   # absolute path to the engineer's field-review photo of this deficiency, if any
+    sheet: str = ""             # drawing sheet number the item is pinned to (e.g. "4", "EL-2"), if any
 
     def to_dict(self) -> dict:
         d = asdict(self)
@@ -84,6 +85,7 @@ def load_register(path: str | Path) -> list[Deficiency]:
                     review_date=(row.get("review_date") or "").strip(),
                     discipline=(row.get("discipline") or "").strip(),
                     reference_photo=_resolve_reference(path, row.get("reference_photo"), n, item_id),
+                    sheet=(row.get("sheet") or "").strip(),
                 )
             )
     return items
@@ -105,7 +107,7 @@ def register_as_text(items: list[Deficiency]) -> str:
     """Compact, model-readable rendering of the register."""
     lines = []
     for d in items:
-        lines.append(f"{d.item_id} | location: {d.location} | {d.description}")
+        lines.append(f"{d.item_id} | location: {d.location}" + (f" | sheet {d.sheet}" if d.sheet else "") + f" | {d.description}")
         for s in d.slots:
             lines.append(f"    slot {s.index} [{s.type}]: {s.description}")
     return "\n".join(lines)

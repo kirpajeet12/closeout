@@ -211,18 +211,22 @@ class Store:
 
     # --- register -------------------------------------------------------
     def upsert_deficiencies(self, items) -> None:
+        """One register at a time: rows not in this import are removed (their findings stay in history)."""
+        ids = [d.item_id for d in items]
+        if ids:
+            self.conn.execute(f"DELETE FROM deficiencies WHERE item_id NOT IN ({','.join('?' * len(ids))})", ids)
         for d in items:
             self.conn.execute(
                 """INSERT INTO deficiencies(item_id, location, description, evidence_required, slots_json, review_date, discipline,
-                                            reference_photo, ref_meta_json, imported_at)
-                   VALUES(?,?,?,?,?,?,?,?,?,?)
+                                            reference_photo, ref_meta_json, sheet, imported_at)
+                   VALUES(?,?,?,?,?,?,?,?,?,?,?)
                    ON CONFLICT(item_id) DO UPDATE SET location=excluded.location, description=excluded.description,
                      evidence_required=excluded.evidence_required, slots_json=excluded.slots_json,
                      review_date=excluded.review_date, discipline=excluded.discipline,
-                     reference_photo=excluded.reference_photo, ref_meta_json=excluded.ref_meta_json""",
+                     reference_photo=excluded.reference_photo, ref_meta_json=excluded.ref_meta_json, sheet=excluded.sheet""",
                 (d.item_id, d.location, d.description, d.evidence_required,
                  json.dumps([s.__dict__ for s in d.slots]), d.review_date, d.discipline,
-                 d.reference_photo, json.dumps(getattr(d, "ref_meta", {}) or {}), now()),
+                 d.reference_photo, json.dumps(getattr(d, "ref_meta", {}) or {}), getattr(d, "sheet", "") or "", now()),
             )
         self.conn.commit()
 

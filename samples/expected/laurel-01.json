@@ -1,0 +1,30 @@
+{
+  "_note": "Written BEFORE the agent was run. Pass/fail checklist for samples/laurel/evidence/batch-01 against samples/laurel/register/register.csv (items pinned to the real Laurel sheets). tests/test_checklists.py enforces it against real agent output.",
+  "evidence_records": {
+    "count_after_dedupe": 11,
+    "duplicates": [{"file": "IMG_3305_HRV (1).jpg", "duplicate_of": "IMG_3305_HRV.jpg"}]
+  },
+  "files": {
+    "cover_note.txt":                   {"kind": "contractor_note", "must_not_match": true},
+    "IMG_3301_unitA_bath_firestop.jpg": {"match": "L-01", "tier_in": ["explicit", "strong"]},
+    "IMG_3302_balcony_guard.jpg":       {"match": "L-02", "tier_in": ["explicit", "strong", "weak"], "if_strong_flags_any": ["location_by_reference", "location_from_sequence"], "if_weak_flags_include": ["location_unconfirmed"], "note": "stamp says 3rd floor balcony but not which unit; Units A and C both have one. The reference photo (wall light, corner post, shake wall) or the stamped neighbour IMG_3303 taken 50 s later can place it"},
+    "IMG_3303_balcony_guard_tape.jpg":  {"match": "L-02", "tier_in": ["explicit", "strong"], "slot": "photo"},
+    "IMG_3305_HRV.jpg":                 {"match": "L-03", "tier_in": ["explicit", "strong"]},
+    "IMG_3310.jpg":                     {"match": "L-06", "tier_in": ["weak", "strong"], "if_strong_flags_any": ["location_by_reference"], "if_weak_flags_include": ["location_unconfirmed"], "note": "no stamp; the reference photo shows the same downspout and meter base"},
+    "IMG_3312_mech_tank.jpg":           {"match": "L-07", "tier_in": ["weak", "strong"], "if_strong_flags_any": ["location_by_reference"], "if_weak_flags_include": ["location_unconfirmed"], "note": "stamp 'Mech' fits every unit; only the reference photo (blue shutoff, floor drain) can place it"},
+    "IMG_3315.jpg":                     {"match": null, "status": "unrelated"},
+    "IMG_3320_closet_head.jpg":         {"match": null, "status_in": ["conflict", "unrelated", "ambiguous"], "flags_include": ["conflicting_reference"], "note": "stamp names Unit D; the only closet-head item is in Unit F"},
+    "sprinkler_letter_unitF.pdf":       {"match": "L-05", "tier_in": ["explicit", "strong"], "slot": "letter"},
+    "backflow_test_report.pdf":         {"match": "L-08", "tier_in": ["explicit", "strong"], "slot": "report"}
+  },
+  "items": {
+    "L-01": {"completeness": "complete", "missing_slots": []},
+    "L-02": {"completeness_in": ["complete", "needs_clarification"]},
+    "L-03": {"completeness": "incomplete", "missing_slots": ["report"], "followup_mentions": ["report"]},
+    "L-04": {"completeness": "no_evidence", "followup_mentions": ["directory"]},
+    "L-05": {"completeness": "incomplete", "missing_slots": ["photo"], "followup_mentions": ["photo"], "must_not_link": ["IMG_3320_closet_head.jpg"]},
+    "L-06": {"completeness_in": ["complete", "needs_clarification"]},
+    "L-07": {"completeness_in": ["complete", "needs_clarification"]},
+    "L-08": {"completeness": "incomplete", "missing_slots": ["photo"], "followup_mentions": ["photo"]}
+  }
+}

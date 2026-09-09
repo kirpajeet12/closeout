@@ -24,7 +24,7 @@ class FakeAgent:
         self.calls: list[str] = []
 
     def match(self, store, run_id, job_id, evidence_id, register_text, notes_text, filenames, model=None,
-              file_context="", neighbours=None):
+              file_context="", neighbours=None, project_text=""):
         ev = store.evidence(evidence_id)
         self.calls.append(ev["filename"])
         if ev["filename"] in self.fail_once:
