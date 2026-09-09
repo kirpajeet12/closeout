@@ -65,7 +65,8 @@ def by_file(packet):
 
 
 def test_evidence_count_after_dedupe(packet, EXPECTED):
-    assert len(packet["evidence_index"]) == EXPECTED["evidence_records"]["count_after_dedupe"]
+    """Only the files of this run's batch count; other batches stay on record but are not this drop."""
+    assert len([e for e in packet["evidence_index"] if e["in_batch"]]) == EXPECTED["evidence_records"]["count_after_dedupe"]
 
 
 ALL_FILES = sorted({f for c in CHECKLISTS.values() for f in c["files"]})

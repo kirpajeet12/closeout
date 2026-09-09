@@ -19,6 +19,10 @@ from .store import Store
 STATUSES = {"matched", "ambiguous", "unrelated", "conflict"}
 TIERS = {"explicit", "strong", "weak"}
 PROVENANCE = {"register", "contractor_claim", "file_metadata", "model_observation"}
+# location_* flags carry rules (see _validate_finding); the rest are free descriptors but must come from this list.
+LOCATION_FLAGS = {"location_by_reference", "location_from_sequence", "location_by_gps", "location_unconfirmed", "conflicting_reference"}
+OTHER_FLAGS = {"no_label_visible", "measurement_not_visible", "low_quality", "partial_view", "date_mismatch"}
+
 FORBIDDEN_WORDS = ("compliant", "complies", "acceptable", "meets code", "closed", "approved", "certif", "passes")
 
 MATCH_SYSTEM = """You are the evidence clerk for a consulting engineer's deficiency closeout.
@@ -116,6 +120,9 @@ def _validate_finding(ctx: JobContext, evidence_id: str, item_id, status, tier, 
         return f"status must be one of {sorted(STATUSES)}"
     if provenance not in PROVENANCE:
         return f"provenance must be one of {sorted(PROVENANCE)}"
+    for fl in flags or []:
+        if fl not in LOCATION_FLAGS | OTHER_FLAGS:
+            return f"unknown flag '{fl}'; use only {sorted(LOCATION_FLAGS | OTHER_FLAGS)} (a location flag must be spelled exactly)"
     if status == "matched":
         if not item_id or not ctx.store.deficiency(item_id):
             return "matched findings need a valid item_id from the register"
@@ -227,7 +234,7 @@ def make_match_tools(ctx: JobContext, evidence_id: str):
             tier: explicit | strong | weak (required when matched)
             slot_index: which evidence slot of the item this fills; -1 if it supports the item without filling a slot.
             candidates: item ids considered plausible (required for ambiguous and conflict)
-            flags: e.g. location_unconfirmed, conflicting_reference, no_label_visible, measurement_not_visible, low_quality
+            flags: only from location_by_reference, location_from_sequence, location_by_gps, location_unconfirmed, conflicting_reference, no_label_visible, measurement_not_visible, low_quality, partial_view, date_mismatch
             pages: for PDFs, the page numbers that support this finding (1-based)
             observations: list of {"text": ..., "provenance": ...} describing what is present or missing
         """

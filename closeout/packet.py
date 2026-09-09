@@ -57,6 +57,7 @@ def build_packet(store: Store, run_id: str) -> dict:
             "history": store.item_history(d["item_id"]),
         })
 
+    in_batch = {e['id'] for e in store.batch_evidence(run['batch_id'])}
     unmatched = [f for f in findings if f["status"] in ("unrelated", "conflict") or (f["status"] == "ambiguous")]
     notes = [f for f in findings if f["status"] == "note"]
     return {
@@ -71,7 +72,8 @@ def build_packet(store: Store, run_id: str) -> dict:
             "finding_id": f["id"], "evidence_id": f["evidence_id"], "filename": (store.evidence(f["evidence_id"]) or {}).get("filename"),
             "provenance": f["provenance"], "rationale": f["rationale"], "sources": f["sources"],
         } for f in notes],
-        "evidence_index": [{k: e[k] for k in ("id", "filename", "kind", "pages", "size", "sha256", "stored_path")} | {"metadata": e["metadata"]} for e in store.all_evidence()],
+        "evidence_index": [{k: e[k] for k in ("id", "filename", "kind", "pages", "size", "sha256", "stored_path")}
+                           | {"metadata": e["metadata"], "in_batch": e["id"] in in_batch} for e in store.all_evidence()],
     }
 
 
