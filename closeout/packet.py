@@ -38,6 +38,7 @@ def build_packet(store: Store, run_id: str) -> dict:
         unresolved = [dict(by_id[u["finding_id"]], unresolved_kind=u["kind"]) for u in st["unresolved"] if u["finding_id"] in by_id]
         packet_items.append({
             "item": d,
+            "reference_photo": d.get("reference_photo") or None,
             "completeness": st["completeness"],
             "completeness_label": LABEL[st["completeness"]],
             "missing_slots": st["missing_slots"],

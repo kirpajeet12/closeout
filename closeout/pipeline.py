@@ -3,14 +3,16 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import traceback
+from datetime import datetime
 from pathlib import Path
 from typing import Callable
 
 from .agent import run_draft_job, run_match_job
 from .completeness import compute_item_status
 from .config import SETTINGS, Settings, make_model
-from .ingest import ingest_batch
+from .ingest import ingest_batch, _exif
 from .packet import save_packet
 from .register import load_register, register_as_text, Deficiency
 from .store import Store
@@ -29,8 +31,99 @@ def open_store(settings: Settings = SETTINGS) -> Store:
 
 def import_register(store: Store, csv_path: Path) -> list[Deficiency]:
     items = load_register(csv_path)
+    for d in items:
+        d.ref_meta = _exif(Path(d.reference_photo)) if d.reference_photo else {}  # type: ignore[attr-defined]
     store.upsert_deficiencies(items)
     return items
+
+
+def _register_map(store: Store) -> dict:
+    out = {}
+    for d in store.deficiencies():
+        out[d["item_id"]] = d
+    return out
+
+
+def _capture_time(meta: dict) -> datetime | None:
+    raw = meta.get("DateTimeOriginal") or meta.get("DateTime")
+    if not raw:
+        return None
+    try:
+        return datetime.strptime(raw[:19], "%Y:%m:%d %H:%M:%S")
+    except ValueError:
+        return None
+
+
+def _location_carried(e: dict, findings_by_evidence: dict) -> str:
+    """What location a neighbouring photo carries on its own: filename hint or an explicit/strong finding."""
+    hints = []
+    for f in findings_by_evidence.get(e["id"], []):
+        if f["status"] == "matched" and f["tier"] in ("explicit", "strong"):
+            hints.append(f"matched {f['item_id']} ({f['tier']})")
+    return "; ".join(hints) if hints else "no confirmed location yet (check its filename/stamp yourself)"
+
+
+def file_context(store: Store, ev: dict, batch_evidence: list[dict]) -> tuple[str, list[str]]:
+    """Deterministic, metadata-only context for one photo: capture time, neighbours within 3 min, GPS vs references."""
+    if ev["kind"] != "image":
+        return "", []
+    meta = ev["metadata"] or {}
+    lines = []
+    t = _capture_time(meta)
+    lines.append(f"Captured: {meta.get('DateTimeOriginal') or meta.get('DateTime') or 'no capture time in EXIF'}"
+                 + (f"; camera: {meta.get('Make', '')} {meta.get('Model', '')}".rstrip() if meta.get("Model") else ""))
+    neighbours: list[str] = []
+    if t:
+        found = {}
+        for other in batch_evidence:
+            if other["id"] == ev["id"] or other["kind"] != "image":
+                continue
+            ot = _capture_time(other["metadata"] or {})
+            if ot and abs((ot - t).total_seconds()) <= 180:
+                found[other["filename"]] = int((ot - t).total_seconds())
+        if found:
+            fb = {}
+            for other in batch_evidence:
+                fb[other["id"]] = store.findings_for_evidence(other["id"])
+            by_name = {o["filename"]: o for o in batch_evidence}
+            lines.append("Photos taken within 3 minutes of this one:")
+            for name, dt in sorted(found.items(), key=lambda kv: abs(kv[1])):
+                neighbours.append(name)
+                lines.append(f"  - {name}: {'+' if dt >= 0 else ''}{dt} s; carries: {_location_carried(by_name[name], fb)}")
+        else:
+            lines.append("No other photo in this batch was taken within 3 minutes of this one.")
+    gps = meta.get("gps")
+    if gps:
+        acc = f" (accuracy ±{gps['accuracy_m']} m)" if gps.get("accuracy_m") else ""
+        alt = f", altitude {gps['altitude_m']} m" if gps.get("altitude_m") is not None else ""
+        # horizontal noise: the phone's own accuracy figures for both photos, never below 10 m
+        lines.append(f"GPS: {gps['lat']}, {gps['lon']}{acc}{alt}. Relative to each item's reference photo:")
+        for d in store.deficiencies():
+            rg = (d.get("ref_meta") or {}).get("gps")
+            if not rg:
+                lines.append(f"  - {d['item_id']}: reference photo has no GPS")
+                continue
+            dist, bearing = _offset(rg, gps)
+            noise = max(10.0, float(gps.get("accuracy_m") or 0) + float(rg.get("accuracy_m") or 0))
+            line = f"  - {d['item_id']}: {dist:.0f} m {bearing} of its reference photo" + (" (within noise)" if dist <= noise else "")
+            if gps.get("altitude_m") is not None and rg.get("altitude_m") is not None:
+                dz = gps["altitude_m"] - rg["altitude_m"]
+                line += f"; {abs(dz):.1f} m {'higher' if dz > 0 else 'lower'} than it" + (" (within noise)" if abs(dz) < 3 else " (about a floor apart)" if abs(dz) < 6 else " (more than a floor apart)")
+            lines.append(line)
+    else:
+        lines.append("GPS: none in EXIF.")
+    return "\n".join(lines), neighbours
+
+
+def _offset(a: dict, b: dict) -> tuple[float, str]:
+    """Metres and compass direction from point a to point b (equirectangular; fine at site scale)."""
+    lat = math.radians((a["lat"] + b["lat"]) / 2)
+    dx = math.radians(b["lon"] - a["lon"]) * 6371000 * math.cos(lat)
+    dy = math.radians(b["lat"] - a["lat"]) * 6371000
+    dist = math.hypot(dx, dy)
+    deg = (math.degrees(math.atan2(dx, dy)) + 360) % 360
+    names = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
+    return dist, names[int((deg + 22.5) // 45) % 8]
 
 
 def _register_text(store: Store) -> str:
@@ -101,7 +194,9 @@ def continue_run(store: Store, run_id: str, settings: Settings = SETTINGS, progr
         store.job_start(job["id"])
         store.delete_findings(job["id"])  # a retry replaces its own partial output only
         try:
-            res = run_match_job(store, run_id, job["id"], ev["id"], register_text, notes_text, filenames, model=model)
+            fctx, neighbours = file_context(store, ev, batch_evidence)
+            res = run_match_job(store, run_id, job["id"], ev["id"], register_text, notes_text, filenames, model=model,
+                                file_context=fctx, neighbours=neighbours)
             store.job_finish(job["id"], "done", usage=res["usage"])
             progress("job_done", {"job_id": job["id"], "filename": ev["filename"], "findings": res["findings"], "usage": res["usage"]})
         except Exception as e:  # noqa: BLE001 - we want every failure recorded and retryable

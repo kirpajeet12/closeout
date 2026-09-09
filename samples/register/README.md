@@ -10,6 +10,7 @@ One row per deficiency. UTF-8, comma separated, header row required.
 | `evidence_required` | yes | What the engineer asked the contractor to provide. One or more slots separated by `;`. Each slot is `type: description`. |
 | `review_date` | no | Date of the field review that raised the item, ISO `YYYY-MM-DD`. |
 | `discipline` | no | Free text, e.g. `Fire protection`, `Structural`. |
+| `reference_photo` | no | Path (relative to the CSV) to the photo the reviewer took when raising the item, JPEG or PNG. The agent compares contractor photos against it to establish location, and reads its EXIF GPS and altitude as the item's position. Must exist or the import fails. |
 
 `type` in `evidence_required` must be one of `photo`, `report`, `letter`, `document`.
 Each slot is checked independently. A deficiency is *evidence-complete* when every slot has at

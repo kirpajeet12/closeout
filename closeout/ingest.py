@@ -67,9 +67,35 @@ def _exif(path: Path) -> dict:
                 gps = exif.get_ifd(ExifTags.IFD.GPSInfo) if hasattr(ExifTags, "IFD") else {}
                 if gps:
                     out["has_gps"] = True
+                    coords = gps_coords(gps)
+                    if coords:
+                        out["gps"] = coords
     except Exception as e:  # metadata is best-effort
         out["exif_error"] = str(e)[:200]
     return out
+
+
+def gps_coords(gps: dict) -> dict | None:
+    """Decimal lat/lon (+ accuracy in metres when the phone recorded it) from a GPS IFD."""
+    try:
+        def dec(dms, ref):
+            d, m, s = (float(x) for x in dms)
+            v = d + m / 60 + s / 3600
+            return -v if ref in ("S", "W") else v
+        out = {"lat": round(dec(gps[2], gps[1]), 6), "lon": round(dec(gps[4], gps[3]), 6)}
+        if 0x1F in gps:
+            out["accuracy_m"] = round(float(gps[0x1F]), 1)
+        if 6 in gps:
+            alt = float(gps[6])
+            ref = gps.get(5, 0)
+            if isinstance(ref, (bytes, bytearray)):
+                ref = ref[0] if ref else 0
+            if int(ref or 0) == 1:   # 1 = below sea level
+                alt = -alt
+            out["altitude_m"] = round(alt, 1)
+        return out
+    except Exception:  # noqa: BLE001 - malformed GPS blocks are common
+        return None
 
 
 def _pdf_text(path: Path) -> list[str]:

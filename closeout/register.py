@@ -8,6 +8,7 @@ from pathlib import Path
 
 SLOT_TYPES = {"photo", "report", "letter", "document"}
 REQUIRED_COLUMNS = {"item_id", "location", "description", "evidence_required"}
+OPTIONAL_COLUMNS = {"review_date", "discipline", "reference_photo"}
 
 
 @dataclass
@@ -26,6 +27,7 @@ class Deficiency:
     slots: list[Slot] = field(default_factory=list)
     review_date: str = ""
     discipline: str = ""
+    reference_photo: str = ""   # absolute path to the engineer's field-review photo of this deficiency, if any
 
     def to_dict(self) -> dict:
         d = asdict(self)
@@ -81,9 +83,22 @@ def load_register(path: str | Path) -> list[Deficiency]:
                     slots=slots,
                     review_date=(row.get("review_date") or "").strip(),
                     discipline=(row.get("discipline") or "").strip(),
+                    reference_photo=_resolve_reference(path, row.get("reference_photo"), n, item_id),
                 )
             )
     return items
+
+
+def _resolve_reference(csv_path: Path, raw: str | None, row_n: int, item_id: str) -> str:
+    raw = (raw or "").strip()
+    if not raw:
+        return ""
+    ref = (csv_path.parent / raw).resolve()
+    if not ref.is_file():
+        raise RegisterError(f"row {row_n} ({item_id}): reference_photo {raw!r} not found next to the CSV")
+    if ref.suffix.lower() not in (".jpg", ".jpeg", ".png"):
+        raise RegisterError(f"row {row_n} ({item_id}): reference_photo must be JPEG or PNG")
+    return str(ref)
 
 
 def register_as_text(items: list[Deficiency]) -> str:

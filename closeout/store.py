@@ -17,6 +17,8 @@ CREATE TABLE IF NOT EXISTS deficiencies (
   slots_json TEXT NOT NULL,
   review_date TEXT,
   discipline TEXT,
+  reference_photo TEXT NOT NULL DEFAULT '',
+  ref_meta_json TEXT NOT NULL DEFAULT '{}',
   imported_at TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS evidence (
@@ -153,18 +155,24 @@ class Store:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self.conn = _LockedConn(self.db_path)
         self.conn.executescript(SCHEMA)
+        for col, ddl in (("reference_photo", "TEXT NOT NULL DEFAULT ''"), ("ref_meta_json", "TEXT NOT NULL DEFAULT '{}'")):
+            if col not in [r[1] for r in self.conn.execute("PRAGMA table_info(deficiencies)")]:
+                self.conn.execute(f"ALTER TABLE deficiencies ADD COLUMN {col} {ddl}")
 
     # --- register -------------------------------------------------------
     def upsert_deficiencies(self, items) -> None:
         for d in items:
             self.conn.execute(
-                """INSERT INTO deficiencies(item_id, location, description, evidence_required, slots_json, review_date, discipline, imported_at)
-                   VALUES(?,?,?,?,?,?,?,?)
+                """INSERT INTO deficiencies(item_id, location, description, evidence_required, slots_json, review_date, discipline,
+                                            reference_photo, ref_meta_json, imported_at)
+                   VALUES(?,?,?,?,?,?,?,?,?,?)
                    ON CONFLICT(item_id) DO UPDATE SET location=excluded.location, description=excluded.description,
                      evidence_required=excluded.evidence_required, slots_json=excluded.slots_json,
-                     review_date=excluded.review_date, discipline=excluded.discipline""",
+                     review_date=excluded.review_date, discipline=excluded.discipline,
+                     reference_photo=excluded.reference_photo, ref_meta_json=excluded.ref_meta_json""",
                 (d.item_id, d.location, d.description, d.evidence_required,
-                 json.dumps([s.__dict__ for s in d.slots]), d.review_date, d.discipline, now()),
+                 json.dumps([s.__dict__ for s in d.slots]), d.review_date, d.discipline,
+                 d.reference_photo, json.dumps(getattr(d, "ref_meta", {}) or {}), now()),
             )
         self.conn.commit()
 
@@ -172,17 +180,20 @@ class Store:
         rows = self.conn.execute("SELECT * FROM deficiencies ORDER BY item_id").fetchall()
         out = []
         for r in rows:
-            d = dict(r)
-            d["slots"] = json.loads(d.pop("slots_json"))
-            out.append(d)
+            out.append(self._d(r))
         return out
 
     def deficiency(self, item_id: str) -> dict | None:
         r = self.conn.execute("SELECT * FROM deficiencies WHERE item_id=?", (item_id,)).fetchone()
         if not r:
             return None
+        return self._d(r)
+
+    @staticmethod
+    def _d(r) -> dict:
         d = dict(r)
         d["slots"] = json.loads(d.pop("slots_json"))
+        d["ref_meta"] = json.loads(d.pop("ref_meta_json") or "{}")
         return d
 
     # --- evidence -------------------------------------------------------

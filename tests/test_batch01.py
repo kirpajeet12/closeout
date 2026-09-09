@@ -75,6 +75,11 @@ def test_file_expectation(filename, by_file, items):
         f = hit[0]
         if "tier_in" in exp:
             assert f["tier"] in exp["tier_in"], f"{filename} tier {f['tier']} not in {exp['tier_in']}"
+        if f["tier"] == "strong" and "if_strong_flags_any" in exp:
+            assert set(exp["if_strong_flags_any"]) & set(f["flags"]), f"{filename} is strong without a location signal: {f['flags']}"
+            assert len([o for o in f.get("observations", []) if o.get("text")]) >= 2, f"{filename} strong-by-location needs two named features"
+        if f["tier"] == "weak" and "if_weak_flags_include" in exp:
+            assert set(exp["if_weak_flags_include"]) <= set(f["flags"]), f"{filename} weak flags {f['flags']}"
         if "slot" in exp:
             slot_types = [s["type"] for s in items[exp["match"]]["item"]["slots"]]
             assert slot_types[f["slot_index"]] == exp["slot"]
@@ -100,7 +105,7 @@ def test_item_expectation(item_id, items):
         assert [m["type"] for m in it["missing_slots"]] == exp["missing_slots"]
     for name in exp.get("must_not_link", []):
         assert name not in [f["filename"] for f in it["evidence"]], f"{item_id} must not link {name}"
-    if exp.get("followup_mentions"):
+    if exp.get("followup_mentions") and it["completeness"] != "complete":
         draft = it["followup_draft"]
         assert draft, f"{item_id} needs a follow-up draft"
         text = (draft["subject"] + " " + draft["body"]).lower()

@@ -12,8 +12,8 @@
     "IMG_2202_stair1_guard.jpg":         {"match": "D-02", "tier_in": ["explicit", "strong"]},
     "IMG_2204_stair1_guard_tape.jpg":    {"match": "D-02", "tier_in": ["explicit", "strong"]},
     "IMG_2203_RTU2_anchors.jpg":         {"match": "D-03", "tier_in": ["explicit", "strong"]},
-    "firestop_done.jpg":                 {"match": null, "status": "ambiguous", "candidates_superset_of": ["D-01", "D-04"]},
-    "IMG_2210.jpg":                      {"match": "D-06", "tier_in": ["weak", "strong"], "flags_include": ["location_unconfirmed"]},
+    "firestop_done.jpg":                 {"match": null, "status": "ambiguous", "candidates_superset_of": ["D-01", "D-04"], "note": "close-up with no wall context, no stamp, no GPS: nothing in file, note, reference photos or sequence can place it"},
+    "IMG_2210.jpg":                      {"match": "D-06", "tier_in": ["weak", "strong"], "if_strong_flags_any": ["location_by_reference", "location_from_sequence"], "if_weak_flags_include": ["location_unconfirmed"], "note": "no stamp, no filename hint. The engineer's reference photo for D-06 (photos/D-06.jpg) shows the same downspout and hose bib, and GPS puts it within noise of that photo; strong is allowed only when the agent names the shared features (location_by_reference) or a stamped neighbour (location_from_sequence)"},
     "IMG_2215.jpg":                      {"match": null, "status": "unrelated"},
     "IMG_2206_L3_firestop.jpg":          {"match": null, "status_in": ["conflict", "unrelated", "ambiguous"], "flags_include": ["conflicting_reference"]},
     "sprinkler_letter_305.pdf":          {"match": "D-05", "tier_in": ["explicit", "strong"], "slot": "letter"},
@@ -25,7 +25,7 @@
     "D-03": {"completeness": "incomplete", "missing_slots": ["report"], "followup_mentions": ["torque", "report"]},
     "D-04": {"completeness_in": ["no_evidence", "needs_clarification"], "missing_slots": ["photo"], "followup_mentions": ["location"], "must_not_link": ["firestop_done.jpg"], "note": "needs_clarification allowed because firestop_done.jpg is an open ambiguous candidate for D-04; the daily-log line (p.2, says not started) is a reference and must not lift the status"},
     "D-05": {"completeness": "incomplete", "missing_slots": ["photo"], "followup_mentions": ["photo"]},
-    "D-06": {"completeness_in": ["needs_clarification", "incomplete"], "followup_mentions": ["location"]}
+    "D-06": {"completeness_in": ["complete", "needs_clarification", "incomplete"], "followup_mentions": ["location"], "note": "complete only if IMG_2210 was linked strong via the reference photo; otherwise the draft must ask where the photo was taken"}
   },
   "invariants": [
     "No finding may state that work is acceptable, compliant, or that a deficiency is closed.",

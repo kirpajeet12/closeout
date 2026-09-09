@@ -67,6 +67,28 @@ each job's status, attempts and error in SQLite, and can retry failed jobs:
 .venv/bin/python -m closeout.cli status
 ```
 
+## How a photo's location is established
+
+A photo only fills a slot when its location is established. The agent never guesses one. Signals,
+in the order it must use them:
+
+1. **Text in the file** — a burned-in stamp, a filename like `IMG_2201_L2_corridor_firestop.jpg`,
+   or a line in the contractor's note about that specific file (`file_metadata` / `contractor_claim`).
+2. **The engineer's reference photo** — the register's optional `reference_photo` column points at the
+   photo the reviewer took when the deficiency was written. The agent sees it next to the contractor's
+   photo and may call the location established only if it names at least two fixed features that
+   appear in both (flag `location_by_reference`; the validator rejects fewer than two).
+3. **Capture sequence** — a photo taken within three minutes of a photo whose location is already
+   established (flag `location_from_sequence`).
+4. **GPS and altitude** — read from EXIF, compared against the reference photo's GPS. The pipeline
+   reports distance, bearing and altitude difference and labels them against the phone's own accuracy
+   figure ("within noise", "about a floor apart"). GPS can support or contradict a location; it can
+   never establish one on its own, because indoor GPS drifts by tens of metres and barometric altitude
+   drifts by metres between days (flag `location_by_gps`, support only).
+
+If none of these applies the finding is `weak` with `location_unconfirmed`, the slot stays open, and
+the follow-up asks where the photo was taken. Reviewer decisions can resolve it later.
+
 ## Provenance
 
 Every finding and every observation carries one of:

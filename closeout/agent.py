@@ -41,6 +41,24 @@ A contractor note saying "photos for item X attached" does NOT identify which fi
 Use it only when this file's own content or metadata also points at X.
 Never invent a location. If the location is not on the file or in the note about this specific file, it is unconfirmed.
 
+## Three more ways a location can be established (use them, in this order)
+1. Reference photo. Some register items carry the engineer's own photo of the deficiency from the field review
+   (register provenance, an established fact). get_deficiency returns it. Compare the contractor's photo with it:
+   same wall, same pipe, same fixtures beside it, same crack pattern. If you can name at least TWO specific matching
+   features, the location is established: use tier strong, add flag location_by_reference, and put each feature in
+   observations. "Looks similar" is not a feature; then it stays weak with location_unconfirmed.
+2. Capture sequence. The file context lists other photos in this batch taken within a few minutes of this one and
+   what location they carry. A neighbour shot within 3 minutes that carries a location, when this file's scope fits
+   that same place and no other item there, establishes the location: tier strong, flag location_from_sequence, and
+   name the neighbour file in the rationale. A neighbour with a different scope tells you nothing.
+3. GPS. The file context gives this photo's position relative to each item's reference photo. GPS separates sites
+   and, outdoors, sides of a building. It never separates floors, rooms or stairs, and differences under 15 m are
+   noise. Use it only to support or contradict an exterior location (e.g. north elevation), never alone to pick an
+   interior item. Altitude: phones record one; between photos of the same site on the same day a difference of
+   3 m or more suggests different floors, less means nothing. Support only, never alone.
+   If used, add flag location_by_gps alongside the flag that actually established the location.
+If none of these applies, the location is unconfirmed and the tier is weak.
+
 ## Provenance, always
 - register: facts from the deficiency list.
 - contractor_claim: anything the contractor wrote (notes, logs, letters, captions written by them).
@@ -85,6 +103,7 @@ class JobContext:
     recorded: list[str] = field(default_factory=list)
     saved_draft: str | None = None
     errors: list[str] = field(default_factory=list)
+    neighbours: list[str] = field(default_factory=list)   # filenames captured within 3 min of this job's photo
 
 
 def _validate_finding(ctx: JobContext, evidence_id: str, item_id, status, tier, slot_index, candidates, flags, rationale, sources, provenance, observations) -> str | None:
@@ -102,6 +121,13 @@ def _validate_finding(ctx: JobContext, evidence_id: str, item_id, status, tier, 
             return f"{item_id} has slots 0..{len(d['slots'])-1}"
         if "location_unconfirmed" in (flags or []) and tier != "weak":
             return "a finding flagged location_unconfirmed must use tier 'weak' (location is part of what explicit/strong mean)"
+        if "location_by_reference" in (flags or []):
+            if not d.get("reference_photo"):
+                return f"{item_id} has no reference photo; location_by_reference cannot apply"
+            if len([o for o in (observations or []) if o.get("text")]) < 2:
+                return "location_by_reference needs at least two specific matching features listed in observations"
+        if "location_from_sequence" in (flags or []) and not ctx.neighbours:
+            return "location_from_sequence cannot apply: no other photo was taken within 3 minutes of this one"
         if slot_index is not None and slot_index >= 0:
             slot_type = d["slots"][slot_index]["type"]
             ev = ctx.store.evidence(evidence_id)
@@ -159,7 +185,19 @@ def make_match_tools(ctx: JobContext, evidence_id: str):
             item_id: e.g. D-03
         """
         d = ctx.store.deficiency(item_id)
-        return d or {"error": f"no such item {item_id}"}
+        if not d:
+            return {"status": "error", "content": [{"text": f"no such item {item_id}"}]}
+        ref = d.get("reference_photo")
+        entry = {k: d[k] for k in ("item_id", "location", "description", "slots", "review_date", "discipline")}
+        content = [{"text": "REGISTER ENTRY (register provenance): " + json.dumps(entry)}]
+        if ref and Path(ref).is_file():
+            content.append({"text": f"REFERENCE PHOTO for {item_id}: the engineer's own photo of this deficiency taken at the field review "
+                                    f"(register provenance). Metadata: {json.dumps(d.get('ref_meta') or {})}"})
+            data, fmt = image_bytes_for_model(Path(ref))
+            content.append({"image": {"format": fmt, "source": {"bytes": data}}})
+        else:
+            content.append({"text": f"{item_id} has no reference photo."})
+        return {"status": "success", "content": content}
 
     @tool
     def record_finding(
@@ -236,9 +274,9 @@ def _usage(result) -> dict:
 
 
 def run_match_job(store: Store, run_id: str, job_id: str, evidence_id: str, register_text: str, notes_text: str,
-                  filenames: list[str], model=None) -> dict:
+                  filenames: list[str], model=None, file_context: str = "", neighbours: list[str] | None = None) -> dict:
     """Run the agent on one evidence file. Raises on failure so the pipeline can mark the job failed."""
-    ctx = JobContext(store=store, run_id=run_id, job_id=job_id)
+    ctx = JobContext(store=store, run_id=run_id, job_id=job_id, neighbours=list(neighbours or []))
     ev = store.evidence(evidence_id)
     system = MATCH_SYSTEM.format(register=register_text, notes=notes_text or "(none)", filenames="\n".join(filenames))
     agent = Agent(model=model or make_model(SETTINGS), tools=make_match_tools(ctx, evidence_id),
@@ -246,6 +284,7 @@ def run_match_job(store: Store, run_id: str, job_id: str, evidence_id: str, regi
     result = agent(
         f"Process evidence_id {evidence_id} (filename: {ev['filename']}, kind: {ev['kind']}). "
         f"Inspect it, then record your finding(s). Finish with one line summarising what you recorded."
+        + (f"\n\nFILE CONTEXT (file_metadata provenance):\n{file_context}" if file_context else "")
     )
     if not ctx.recorded:
         raise RuntimeError("agent finished without recording a finding" + (f"; last rejection: {ctx.errors[-1]}" if ctx.errors else ""))
