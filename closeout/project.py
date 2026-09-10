@@ -548,7 +548,7 @@ def project_view(store: Store, project_id: str | None = None) -> dict | None:
         "disciplines": m.get("disciplines", []), "drawing_index": m.get("drawing_index", {}),
         "sheets": [{"id": sh["id"], "discipline": sh["discipline"], "discipline_name": DISCIPLINES.get(sh["discipline"], sh["discipline"]),
                     "page": sh["page"], "sheet_number": sh["sheet_number"], "title": sh["title"], "read_status": sh["read_status"],
-                    "image_path": sh["image_path"], "read": sh["read"]} for sh in sheets],
+                    "image_path": sh["image_path"], "read": sh["read"], "views": sh.get("views", [])} for sh in sheets],
         "spaces": sorted(spaces.values(), key=lambda s: (s["unit"], s["level"], s["name"])),
         "documents": [{k: d[k] for k in ("id", "rel_path", "discipline", "dated", "pages", "kind", "is_current")} for d in docs],
         "updated_at": prj["updated_at"],
@@ -562,9 +562,9 @@ def sheet_text_for_agent(store: Store, project_id: str | None = None, max_chars:
         return ""
     lines = [f"PROJECT: {v['name']}, {v['address']} {v['city']}. {v['building_type']}".strip()]
     if v["levels"]:
-        lines.append("Levels: " + "; ".join(f"{l['name']} {l['elevation']}".strip() for l in v["levels"]))
+        lines.append("Levels: " + "; ".join(f"{l.get('name', '')} {l.get('elevation', '')}".strip() for l in v["levels"]))
     if v["units"]:
-        lines.append("Units: " + "; ".join(f"{u['label']} = {u['address']}".strip(" =") for u in v["units"]))
+        lines.append("Units: " + "; ".join(f"{u.get('label', '')} = {u.get('address', '')}".strip(" =") for u in v["units"]))
     for sh in v["sheets"]:
         if sh["read"].get("spaces"):
             rooms = sorted({s["name"] for s in sh["read"]["spaces"]})

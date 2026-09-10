@@ -109,7 +109,8 @@ CREATE TABLE IF NOT EXISTS drafts (
   body TEXT NOT NULL,
   status TEXT NOT NULL,          -- draft | edited | approved
   created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL
+  updated_at TEXT NOT NULL,
+  review_id TEXT NOT NULL DEFAULT ''   -- set when the message covers a whole field review
 );
 CREATE TABLE IF NOT EXISTS decisions (
   id TEXT PRIMARY KEY,
@@ -140,6 +141,23 @@ CREATE TABLE IF NOT EXISTS documents (
   size INTEGER NOT NULL,
   is_current INTEGER NOT NULL DEFAULT 0   -- 1 = newest drawing set of its discipline
 );
+CREATE TABLE IF NOT EXISTS item_counters (
+  project_id TEXT NOT NULL,
+  prefix TEXT NOT NULL,
+  last INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (project_id, prefix)
+);
+CREATE TABLE IF NOT EXISTS reviews (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL,
+  discipline TEXT NOT NULL,       -- AR | EL | PL ...
+  sequence INTEGER NOT NULL,      -- 1, 2, 3 per discipline; never reused
+  title TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'active',   -- active | finished
+  started_at TEXT NOT NULL,
+  finished_at TEXT,
+  package_json TEXT               -- what goes to the contractor, built when the review is finished
+);
 CREATE TABLE IF NOT EXISTS sheets (
   id TEXT PRIMARY KEY,
   project_id TEXT NOT NULL,
@@ -152,6 +170,7 @@ CREATE TABLE IF NOT EXISTS sheets (
   text TEXT NOT NULL DEFAULT '',
   read_json TEXT NOT NULL DEFAULT '{}',    -- what the agent read: levels, units, spaces, elements, notes
   read_status TEXT NOT NULL DEFAULT 'pending',  -- pending | done | failed
+  views_json TEXT NOT NULL DEFAULT '[]',   -- where each floor plan drawing sits on the sheet (fractions), for the viewer
   created_at TEXT NOT NULL
 );
 """
@@ -218,10 +237,22 @@ class Store:
         for table, col, ddl in (("deficiencies", "reference_photo", "TEXT NOT NULL DEFAULT ''"),
                                 ("deficiencies", "ref_meta_json", "TEXT NOT NULL DEFAULT '{}'"),
                                 ("deficiencies", "sheet", "TEXT NOT NULL DEFAULT ''"),
+                                ("deficiencies", "sheet_id", "TEXT NOT NULL DEFAULT ''"),
+                                ("deficiencies", "pin_x", "REAL"),
+                                ("deficiencies", "pin_y", "REAL"),
+                                ("deficiencies", "review_id", "TEXT NOT NULL DEFAULT ''"),
+                                ("deficiencies", "unit", "TEXT NOT NULL DEFAULT ''"),
+                                ("deficiencies", "level", "TEXT NOT NULL DEFAULT ''"),
+                                ("deficiencies", "space", "TEXT NOT NULL DEFAULT ''"),
+                                ("deficiencies", "note", "TEXT NOT NULL DEFAULT ''"),
+                                ("deficiencies", "source", "TEXT NOT NULL DEFAULT 'register'"),
                                 ("runs", "kind", "TEXT NOT NULL DEFAULT 'batch'"),
                                 ("batches", "project_id", "TEXT NOT NULL DEFAULT ''"),
                                 ("runs", "project_id", "TEXT NOT NULL DEFAULT ''"),
-                                ("decisions", "project_id", "TEXT NOT NULL DEFAULT ''")):
+                                ("decisions", "project_id", "TEXT NOT NULL DEFAULT ''"),
+                                ("reviews", "package_json", "TEXT"),
+                                ("drafts", "review_id", "TEXT NOT NULL DEFAULT ''"),
+                                ("sheets", "views_json", "TEXT NOT NULL DEFAULT '[]'")):
             if col not in self._cols(table):
                 self.conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {ddl}")
         if "project_id" not in self._cols("deficiencies"):
@@ -269,6 +300,91 @@ class Store:
                  d.reference_photo, json.dumps(getattr(d, "ref_meta", {}) or {}), getattr(d, "sheet", "") or "", now()),
             )
         self.conn.commit()
+
+    def next_item_id(self, project_id: str, prefix: str) -> str:
+        """EL-01, EL-02 ... from a per-project counter that only ever goes up, so a deleted item's number is never
+        handed to a different deficiency later. Items already in the register under that prefix count too."""
+        rows = self.conn.execute("SELECT item_id FROM deficiencies WHERE project_id=? AND item_id LIKE ?",
+                                 (project_id, f"{prefix}-%")).fetchall()
+        highest = 0
+        for r in rows:
+            tail = r["item_id"][len(prefix) + 1:]
+            if tail.isdigit():
+                highest = max(highest, int(tail))
+        c = self.conn.execute("SELECT last FROM item_counters WHERE project_id=? AND prefix=?", (project_id, prefix)).fetchone()
+        n = max(highest, int(c["last"]) if c else 0) + 1
+        self.conn.execute("INSERT INTO item_counters(project_id, prefix, last) VALUES(?,?,?) "
+                          "ON CONFLICT(project_id, prefix) DO UPDATE SET last=excluded.last", (project_id, prefix, n))
+        self.conn.commit()
+        return f"{prefix}-{n:02d}"
+
+    def add_field_item(self, project_id: str, item_id: str, location: str, description: str, evidence_required: str,
+                       slots: list, discipline: str, review_id: str, sheet: str, sheet_id: str, pin_x: float | None,
+                       pin_y: float | None, unit: str = "", level: str = "", space: str = "", note: str = "",
+                       reference_photo: str = "", ref_meta: dict | None = None, review_date: str = "") -> None:
+        """One deficiency recorded on site, pinned to a sheet. Never overwrites: the number is fresh."""
+        self.conn.execute(
+            """INSERT INTO deficiencies(project_id, item_id, location, description, evidence_required, slots_json, review_date,
+                                        discipline, reference_photo, ref_meta_json, sheet, imported_at, sheet_id, pin_x, pin_y,
+                                        review_id, unit, level, space, note, source)
+               VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'field')""",
+            (project_id, item_id, location, description, evidence_required, json.dumps([dict(x) if not hasattr(x, "__dict__") else x.__dict__ for x in slots]),
+             review_date or None, discipline, reference_photo, json.dumps(ref_meta or {}), sheet, now(), sheet_id, pin_x, pin_y,
+             review_id, unit, level, space, note))
+        self.conn.commit()
+
+    def update_field_item(self, project_id: str, item_id: str, **fields) -> None:
+        allowed = {"location", "description", "evidence_required", "slots_json", "unit", "level", "space", "note", "pin_x", "pin_y"}
+        cols = {k: v for k, v in fields.items() if k in allowed}
+        if not cols:
+            return
+        sets = ", ".join(f"{k}=?" for k in cols)
+        self.conn.execute(f"UPDATE deficiencies SET {sets} WHERE project_id=? AND item_id=?", (*cols.values(), project_id, item_id))
+        self.conn.commit()
+
+    # --- field reviews ----------------------------------------------------
+    def create_review(self, project_id: str, discipline: str, title: str = "") -> dict:
+        r = self.conn.execute("SELECT COALESCE(MAX(sequence), 0) AS n FROM reviews WHERE project_id=? AND discipline=?",
+                              (project_id, discipline)).fetchone()
+        seq = int(r["n"]) + 1
+        rid = new_id("rev")
+        self.conn.execute("INSERT INTO reviews(id, project_id, discipline, sequence, title, status, started_at) VALUES(?,?,?,?,?,'active',?)",
+                          (rid, project_id, discipline, seq, title or f"Field review {seq}", now()))
+        self.conn.commit()
+        return self.review(rid)
+
+    def review(self, review_id: str) -> dict | None:
+        r = self.conn.execute("SELECT * FROM reviews WHERE id=?", (review_id,)).fetchone()
+        return self._rv(r) if r else None
+
+    def reviews(self, project_id: str) -> list[dict]:
+        return [self._rv(r) for r in self.conn.execute("SELECT * FROM reviews WHERE project_id=? ORDER BY started_at", (project_id,))]
+
+    @staticmethod
+    def _rv(r) -> dict:
+        d = dict(r)
+        raw = d.pop("package_json", None)
+        d["package"] = json.loads(raw) if raw else None
+        return d
+
+    def finish_review(self, review_id: str) -> None:
+        self.conn.execute("UPDATE reviews SET status='finished', finished_at=? WHERE id=?", (now(), review_id))
+        self.conn.commit()
+
+    def set_review_package(self, review_id: str, package: dict) -> None:
+        self.conn.execute("UPDATE reviews SET package_json=? WHERE id=?", (json.dumps(package), review_id))
+        self.conn.commit()
+
+    def review_package(self, review_id: str) -> dict | None:
+        r = self.conn.execute("SELECT package_json FROM reviews WHERE id=?", (review_id,)).fetchone()
+        return json.loads(r["package_json"]) if r and r["package_json"] else None
+
+    def draft_for_review(self, review_id: str) -> dict | None:
+        r = self.conn.execute("SELECT * FROM drafts WHERE review_id=? ORDER BY updated_at DESC, rowid DESC LIMIT 1", (review_id,)).fetchone()
+        return dict(r) if r else None
+
+    def review_items(self, project_id: str, review_id: str) -> list[dict]:
+        return [d for d in self.deficiencies(project_id) if d.get("review_id") == review_id]
 
     def deficiencies(self, project_id: str) -> list[dict]:
         rows = self.conn.execute("SELECT * FROM deficiencies WHERE project_id=? ORDER BY item_id", (project_id,)).fetchall()
@@ -481,10 +597,10 @@ class Store:
             out.append(d)
         return out
 
-    def upsert_draft(self, run_id: str, item_id: str, subject: str, body: str, status: str = "draft") -> str:
+    def upsert_draft(self, run_id: str, item_id: str, subject: str, body: str, status: str = "draft", review_id: str = "") -> str:
         did = new_id("draft")
-        self.conn.execute("INSERT INTO drafts(id, run_id, item_id, subject, body, status, created_at, updated_at) VALUES(?,?,?,?,?,?,?,?)",
-                          (did, run_id, item_id, subject, body, status, now(), now()))
+        self.conn.execute("INSERT INTO drafts(id, run_id, item_id, subject, body, status, created_at, updated_at, review_id) VALUES(?,?,?,?,?,?,?,?,?)",
+                          (did, run_id, item_id, subject, body, status, now(), now(), review_id))
         self.conn.commit()
         return did
 
@@ -509,7 +625,7 @@ class Store:
     def all_drafts(self, project_id: str) -> list[dict]:
         """Every draft ever written for the project, newest first (the Messages tab)."""
         return [dict(r) for r in self.conn.execute(
-            "SELECT d.* FROM drafts d JOIN runs r ON r.id=d.run_id WHERE r.project_id=? ORDER BY d.updated_at DESC", (project_id,))]
+            "SELECT d.* FROM drafts d JOIN runs r ON r.id=d.run_id WHERE r.project_id=? ORDER BY d.updated_at DESC, d.rowid DESC", (project_id,))]
 
     def add_decision(self, project_id: str, item_id: str, decision: str, note: str | None) -> str:
         did = new_id("dec")
@@ -601,6 +717,10 @@ class Store:
                           "title=COALESCE(?, title) WHERE id=?", (json.dumps(read), status, sheet_number, title, sheet_id))
         self.conn.commit()
 
+    def set_sheet_views(self, sheet_id: str, views: list[dict]) -> None:
+        self.conn.execute("UPDATE sheets SET views_json=? WHERE id=?", (json.dumps(views), sheet_id))
+        self.conn.commit()
+
     def sheet(self, sheet_id: str) -> dict | None:
         r = self.conn.execute("SELECT * FROM sheets WHERE id=?", (sheet_id,)).fetchone()
         return self._sh(r) if r else None
@@ -612,5 +732,6 @@ class Store:
     def _sh(r) -> dict:
         d = dict(r)
         d["read"] = json.loads(d.pop("read_json") or "{}")
+        d["views"] = json.loads(d.pop("views_json", None) or "[]")
         return d
 

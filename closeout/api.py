@@ -19,8 +19,9 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, StreamingResponse
 from pydantic import BaseModel
 
-from . import pipeline, project as project_mod
+from . import pipeline, plans as plans_mod, project as project_mod, review as review_mod
 from .config import SETTINGS, Settings
+from .ingest import _exif, _heic_to_jpeg
 from .packet import build_packet, packet_markdown
 from .store import Store
 
@@ -68,6 +69,37 @@ class DraftPatch(BaseModel):
 class Decision(BaseModel):
     decision: str
     note: str | None = None
+
+
+class NewReview(BaseModel):
+    discipline: str
+    title: str = ""
+
+
+class SheetView(BaseModel):
+    title: str = ""
+    level: str
+    x: float
+    y: float
+    w: float
+    h: float
+    source: str = "engineer"
+
+
+class SheetViews(BaseModel):
+    views: list[SheetView]
+
+
+class FindingPatch(BaseModel):
+    location: str | None = None
+    description: str | None = None
+    evidence_required: str | None = None
+    unit: str | None = None
+    level: str | None = None
+    space: str | None = None
+    note: str | None = None
+    pin_x: float | None = None
+    pin_y: float | None = None
 
 
 class NewProject(BaseModel):
@@ -274,7 +306,8 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         return {"project": view, "card": project_card(st, prj, active), "register": st.deficiencies(pid),
                 "runs": runs, "latest_run_id": latest, "active_run_id": active if any(r["id"] == active for r in runs) else None,
                 "packet": build_packet(st, latest) if latest else None, "batches": batches,
-                "messages": st.all_drafts(pid), "decisions": st.decisions(pid), "model_id": settings.model_id}
+                "messages": st.all_drafts(pid), "decisions": st.decisions(pid), "model_id": settings.model_id,
+                "reviews": st.reviews(pid)}
 
     @app.get("/api/sheets/{sheet_id}/image")
     def sheet_image(sheet_id: str):
@@ -325,6 +358,266 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         if not p.exists():
             raise HTTPException(404, "reference photo file missing")
         return FileResponse(p, media_type=mimetypes.guess_type(p.name)[0] or "application/octet-stream")
+
+    # --- field review ---------------------------------------------------
+    def _field_photo_path(slug: str, item_id: str) -> Path:
+        d = settings.data_dir / "projects" / slug / "field"
+        d.mkdir(parents=True, exist_ok=True)
+        return d / f"{item_id}.jpg"
+
+    async def _read_photo(photo: UploadFile | None) -> tuple[bytes | None, str]:
+        """Bytes of the reviewer's photo as JPEG (phones send HEIC) plus the original name."""
+        if photo is None:
+            return None, ""
+        raw = await photo.read()
+        if not raw:
+            return None, ""
+        name = photo.filename or "photo"
+        if name.lower().endswith((".heic", ".heif")) or (photo.content_type or "").endswith("heic"):
+            tmp_dir = settings.data_dir / "uploads" / "tmp"
+            tmp_dir.mkdir(parents=True, exist_ok=True)
+            src = tmp_dir / f"{_stamp()}.heic"
+            dst = src.with_suffix(".jpg")
+            src.write_bytes(raw)
+            try:
+                _heic_to_jpeg(src, dst)
+                raw = dst.read_bytes()
+            finally:
+                src.unlink(missing_ok=True)
+                dst.unlink(missing_ok=True)
+        return raw, name
+
+    @app.post("/api/projects/{slug}/reviews")
+    def start_review(slug: str, body: NewReview) -> dict:
+        st = store()
+        prj = _project(st, slug)
+        code = body.discipline.strip().upper()
+        if code not in project_mod.DISCIPLINES:
+            raise HTTPException(400, f"unknown discipline '{body.discipline}'")
+        for r in st.reviews(prj["id"]):
+            if r["discipline"] == code and r["status"] == "active":
+                return {"review": r, "resumed": True}
+        return {"review": st.create_review(prj["id"], code, body.title.strip()), "resumed": False}
+
+    @app.get("/api/projects/{slug}/plans/todo")
+    def plans_todo(slug: str) -> dict:
+        """Plan sheets whose floor boxes have not been found yet (the 'map the floors' button)."""
+        st = store()
+        prj = _project(st, slug)
+        return {"sheets": [{"id": sh["id"], "sheet_number": sh["sheet_number"], "title": sh["title"], "discipline": sh["discipline"]}
+                           for sh in plans_mod.plan_sheets(st, prj["id"])]}
+
+    @app.post("/api/projects/{slug}/sheets/{sheet_id}/views")
+    def find_views(slug: str, sheet_id: str) -> dict:
+        """One agent call: where each floor plan drawing sits on this sheet. The viewer zooms to it; pins stay on the sheet."""
+        st = store()
+        prj = _project(st, slug)
+        sh = st.sheet(sheet_id)
+        if not sh or sh["project_id"] != prj["id"]:
+            raise HTTPException(404, "no such sheet in this project")
+        run_id = st.create_run(prj["id"], batch_id="", model_id=settings.model_id, kind="review")
+        try:
+            out = plans_mod.find_plan_views(st, prj["id"], sheet_id, settings)
+        except ValueError as e:
+            st.finish_run(run_id, "failed", {"error": str(e)})
+            raise HTTPException(400, str(e)) from e
+        except Exception as e:  # noqa: BLE001
+            st.finish_run(run_id, "failed", {"error": f"{type(e).__name__}: {e}"})
+            raise HTTPException(502, f"the agent could not read the sheet ({type(e).__name__}); try again") from e
+        st.finish_run(run_id, "done", out["usage"])
+        return out
+
+    @app.put("/api/projects/{slug}/sheets/{sheet_id}/views")
+    def set_views(slug: str, sheet_id: str, body: SheetViews) -> dict:
+        """The engineer's correction: keep, drop or fix the boxes by hand."""
+        st = store()
+        prj = _project(st, slug)
+        sh = st.sheet(sheet_id)
+        if not sh or sh["project_id"] != prj["id"]:
+            raise HTTPException(404, "no such sheet in this project")
+        views = []
+        for v in body.views:
+            if not (0 <= v.x < 1 and 0 <= v.y < 1 and 0 < v.w <= 1 - v.x + 1e-6 and 0 < v.h <= 1 - v.y + 1e-6):
+                raise HTTPException(400, "a box must lie within the sheet")
+            # a box the engineer did not touch keeps its "agent" mark; anything else is his
+            views.append({"title": v.title.strip()[:80], "level": v.level.strip(), "x": v.x, "y": v.y, "w": v.w, "h": v.h,
+                          "source": "agent" if v.source == "agent" else "engineer"})
+        st.set_sheet_views(sheet_id, views)
+        return {"sheet_id": sheet_id, "views": views}
+
+    def _draft_review_message(st: Store, prj: dict, review_id: str) -> tuple[dict | None, str | None]:
+        """One agent call that writes the covering message; the review is finished whether or not it succeeds."""
+        if not st.review_items(prj["id"], review_id):
+            return None, "no deficiencies were recorded, so there is nothing to send"
+        run_id = st.create_run(prj["id"], batch_id="", model_id=settings.model_id, kind="review")
+        try:
+            out = review_mod.draft_review_message(st, prj["id"], review_id, settings, office=settings.office)
+        except Exception as e:  # noqa: BLE001
+            st.finish_run(run_id, "failed", {"error": f"{type(e).__name__}: {e}"})
+            return None, f"the agent could not draft the message ({type(e).__name__}); finish again to retry"
+        st.finish_run(run_id, "done", out["usage"])
+        did = st.upsert_draft(run_id, "", out["subject"], out["body"], review_id=review_id)
+        return st.draft_for_review(review_id) if did else None, None
+
+    @app.post("/api/projects/{slug}/reviews/{review_id}/finish")
+    def finish_review(slug: str, review_id: str) -> dict:
+        """Close the walk: freeze what goes to the contractor and have the agent draft the covering message.
+        Nothing is sent; the draft waits on the Messages tab for the engineer."""
+        st = store()
+        prj = _project(st, slug)
+        r = st.review(review_id)
+        if not r or r["project_id"] != prj["id"]:
+            raise HTTPException(404, "no such review")
+        st.finish_review(review_id)
+        pkg = review_mod.review_package(st, prj["id"], review_id)
+        st.set_review_package(review_id, pkg)
+        message, error = (st.draft_for_review(review_id), None) if st.draft_for_review(review_id) else _draft_review_message(st, prj, review_id)
+        return {"review": st.review(review_id), "package": pkg, "message": message, "error": error}
+
+    @app.post("/api/projects/{slug}/reviews/{review_id}/message")
+    def redraft_review_message(slug: str, review_id: str) -> dict:
+        """Ask the agent for a fresh covering message for a finished review (the package is rebuilt too)."""
+        st = store()
+        prj = _project(st, slug)
+        r = st.review(review_id)
+        if not r or r["project_id"] != prj["id"]:
+            raise HTTPException(404, "no such review")
+        if r["status"] != "finished":
+            raise HTTPException(400, "finish the review first")
+        pkg = review_mod.review_package(st, prj["id"], review_id)
+        st.set_review_package(review_id, pkg)
+        message, error = _draft_review_message(st, prj, review_id)
+        if error:
+            raise HTTPException(502 if "agent" in error else 400, error)
+        return {"review": st.review(review_id), "package": pkg, "message": message}
+
+    @app.post("/api/projects/{slug}/findings/suggest")
+    async def suggest_finding(slug: str, sheet_id: str = Form(...), pin_x: float = Form(...), pin_y: float = Form(...),
+                              note: str = Form(""), discipline: str = Form(""), photo: UploadFile | None = File(None)) -> dict:
+        """One model call: photo + pinned sheet -> proposed location / wording / evidence. The reviewer edits and saves."""
+        st = store()
+        prj = _project(st, slug)
+        sh = st.sheet(sheet_id)
+        if not sh or sh["project_id"] != prj["id"]:
+            raise HTTPException(404, "no such sheet in this project")
+        if not (0 <= pin_x <= 1 and 0 <= pin_y <= 1):
+            raise HTTPException(400, "pin must be inside the sheet")
+        raw, _ = await _read_photo(photo)
+        photo_bytes = None
+        if raw:
+            from PIL import Image
+            import io
+            with Image.open(io.BytesIO(raw)) as im:
+                im = im.convert("RGB")
+                im.thumbnail((1568, 1568))
+                buf = io.BytesIO(); im.save(buf, "JPEG", quality=85); photo_bytes = buf.getvalue()
+        try:
+            out = review_mod.suggest_field_note(st, prj["id"], sheet_id, pin_x, pin_y, photo_bytes, note, settings,
+                                                discipline_hint=discipline.strip().upper())
+        except Exception as e:  # noqa: BLE001 - the reviewer sees why and can still write it by hand
+            raise HTTPException(502, f"agent could not suggest: {type(e).__name__}: {e}") from e
+        return {"suggestion": out, "model_id": settings.model_id}
+
+    @app.post("/api/projects/{slug}/findings/locate")
+    async def locate_finding(slug: str, discipline: str = Form(...), unit: str = Form(""), level: str = Form(""),
+                             note: str = Form(""), gps: str = Form(""), photo: UploadFile = File(...)) -> dict:
+        """Photo first: one model call picks the sheet and writes the record; the reviewer then pins the spot on that sheet."""
+        st = store()
+        prj = _project(st, slug)
+        code = discipline.strip().upper()
+        if code not in project_mod.DISCIPLINES:
+            raise HTTPException(400, "unknown discipline")
+        raw, _ = await _read_photo(photo)
+        if not raw:
+            raise HTTPException(400, "a photo is required")
+        from PIL import Image
+        import io
+        with Image.open(io.BytesIO(raw)) as im:
+            im = im.convert("RGB")
+            im.thumbnail((1568, 1568))
+            buf = io.BytesIO(); im.save(buf, "JPEG", quality=85); photo_bytes = buf.getvalue()
+        try:
+            out = review_mod.locate_field_note(st, prj["id"], code, photo_bytes, unit.strip(), level.strip(), note, gps.strip()[:80], settings)
+        except ValueError as e:
+            raise HTTPException(400, str(e)) from e
+        except Exception as e:  # noqa: BLE001
+            raise HTTPException(502, f"agent could not place it: {type(e).__name__}: {e}") from e
+        return {"suggestion": out, "model_id": settings.model_id}
+
+    @app.post("/api/projects/{slug}/findings")
+    async def save_finding(slug: str, sheet_id: str = Form(...), pin_x: float = Form(...), pin_y: float = Form(...),
+                           review_id: str = Form(...), location: str = Form(...), description: str = Form(...),
+                           evidence_required: str = Form(...), discipline: str = Form(""), unit: str = Form(""),
+                           level: str = Form(""), space: str = Form(""), note: str = Form(""), gps: str = Form(""),
+                           photo: UploadFile | None = File(None)) -> dict:
+        """The reviewer's confirmed deficiency: numbered, pinned to the sheet, photo kept as the reference."""
+        from .register import RegisterError, parse_slots
+        st = store()
+        prj = _project(st, slug)
+        pid = prj["id"]
+        sh = st.sheet(sheet_id)
+        if not sh or sh["project_id"] != pid:
+            raise HTTPException(404, "no such sheet in this project")
+        rv = st.review(review_id)
+        if not rv or rv["project_id"] != pid:
+            raise HTTPException(404, "no such review")
+        if rv["status"] != "active":
+            raise HTTPException(409, "that review is finished; start a new one")
+        location, description = " ".join(location.split()), " ".join(description.split())
+        if len(location) < 4 or len(description) < 4:
+            raise HTTPException(400, "location and description are required")
+        try:
+            slots = parse_slots(evidence_required)
+        except RegisterError as e:
+            raise HTTPException(400, f"evidence required: {e}") from e
+        code = (discipline.strip().upper() or rv["discipline"])
+        if code not in project_mod.DISCIPLINES:
+            raise HTTPException(400, f"unknown discipline '{discipline}'")
+        item_id = st.next_item_id(pid, rv["discipline"])
+        raw, original = await _read_photo(photo)
+        ref_path, meta = "", {}
+        if raw:
+            p = _field_photo_path(prj["slug"], item_id)
+            p.write_bytes(raw)
+            ref_path = str(p)
+            meta = {**_exif(p), "original_name": original}
+        if gps.strip():
+            meta["gps"] = gps.strip()[:80]
+        st.add_field_item(pid, item_id, location, description, evidence_required, slots, code, review_id,
+                          sheet=sh["sheet_number"] or f"{sh['discipline']} p.{sh['page']}", sheet_id=sheet_id,
+                          pin_x=pin_x, pin_y=pin_y, unit=unit.strip(), level=level.strip(), space=space.strip(),
+                          note=note.strip(), reference_photo=ref_path, ref_meta=meta,
+                          review_date=datetime.now(timezone.utc).date().isoformat())
+        return {"item": st.deficiency(pid, item_id)}
+
+    @app.patch("/api/projects/{slug}/findings/{item_id}")
+    def patch_finding(slug: str, item_id: str, body: FindingPatch) -> dict:
+        from .register import RegisterError, parse_slots
+        st = store()
+        pid = _project(st, slug)["id"]
+        d = st.deficiency(pid, item_id)
+        if not d or d.get("source") != "field":
+            raise HTTPException(404, "no such field finding")
+        fields = {k: v for k, v in body.model_dump().items() if v is not None}
+        if "evidence_required" in fields:
+            try:
+                fields["slots_json"] = json.dumps([s.__dict__ for s in parse_slots(fields["evidence_required"])])
+            except RegisterError as e:
+                raise HTTPException(400, f"evidence required: {e}") from e
+        st.update_field_item(pid, item_id, **fields)
+        return {"item": st.deficiency(pid, item_id)}
+
+    @app.delete("/api/projects/{slug}/findings/{item_id}")
+    def delete_finding(slug: str, item_id: str) -> dict:
+        st = store()
+        pid = _project(st, slug)["id"]
+        d = st.deficiency(pid, item_id)
+        if not d or d.get("source") != "field":
+            raise HTTPException(404, "no such field finding")
+        st.delete_deficiency(pid, item_id)
+        if d.get("reference_photo"):
+            Path(d["reference_photo"]).unlink(missing_ok=True)
+        return {"deleted": item_id}
 
     # --- batches / runs -------------------------------------------------
     @app.post("/api/projects/{slug}/batches")

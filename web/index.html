@@ -59,8 +59,8 @@
   .phead h1 { margin: 0; font-size: 30px; letter-spacing: -.02em; line-height: 1.2; }
   .phead .sub { color: var(--mute); margin-top: 4px; font-size: 14px; }
   .phead .btn { white-space: nowrap; }
-  .tabs { display: flex; gap: 4px; margin-top: 22px; border-bottom: 1px solid var(--line); }
-  .tabs a { padding: 10px 14px; color: var(--mute); font-weight: 600; font-size: 14px; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .tabs { display: flex; gap: 4px; margin-top: 22px; border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: none; }
+  .tabs a { white-space: nowrap; padding: 10px 14px; color: var(--mute); font-weight: 600; font-size: 14px; border-bottom: 2px solid transparent; margin-bottom: -1px; }
   .tabs a:hover { text-decoration: none; color: var(--ink); }
   .tabs a.on { color: var(--ink); border-bottom-color: var(--ink); }
   .tabs a small { font-weight: 500; color: var(--mute); margin-left: 6px; font-size: 12px; }
@@ -175,6 +175,131 @@
   .decided b { color: var(--ink); }
   .hist { margin-top: 10px; font-size: 13px; color: var(--mute); }
 
+  /* field review tab */
+  .discs { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; margin-top: 22px; }
+  .disc { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 18px 18px 16px; cursor: pointer; display: flex; flex-direction: column; gap: 6px; transition: border-color .15s, transform .15s; position: relative; min-height: 150px; }
+  .disc:hover { border-color: var(--ink); } .disc.on { border-color: var(--ink); box-shadow: 0 0 0 2px var(--ink) inset; }
+  .disc .code { font-family: var(--mono); font-size: 12px; color: var(--mute); letter-spacing: .1em; }
+  .disc h2 { margin: 0; font-size: 20px; letter-spacing: -.01em; }
+  .disc .n { color: var(--mute); font-size: 13px; }
+  .disc .rv { margin-top: auto; padding-top: 10px; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; }
+  .disc .rv b { color: var(--hot); } .disc .rv .live { width: 8px; height: 8px; border-radius: 50%; background: var(--hot); display: inline-block; margin-right: 6px; animation: pulse 1s infinite alternate; }
+  .fr-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 30px; flex-wrap: wrap; }
+  .fr-head h2 { margin: 0; font-size: 22px; letter-spacing: -.01em; } .fr-head p { margin: 4px 0 0; color: var(--mute); font-size: 14px; }
+  .btn.primary { background: var(--ink); color: #fff; border-color: var(--ink); font-weight: 600; padding: 11px 18px; border-radius: 10px; font-size: 15px; min-height: 44px; }
+  .btn.hot { background: var(--hot); border-color: var(--hot); color: #fff; }
+  .sheet .cap .pins { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 999px; background: var(--hot); color: #fff; font-size: 11px; font-weight: 700; }
+  .findings { margin-top: 10px; }
+
+  /* full-screen sheet viewer */
+  body.viewing { overflow: hidden; }
+  .viewer { position: fixed; inset: 0; background: #1c1d20; color: #fff; display: flex; flex-direction: column; z-index: 5; }
+  .viewer .vbar { display: flex; align-items: center; gap: 12px; padding: 10px 14px; padding-top: max(10px, env(safe-area-inset-top)); background: #121314; border-bottom: 1px solid #2b2d31; font-size: 14px; min-height: 56px; }
+  .viewer .vbar a, .viewer .vbar button { color: #fff; background: #2b2d31; border: 0; border-radius: 10px; padding: 8px 12px; min-height: 40px; min-width: 40px; font-size: 14px; font-weight: 600; }
+  .viewer .vbar a:hover { text-decoration: none; background: #3a3d42; }
+  .viewer .vbar .ttl { flex: 1; min-width: 0; line-height: 1.25; }
+  .viewer .vbar .ttl b { display: block; font-family: var(--mono); font-size: 12px; color: #b9bcc2; letter-spacing: .08em; }
+  .viewer .vbar .ttl span { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+  .viewer .vbar .rev { font-size: 12px; color: #ffb38a; white-space: nowrap; }
+  .viewer .vbar .zoom { display: flex; gap: 6px; }
+  .viewer .stagewrap { flex: 1; position: relative; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+  .canvas { flex: 1; overflow: auto; position: relative; touch-action: pan-x pan-y; -webkit-overflow-scrolling: touch; cursor: crosshair; }
+  .canvas .stage { position: relative; display: inline-block; margin: 20px; box-shadow: 0 20px 60px rgba(0,0,0,.5); background: #fff; }
+  .canvas img { display: block; user-select: none; -webkit-user-drag: none; pointer-events: none; }
+  .pin { position: absolute; transform: translate(-50%, -50%); width: 30px; height: 30px; border-radius: 50%; background: var(--hot); border: 3px solid #fff; box-shadow: 0 2px 10px rgba(0,0,0,.4); display: grid; place-items: center; color: #fff; font: 700 10px/1 var(--mono); cursor: pointer; pointer-events: auto; }
+  .pin.draft { background: #fff; border-color: var(--hot); animation: pulse .7s infinite alternate; width: 34px; height: 34px; }
+  .pin.draft::after { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--hot); }
+  .pin small { position: absolute; top: 32px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 2px 6px; border-radius: 6px; white-space: nowrap; font-size: 11px; font-weight: 700; }
+  .hint { position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%); background: rgba(18,19,20,.85); color: #fff; padding: 10px 16px; border-radius: 999px; font-size: 14px; pointer-events: none; white-space: nowrap; }
+  .panel { background: var(--paper); color: var(--ink); border-top: 1px solid var(--line-2); padding: 16px 18px; padding-bottom: max(16px, env(safe-area-inset-bottom)); max-height: 62vh; overflow: auto; }
+  .panel h3 { margin: 0 0 4px; font-size: 18px; letter-spacing: -.01em; } .panel .sub { color: var(--mute); font-size: 13px; margin-bottom: 12px; }
+  .panel label { display: block; font-size: 12px; color: var(--mute); text-transform: uppercase; letter-spacing: .1em; margin: 12px 0 5px; }
+  .panel input, .panel textarea, .panel select { width: 100%; font: inherit; font-size: 16px; border: 1px solid var(--line-2); border-radius: 10px; padding: 11px 12px; background: #fff; min-height: 44px; }
+  .panel textarea { min-height: 84px; resize: vertical; }
+  .panel .row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+  .panel .acts { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; align-items: center; }
+  .panel .acts .btn { min-height: 44px; padding: 10px 16px; border-radius: 10px; font-size: 15px; }
+  .panel .acts .cancel { margin-left: auto; color: var(--mute); border: 0; background: transparent; }
+  .shot { display: flex; gap: 12px; align-items: center; }
+  .shot .take { position: relative; flex: none; width: 96px; height: 96px; border-radius: 14px; border: 2px dashed var(--line-2); background: #fff; display: grid; place-items: center; text-align: center; font-size: 12px; color: var(--ink-2); font-weight: 600; overflow: hidden; }
+  .shot .take img { width: 100%; height: 100%; object-fit: cover; }
+  .shot .take input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .shot .take .ico { font-size: 24px; display: block; margin-bottom: 2px; }
+  .shot .note { flex: 1; }
+  .thinking { display: flex; align-items: center; gap: 12px; padding: 16px 0; font-size: 15px; }
+  /* handoff: what goes to the contractor after a review is finished */
+  .handoff { margin: 18px 0 8px; border-radius: 18px; background: #fff; border: 1px solid var(--line-2); box-shadow: 0 10px 30px rgba(18,19,20,.08); overflow: hidden; }
+  .handoff .hd { padding: 16px 20px 14px; border-left: 5px solid var(--hot); display: flex; justify-content: space-between; gap: 12px; align-items: baseline; flex-wrap: wrap; }
+  .handoff .hd h3 { margin: 0; font-size: 18px; letter-spacing: -.01em; } .handoff .hd p { margin: 3px 0 0; color: var(--mute); font-size: 13px; }
+  .handoff .hd .x { border: 0; background: none; color: var(--mute); font-size: 13px; padding: 0; }
+  .handoff .pk { padding: 0 20px; } .handoff .pk .row { display: grid; grid-template-columns: 58px 1fr; gap: 10px; padding: 9px 0; border-top: 1px solid var(--line); font-size: 14px; align-items: baseline; }
+  .handoff .pk .row .id { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 700; color: var(--hot); }
+  .handoff .pk .row small { display: block; color: var(--mute); margin-top: 2px; }
+  .handoff .ms { padding: 16px 20px 18px; border-top: 1px solid var(--line); background: var(--paper); }
+  .handoff .ms label { display: block; font-size: 12px; color: var(--mute); text-transform: uppercase; letter-spacing: .1em; margin: 0 0 6px; }
+  .handoff .ms input, .handoff .ms textarea { width: 100%; font: inherit; font-size: 15px; border: 1px solid var(--line-2); border-radius: 10px; padding: 10px 12px; background: #fff; }
+  .handoff .ms input { margin-bottom: 10px; font-weight: 600; } .handoff .ms textarea { min-height: 220px; resize: vertical; line-height: 1.45; }
+  .handoff .ms .acts { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; align-items: center; }
+  .handoff .ms .acts .btn { min-height: 40px; padding: 8px 14px; font-size: 14px; }
+  .handoff .ms .note { color: var(--mute); font-size: 13px; margin: 10px 0 0; }
+  .handoff .ms .why { margin: 0 0 10px; font-size: 14px; }
+  .thinking .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--hot); animation: pulse .6s infinite alternate; flex: none; }
+  .agentnote { font-size: 13px; color: var(--mute); margin-top: 6px; }
+  .agentnote b { color: var(--hot); }
+  .pinned { position: relative; display: block; }
+  .pinned .pin { width: 26px; height: 26px; }
+  @media (min-width: 900px) { .viewer { flex-direction: row; } .viewer .vbar { position: absolute; left: 0; right: 0; top: 0; z-index: 2; } .viewer .floors { position: absolute; left: 0; right: 0; top: 56px; z-index: 2; } .canvas { padding-top: 56px; } .viewer:has(.floors) .canvas { padding-top: 107px; } .panel { width: 420px; max-height: none; border-top: 0; border-left: 1px solid var(--line-2); padding-top: 72px; } }
+  @media (max-width: 760px) { .panel .row { grid-template-columns: 1fr; } .discs { grid-template-columns: 1fr 1fr; } }
+
+  .capture { display: flex; align-items: center; gap: 16px; margin: 18px 0 18px; padding: 18px 20px; border-radius: 18px; background: var(--ink); color: #fff; cursor: pointer; position: relative; overflow: hidden; box-shadow: 0 14px 34px rgba(18,19,20,.22); }
+  .capture input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .capture .ico { width: 56px; height: 56px; border-radius: 50%; background: var(--hot); display: grid; place-items: center; font-size: 26px; flex: none; }
+  .capture b { display: block; font-size: 18px; letter-spacing: -.01em; } .capture small { display: block; color: rgba(255,255,255,.72); margin-top: 3px; line-height: 1.35; font-size: 13px; }
+  .where { margin: 16px 0 24px; padding: 18px 20px; border-radius: 18px; background: #fff; border: 1px solid var(--line-2); box-shadow: 0 10px 30px rgba(18,19,20,.08); }
+  .where h3 { margin: 0 0 4px; font-size: 20px; letter-spacing: -.01em; } .where .sub { color: var(--mute); font-size: 13px; margin-bottom: 12px; }
+  .where label { display: block; font-size: 12px; color: var(--mute); text-transform: uppercase; letter-spacing: .1em; margin: 12px 0 5px; }
+  .where input, .where select { width: 100%; font: inherit; font-size: 16px; border: 1px solid var(--line-2); border-radius: 10px; padding: 11px 12px; background: #fff; min-height: 44px; }
+  .where .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .where .acts { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; align-items: center; }
+  .where .acts .btn { min-height: 44px; padding: 10px 16px; border-radius: 10px; font-size: 15px; }
+  .where .acts .cancel { margin-left: auto; color: var(--mute); border: 0; background: transparent; font: inherit; cursor: pointer; }
+  .where .shot .take { width: 112px; height: 112px; }
+  .where .row.three { grid-template-columns: 1.3fr 1fr 1fr; }
+  .plan-pick { display: grid; grid-template-columns: 148px 1fr; gap: 14px; align-items: center; margin-top: 14px; padding: 12px; border-radius: 14px; background: var(--paper); border: 1px solid var(--line); }
+  .plan-pick .crop { aspect-ratio: 1.35; border-radius: 10px; background: #fff center / contain no-repeat; border: 1px solid var(--line-2); box-shadow: inset 0 0 0 1px rgba(0,0,0,.02); }
+  .plan-pick b { display: block; font-family: var(--mono); font-size: 12px; letter-spacing: .08em; color: var(--mute); }
+  .plan-pick h4 { margin: 2px 0 4px; font-size: 16px; letter-spacing: -.01em; } .plan-pick p { margin: 0; font-size: 13px; color: var(--ink-2); line-height: 1.4; }
+  .plan-pick p.warn { color: #9a4a00; }
+  h4.grp { margin: 26px 0 0; font-size: 15px; letter-spacing: -.01em; display: flex; gap: 10px; align-items: baseline; } h4.grp small { color: var(--mute); font-weight: 500; font-size: 13px; }
+  h4.grp + .gallery { margin-top: 12px; }
+  .sheet .cap i { display: inline-block; font-style: normal; font-size: 11px; color: var(--hot); font-weight: 700; margin-left: 6px; letter-spacing: .06em; }
+  .mapbar { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; margin-top: 24px; padding: 14px 18px; border-radius: 14px; background: var(--card); border: 1px dashed var(--line-2); font-size: 14px; color: var(--ink-2); }
+  .mapbar .btn { min-height: 40px; }
+  .viewer .floors { display: flex; gap: 6px; padding: 8px 14px; background: #121314; border-bottom: 1px solid #2b2d31; overflow-x: auto; align-items: center; }
+  .viewer .floors span.lbl { font-size: 12px; color: #8b8f97; white-space: nowrap; margin-right: 4px; }
+  .viewer .floors button { flex: none; color: #fff; background: #2b2d31; border: 0; border-radius: 999px; padding: 7px 13px; min-height: 34px; font: 600 13px/1 var(--sans, inherit); white-space: nowrap; }
+  .viewer .floors button.on { background: var(--hot); }
+  .viewer .related { position: absolute; left: 0; right: 0; bottom: 0; display: flex; gap: 8px; align-items: flex-end; padding: 8px 12px; padding-bottom: max(8px, env(safe-area-inset-bottom)); background: linear-gradient(to top, rgba(18,19,20,.92), rgba(18,19,20,0)); overflow-x: auto; pointer-events: none; }
+  .viewer .related > * { pointer-events: auto; }
+  .viewer .related .lbl { flex: none; color: #b9bcc2; font-size: 11px; text-transform: uppercase; letter-spacing: .1em; align-self: center; margin-right: 4px; white-space: nowrap; }
+  .viewer .related .rel { flex: none; width: 92px; background: #1c1d20; border: 1px solid #3a3d42; border-radius: 8px; overflow: hidden; cursor: pointer; }
+  .viewer .related .rel img { display: block; width: 100%; aspect-ratio: 1.4; object-fit: cover; object-position: top left; background: #fff; }
+  .viewer .related .rel span { display: block; padding: 4px 6px; font: 600 11px/1.2 var(--mono); color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .viewer .related .rel small { display: block; padding: 0 6px 5px; font-size: 10px; color: #b9bcc2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .viewer .hint.up { bottom: 122px; }
+  .viewer .floors button.fix { background: transparent; border: 1px solid #3a3d42; color: #b9bcc2; margin-left: auto; }
+  .fixbox { position: absolute; border: 2px solid var(--hot); background: rgba(255,90,31,.08); box-shadow: 0 0 0 9999px rgba(18,19,20,.35); cursor: move; touch-action: none; }
+  .fixbox i { position: absolute; width: 30px; height: 30px; margin: -15px; background: #fff; border: 3px solid var(--hot); border-radius: 50%; touch-action: none; }
+  .fixbox i.nw { left: 0; top: 0; cursor: nwse-resize; } .fixbox i.ne { right: -0px; top: 0; margin-right: -15px; cursor: nesw-resize; }
+  .fixbox i.sw { left: 0; bottom: 0; margin-bottom: -15px; cursor: nesw-resize; } .fixbox i.se { right: 0; bottom: 0; margin-right: -15px; margin-bottom: -15px; cursor: nwse-resize; }
+  .fixbox i.ne, .fixbox i.se { left: auto; } .fixbox i.sw, .fixbox i.se { top: auto; }
+  .viewer .fixbar { position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; background: rgba(18,19,20,.92); color: #fff; padding: 8px 8px 8px 16px; border-radius: 999px; font-size: 14px; white-space: nowrap; max-width: calc(100% - 24px); }
+  .viewer .fixbar.up { bottom: 122px; }
+  .viewer .fixbar button { border: 0; border-radius: 999px; min-height: 36px; padding: 0 14px; font: 600 13px/1 var(--sans, inherit); color: #fff; background: #2b2d31; }
+  .viewer .fixbar button.go { background: var(--hot); }
+  @media (max-width: 760px) { .where .row.three { grid-template-columns: 1fr; } .plan-pick { grid-template-columns: 112px 1fr; } .viewer .related .rel { width: 78px; } }
+  .pickhint { margin: 18px 0 6px; font-weight: 600; font-size: 15px; } .pickhint span { color: var(--hot); }
+  .panel .acts .btn:disabled { opacity: .45; cursor: not-allowed; }
   .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(20px); background: var(--ink); color: #fff; padding: 10px 16px; border-radius: 10px; font-size: 14px; opacity: 0; transition: .2s; pointer-events: none; z-index: 9; }
   .toast.show { opacity: 1; transform: translateX(-50%); } .toast.err { background: var(--hot); }
   @media (max-width: 760px) { .hero, .grid2, .drops, .refs { grid-template-columns: 1fr; } .wrap { padding: 0 16px 60px; } .tabs { overflow-x: auto; } }
@@ -198,13 +323,14 @@ const fileUrl = (id, page) => `/api/evidence/${id}/file` + (page ? `#page=${page
 const isImg = name => /\.(jpe?g|png|heic|heif|webp)$/i.test(name || "");
 const PRICE = { inputTokens: 3 / 1e6, outputTokens: 15 / 1e6 };
 const cost = r => { const u = JSON.parse((r && r.usage_json) || "{}"); return (u.inputTokens || 0) * PRICE.inputTokens + (u.outputTokens || 0) * PRICE.outputTokens; };
-const state = { home: null, p: null, slug: null, es: null, run: { kind: "idle", text: "", done: 0, total: 0 } };
+const state = { home: null, p: null, slug: null, es: null, run: { kind: "idle", text: "", done: 0, total: 0 }, fieldDisc: null, viewer: null, shot: null, openReview: null, finishing: null, drafting: null, mapping: null };
 
 function toast(msg, err) { const t = $("#toast"); t.textContent = msg; t.className = "toast show" + (err ? " err" : ""); setTimeout(() => t.className = "toast", 3200); }
 function route() {
   const h = location.hash.replace(/^#\/?/, "");
   let m = h.match(/^p\/([^/]+)\/item\/(.+)$/); if (m) return { page: "item", slug: m[1], id: decodeURIComponent(m[2]) };
-  m = h.match(/^p\/([^/]+)\/?(drawings|evidence|messages)?$/); if (m) return { page: "project", slug: m[1], tab: m[2] || "list" };
+  m = h.match(/^p\/([^/]+)\/field\/([^/]+)$/); if (m) return { page: "sheet", slug: m[1], sheetId: m[2] };
+  m = h.match(/^p\/([^/]+)\/?(drawings|field|evidence|messages)?$/); if (m) return { page: "project", slug: m[1], tab: m[2] || "list" };
   return { page: "home" };
 }
 const pUrl = (slug, tail) => `/api/projects/${encodeURIComponent(slug)}${tail || ""}`;
@@ -220,7 +346,10 @@ function status(i) {
 const CALL = { accept: "Ready to close", reject: "Not accepted", hold: "On hold" };
 function items() {
   const p = state.p, pk = p.packet;
-  return pk ? pk.items : p.register.map(d => ({ item: d, completeness: "no_evidence", evidence: [], unresolved: [], missing_slots: d.slots, history: [], followup_draft: null, decision: null }));
+  const blank = d => ({ item: d, completeness: "no_evidence", evidence: [], unresolved: [], missing_slots: d.slots, history: [], followup_draft: null, decision: null });
+  if (!pk) return p.register.map(blank);
+  const seen = new Set(pk.items.map(i => i.item.item_id));
+  return [...pk.items, ...p.register.filter(d => !seen.has(d.item_id)).map(blank)];
 }
 
 /* ---- data ----------------------------------------------------------- */
@@ -240,10 +369,12 @@ async function load() {
 function render() {
   const r = route(), p = state.p;
   const inP = r.page !== "home" && p;
+  document.body.classList.toggle("viewing", r.page === "sheet" && !!p);
   $("#crumbs").innerHTML = inP ? `<a href="#/">Projects</a><span>›</span><b>${esc(p.project.name)}</b>${r.page === "item" ? `<span>›</span><span>${esc(r.id)}</span>` : ""}` : `<span>${state.home ? `${state.home.projects.length} project${state.home.projects.length === 1 ? "" : "s"}` : ""}</span>`;
   if (r.page === "home") renderHome();
   else if (!p) $("#main").innerHTML = `<a class="back" href="#/">← Projects</a><p class="empty">No project called “${esc(r.slug)}”.</p>`;
   else if (r.page === "item") renderItem(r.id);
+  else if (r.page === "sheet") renderSheet(r.sheetId);
   else renderProject(r.tab);
 }
 
@@ -287,8 +418,8 @@ function renderHome() {
 /* ---- project page ----------------------------------------------------- */
 function renderProject(tab) {
   const p = state.p, pr = p.project, c = p.card, slug = state.slug;
-  const T = { list: "Deficiencies", drawings: "Drawings", evidence: "Evidence drops", messages: "Messages" };
-  const counts = { list: c.items, drawings: c.sheets, evidence: c.drops, messages: p.messages.length };
+  const T = { list: "Deficiencies", field: "Field review", drawings: "Drawings", evidence: "Evidence drops", messages: "Messages" };
+  const counts = { list: c.items, field: p.reviews.filter(r => r.status === "active").length || p.reviews.length, drawings: c.sheets, evidence: c.drops, messages: p.messages.length };
   $("#main").innerHTML = `
     <div class="phead">
       <div><h1>${esc(pr.name)}</h1><div class="sub">${esc([pr.address, pr.city, pr.building_type].filter(Boolean).join(" · ") || "No drawings read yet")}</div></div>
@@ -296,7 +427,7 @@ function renderProject(tab) {
     </div>
     <div class="tabs">${Object.keys(T).map(k => `<a href="${pHash(slug, k === "list" ? "" : "/" + k)}" class="${tab === k ? "on" : ""}">${T[k]}<small>${counts[k]}</small></a>`).join("")}</div>
     <div id="tab"></div>`;
-  ({ list: renderList, drawings: renderDrawings, evidence: renderDrops, messages: renderMessages })[tab]();
+  ({ list: renderList, field: renderField, drawings: renderDrawings, evidence: renderDrops, messages: renderMessages })[tab]();
 }
 
 function renderList() {
@@ -359,10 +490,10 @@ function renderDrawings() {
       <div class="fact"><b>Documents in the folder</b><span>${pr.documents.length} (${pr.documents.filter(d => d.is_current).length} current)</span></div>
     </div>
     ${Object.keys(byDisc).map(k => `<h3 class="sec">${esc(k)}</h3><div class="gallery">${byDisc[k].map(sh => `
-      <div class="sheet" data-url="${sh.image_url}"><img src="${sh.thumb_url || sh.image_url}" alt="" loading="lazy"><div class="cap"><b>${esc(sh.sheet_number || "p." + sh.page)}</b><span>${esc(sh.title || "")}</span><small>${(sh.read && sh.read.spaces || []).length} spaces read</small></div></div>`).join("")}</div>`).join("")}
-    <p class="empty" style="margin-top:22px">Tap a sheet to open it full size. Adding a deficiency straight from a sheet comes next.</p>`
+      <div class="sheet" data-id="${sh.id}"><img src="${sh.thumb_url || sh.image_url}" alt="" loading="lazy"><div class="cap"><b>${esc(sh.sheet_number || "p." + sh.page)}</b><span>${esc(sh.title || "")}</span><small>${(sh.read && sh.read.spaces || []).length} spaces read</small></div></div>`).join("")}</div>`).join("")}
+    <p class="empty" style="margin-top:22px">Tap a sheet to open it. To record a deficiency on it, start a field review first.</p>`
   : `<div class="drop big" id="dropPrj" style="margin-top:24px"><div class="arrow">↓</div><h2>Drop the project folder</h2><p>The agent finds the current drawing sets, renders every sheet and reads rooms, units and levels off them.</p><input type="file" webkitdirectory multiple></div><div class="status ${esc(state.run.kind)}" id="status"></div>`;
-  $("#tab").querySelectorAll(".sheet").forEach(s => s.onclick = () => window.open(s.dataset.url, "_blank"));
+  $("#tab").querySelectorAll(".sheet").forEach(s => s.onclick = () => location.hash = pHash(slug, "/field/" + s.dataset.id));
   wireDrop($("#dropPrj"), "drawings", slug); renderStatus();
 }
 
@@ -386,10 +517,16 @@ function renderDrops() {
 
 function renderMessages() {
   const p = state.p, slug = state.slug;
+  const about = m => {
+    if (!m.review_id) return `To the contractor about <a href="${pHash(slug, "/item/" + encodeURIComponent(m.item_id))}">${esc(m.item_id)}</a>`;
+    const r = p.reviews.find(x => x.id === m.review_id), disc = r && (disciplines().find(d => d.code === r.discipline) || {}).name;
+    return `To the contractor after <a href="${pHash(slug, "/field")}" data-rv="${esc(m.review_id)}">${esc(r ? r.title : "a field review")}${disc ? " (" + esc(disc) + ")" : ""}</a>${r && r.package ? ` · ${r.package.count} item${r.package.count === 1 ? "" : "s"}` : ""} · ${m.status === "edited" ? "edited by you" : "drafted by the agent"} · not sent yet`;
+  };
   $("#tab").innerHTML = p.messages.length ? p.messages.map(m => `
-    <div class="msg"><div class="top"><span>To the contractor about <a href="${pHash(slug, "/item/" + encodeURIComponent(m.item_id))}">${esc(m.item_id)}</a></span><span>${esc(when(m.updated_at || m.created_at))}</span></div>
+    <div class="msg"><div class="top"><span>${about(m)}</span><span>${esc(when(m.updated_at || m.created_at))}</span></div>
       <h4>${esc(m.subject)}</h4><pre>${esc(m.body)}</pre></div>`).join("")
-  : `<p class="empty" style="margin-top:22px">No messages yet. When evidence is missing or unclear, the agent drafts a follow-up here for you to edit and send.</p>`;
+  : `<p class="empty" style="margin-top:22px">No messages yet. Finish a field review and the agent drafts the covering message to the contractor here; when evidence is missing or unclear it drafts the follow-up.</p>`;
+  $("#tab").querySelectorAll("a[data-rv]").forEach(a => a.onclick = () => { const r = p.reviews.find(x => x.id === a.dataset.rv); if (r) { state.fieldDisc = r.discipline; state.openReview = r.id; } });
 }
 
 function renderStatus() {
@@ -415,12 +552,13 @@ function renderItem(id) {
   const d = i.item, s = status(i);
   const filled = new Set(i.evidence.filter(f => f.slot_index >= 0 && (f.tier === "explicit" || f.tier === "strong")).map(f => f.slot_index));
   const weak = new Set(i.evidence.filter(f => f.slot_index >= 0 && f.tier === "weak").map(f => f.slot_index));
-  const sheet = d.sheet ? state.p.project.sheets.find(sh => sh.sheet_number === d.sheet) : null;
+  const sheet = d.sheet_id ? state.p.project.sheets.find(sh => sh.id === d.sheet_id) : d.sheet ? state.p.project.sheets.find(sh => sh.sheet_number === d.sheet) : null;
+  const hasPin = sheet && d.pin_x != null && d.pin_y != null;
   const draft = i.followup_draft;
   $("#main").innerHTML = `
     <a class="back" href="${pHash(slug)}">← All deficiencies</a>
     <div class="item-head">
-      <div><div class="idm">${esc(d.item_id)} · ${esc(d.discipline || "")}${d.review_date ? ` · reviewed ${esc(d.review_date)}` : ""}</div><h1>${esc(d.description)}</h1><div class="where">${esc(d.location)}${d.sheet ? ` · sheet ${esc(d.sheet)}` : ""}</div></div>
+      <div><div class="idm">${esc(d.item_id)} · ${esc(d.discipline || "")}${d.review_date ? ` · reviewed ${esc(d.review_date)}` : ""}${d.source === "field" ? " · recorded on site" : ""}</div><h1>${esc(d.description)}</h1><div class="where">${esc(d.location)}${d.sheet ? ` · sheet ${esc(d.sheet)}` : ""}${d.note ? ` · note: “${esc(d.note)}”` : ""}</div></div>
       <span class="pill lg ${s.k}">${esc(s.t)}</span>
     </div>
     <div class="grid2">
@@ -429,8 +567,8 @@ function renderItem(id) {
       </section>
       <section class="box"><h2>Where it is</h2>
         <div class="refs">
-          ${d.reference_photo ? `<figure><img src="${pUrl(slug, "/register/" + encodeURIComponent(d.item_id) + "/reference")}" alt=""><figcaption>Engineer's photo at the field review</figcaption></figure>` : ""}
-          ${sheet ? `<figure><a href="${sheet.image_url}" target="_blank"><img src="${sheet.image_url}" alt="" loading="lazy"></a><figcaption>Sheet ${esc(sheet.sheet_number)} · ${esc(sheet.title)}</figcaption></figure>` : `<p class="empty">No sheet ${esc(d.sheet || "")} in the project drawings.</p>`}
+          ${d.reference_photo ? `<figure><img src="${pUrl(slug, "/register/" + encodeURIComponent(d.item_id) + "/reference")}" alt=""><figcaption>Engineer's photo at the field review${d.review_date ? ", " + esc(d.review_date) : ""}</figcaption></figure>` : ""}
+          ${sheet ? `<figure><a class="pinned" href="${pHash(slug, "/field/" + sheet.id)}"><img src="${sheet.image_url}" alt="" loading="lazy">${hasPin ? `<i class="pin" style="left:${d.pin_x * 100}%;top:${d.pin_y * 100}%"></i>` : ""}</a><figcaption>Sheet ${esc(sheet.sheet_number)} · ${esc(sheet.title)}${hasPin ? " · pinned where it was found" : ""}</figcaption></figure>` : `<p class="empty">No sheet ${esc(d.sheet || "")} in the project drawings.</p>`}
         </div>
       </section>
     </div>
@@ -486,6 +624,470 @@ function slotName(f) {
   const i = items().find(x => x.evidence.some(e => e.finding_id === f.finding_id));
   const sl = i && i.item.slots[f.slot_index];
   return sl ? sl.type : "";
+}
+
+/* ---- field review ----------------------------------------------------- */
+const DISC_NAMES = { AR: "Architectural", EL: "Electrical", PL: "Plumbing", ME: "Mechanical", ST: "Structural", CV: "Civil", LA: "Landscape", FP: "Fire protection" };
+function disciplines() {
+  const out = {};
+  state.p.project.sheets.forEach(sh => { const d = out[sh.discipline] = out[sh.discipline] || { code: sh.discipline, name: sh.discipline_name || DISC_NAMES[sh.discipline] || sh.discipline, sheets: [] }; d.sheets.push(sh); });
+  return Object.values(out);
+}
+const activeReview = code => state.p.reviews.find(r => r.discipline === code && r.status === "active") || null;
+const findingsOn = sheetId => state.p.register.filter(d => d.sheet_id === sheetId);
+const findingsIn = reviewId => state.p.register.filter(d => d.review_id === reviewId);
+
+function renderField() {
+  const p = state.p, slug = state.slug, discs = disciplines();
+  if (!discs.length) { $("#tab").innerHTML = `<p class="empty" style="margin-top:22px">Drop the project drawings first. A field review walks the sheets of one discipline and pins each deficiency where you find it.</p>`; return; }
+  if (!state.fieldDisc || !discs.some(d => d.code === state.fieldDisc)) { const live = discs.find(d => activeReview(d.code)); state.fieldDisc = (live || discs[0]).code; }
+  const cur = discs.find(d => d.code === state.fieldDisc), rv = activeReview(cur.code);
+  const done = p.reviews.filter(r => r.discipline === cur.code && r.status === "finished");
+  const items = rv ? findingsIn(rv.id) : [], shot = state.shot;
+  $("#tab").innerHTML = `
+    ${shot && shot.disc === cur.code ? renderWhere(cur, rv) : `<label class="capture"><input type="file" accept="image/*" capture="environment" id="shotIn"><span class="ico">📷</span><span><b>Take a photo of the problem</b><small>${esc(cur.name)} · then say which unit and level you are in. The agent finds the right sheet and writes it up; you tap the spot and save.</small></span></label>`}
+    <div class="discs">${discs.map(d => { const a = activeReview(d.code), n = p.register.filter(x => x.discipline === d.code && x.source === "field").length; return `
+      <div class="disc ${d.code === cur.code ? "on" : ""}" data-code="${esc(d.code)}"><span class="code">${esc(d.code)}</span><h2>${esc(d.name)}</h2><span class="n">${d.sheets.length} sheet${d.sheets.length === 1 ? "" : "s"} · ${n} deficienc${n === 1 ? "y" : "ies"}</span>
+        <div class="rv">${a ? `<span><i class="live"></i><b>${esc(a.title)}</b> in progress</span>` : `<span style="color:var(--mute)">${p.reviews.filter(r => r.discipline === d.code).length ? p.reviews.filter(r => r.discipline === d.code).length + " done" : "Not started"}</span>`}</div></div>`; }).join("")}</div>
+    <div class="fr-head">
+      <div><h2>${esc(cur.name)}${rv ? ` · ${esc(rv.title)}` : ""}</h2><p>${rv ? `Started ${esc(when(rv.started_at))} · ${items.length} deficienc${items.length === 1 ? "y" : "ies"} so far. Open a sheet, tap where the problem is, take the photo.` : done.length ? `${done.length} review${done.length === 1 ? "" : "s"} finished. Start the next one to add more deficiencies.` : "Nothing recorded yet for this discipline."}</p></div>
+      ${state.finishing === (rv && rv.id) && rv ? `<div class="thinking"><span class="dot"></span><span>Packaging ${items.length} deficienc${items.length === 1 ? "y" : "ies"} and drafting the message to the contractor…</span></div>` : rv ? `<button class="btn" id="finishRv">Finish ${esc(rv.title.toLowerCase())}</button>` : `<button class="btn primary" id="startRv">Start field review ${done.length + 1}</button>`}
+    </div>
+    ${(() => { const show = state.finishing ? null : state.openReview ? done.find(x => x.id === state.openReview) : (!rv && done.length ? done[done.length - 1] : null); return show ? renderHandoff(show) : ""; })()}
+    ${shot && shot.disc === cur.code && shot.pick ? `<p class="pickhint"><span>Which sheet does this belong on?</span> Tap it; the photo comes with you.</p>` : ""}
+    ${renderGalleryGroups(cur)}
+    ${items.length ? `<h3 class="sec">Recorded in ${esc(rv.title.toLowerCase())}</h3><table class="findings"><tbody>${items.map(d => `<tr class="row" data-id="${esc(d.item_id)}"><td class="id">${esc(d.item_id)}</td><td><div class="what">${esc(d.description)}</div><div class="where">${esc(d.location)} · sheet ${esc(d.sheet)}</div></td><td class="go">›</td></tr>`).join("")}</tbody></table>` : ""}
+    ${done.length ? `<h3 class="sec">Earlier reviews</h3><table><tbody>${done.map(r => { const n = findingsIn(r.id).length, m = messageFor(r.id); return `<tr class="row" data-rv="${esc(r.id)}"><td class="id">${esc(r.title)}</td><td><div class="what">${esc(when(r.started_at))} → ${esc(when(r.finished_at))}</div><div class="where">${m ? "Message drafted for the contractor" : n ? "No message yet" : "Nothing recorded"}</div></td><td class="num">${n} item${n === 1 ? "" : "s"}</td><td class="go">›</td></tr>`; }).join("")}</tbody></table>` : ""}
+    <footer><span>Numbers are ${esc(cur.code)}-01, ${esc(cur.code)}-02 … and never reused.</span><span>The agent suggests the wording; you decide what is saved.</span></footer>`;
+  $("#tab").querySelectorAll(".disc").forEach(d => d.onclick = () => { state.fieldDisc = d.dataset.code; renderField(); });
+  $("#tab").querySelectorAll(".sheet").forEach(s => s.onclick = () => { if (shot && shot.disc === cur.code) { const sh = p.project.sheets.find(x => x.id === s.dataset.id), lv = shot.level; carryShot(s.dataset.id, sh && lv ? (sh.views || []).find(v => v.level === lv) || null : null); } else location.hash = pHash(slug, "/field/" + s.dataset.id); });
+  const mb = $("#mapBtn"); if (mb) mb.onclick = () => mapFloors(JSON.parse(mb.dataset.list).map(id => p.project.sheets.find(x => x.id === id)));
+  $("#tab").querySelectorAll("tr.row[data-id]").forEach(r => r.onclick = () => location.hash = pHash(slug, "/item/" + encodeURIComponent(r.dataset.id)));
+  $("#tab").querySelectorAll("tr.row[data-rv]").forEach(r => r.onclick = () => { state.openReview = r.dataset.rv; renderField(); window.scrollTo({ top: 0, behavior: "smooth" }); });
+  const st = $("#startRv"); if (st) st.onclick = () => startReview(cur.code);
+  const fi = $("#finishRv"); if (fi) fi.onclick = () => finishReview(rv);
+  const si = $("#shotIn"); if (si) si.onchange = () => { const f = si.files[0]; if (!f) return; beginShot(cur.code, f); };
+  if (shot && shot.disc === cur.code) wireWhere(cur, rv);
+  wireHandoff();
+}
+function renderGalleryGroups(cur) {
+  const p = state.p, blds = buildings(), own = new Set(cur.sheets.map(s => s.id));
+  const card = (sh, tag) => { const n = findingsOn(sh.id).length, v = (sh.views || []).length; return `
+      <div class="sheet" data-id="${sh.id}"><img src="${sh.thumb_url || sh.image_url}" alt="" loading="lazy"><div class="cap"><b>${esc(sh.sheet_number || "p." + sh.page)}${n ? `<span class="pins">${n}</span>` : ""}${tag ? `<i>${esc(tag)}</i>` : ""}</b><span>${esc(sh.title || "")}</span><small>${v ? `${v} floor${v === 1 ? "" : "s"} boxed` : `${(sh.read && sh.read.spaces || []).length} spaces read`}</small></div></div>`; };
+  const groups = [], used = new Set();
+  for (const b of blds) {
+    const mine = cur.sheets.filter(sh => sheetMentions(sh, b) && blds.filter(o => sheetMentions(sh, o)).length === 1);   // sheets of several buildings stay under Site & general
+    mine.forEach(sh => used.add(sh.id));
+    const pick = planFor(cur.code, b, ""), standIn = pick && pick.standIn && pick.sheet && !own.has(pick.sheet.id) ? pick.sheet : null;
+    if (!mine.length && !standIn) continue;
+    const cards = [...(standIn ? [card(standIn, `${standIn.discipline} plan · stands in`)] : []), ...mine.map(sh => card(sh, ""))];
+    groups.push(`<h4 class="grp">${esc(b.name)}<small>${esc(b.units.map(u => u.label.replace(/\s*\(.*$/, "")).join(", "))}</small></h4><div class="gallery">${cards.join("")}</div>`);
+  }
+  const rest = cur.sheets.filter(sh => !used.has(sh.id));
+  if (rest.length) groups.push(`${groups.length ? `<h4 class="grp">Site &amp; general<small>${rest.length} sheet${rest.length === 1 ? "" : "s"}</small></h4>` : ""}<div class="gallery">${rest.map(sh => card(sh, "")).join("")}</div>`);
+  const todo = p.project.sheets.filter(sh => isPlanSheet(sh) && !(sh.views || []).length && blds.some(b => sheetMentions(sh, b)));
+  const m = state.mapping;
+  const bar = m ? `<div class="mapbar"><div class="thinking" style="margin:0"><span class="dot"></span><span>Boxing the floors on ${esc(m.cur.sheet_number || "a sheet")} · ${m.done} of ${m.n} done…</span></div></div>`
+    : todo.length ? `<div class="mapbar"><span>The floors are not boxed yet on ${todo.length} plan sheet${todo.length === 1 ? "" : "s"} (${esc(todo.map(t => t.sheet_number || "p." + t.page).join(", "))}), so a floor opens as the whole sheet.</span><button class="btn" id="mapBtn" data-list='${esc(JSON.stringify(todo.map(t => t.id)))}'>Find the floors · ${todo.length} agent call${todo.length === 1 ? "" : "s"}</button><small style="color:var(--mute)">A few cents. You check the result once.</small></div>` : "";
+  return groups.join("") + bar;
+}
+/* ---- finishing a review: the package for the contractor + the agent's covering message ---- */
+function messageFor(reviewId) { return state.p.messages.find(m => m.review_id === reviewId) || null; }
+async function finishReview(rv) {
+  state.finishing = rv.id; renderField();
+  const r = await fetch(pUrl(state.slug, `/reviews/${rv.id}/finish`), { method: "POST" });
+  const j = await r.json().catch(() => ({}));
+  state.finishing = null;
+  if (!r.ok) { toast(j.detail || "Could not finish", true); return renderField(); }
+  state.openReview = rv.id;
+  toast(j.message ? `${rv.title} finished · message drafted` : `${rv.title} finished`, false);
+  await load();
+}
+async function redraftMessage(rv) {
+  state.drafting = rv.id; renderField();
+  const r = await fetch(pUrl(state.slug, `/reviews/${rv.id}/message`), { method: "POST" });
+  const j = await r.json().catch(() => ({}));
+  state.drafting = null;
+  if (!r.ok) { toast(j.detail || "Could not draft", true); return renderField(); }
+  state.openReview = rv.id; toast("Message drafted");
+  await load();
+}
+function renderHandoff(r) {
+  const p = state.p, pkg = r.package, msg = messageFor(r.id), disc = (disciplines().find(d => d.code === r.discipline) || {}).name || r.discipline;
+  const items = pkg ? pkg.items : findingsIn(r.id).map(d => ({ item_id: d.item_id, location: d.location, description: d.description, evidence_required: d.evidence_required, sheet: d.sheet, photo: !!d.reference_photo }));
+  const photos = items.filter(i => i.photo).length, busy = state.drafting === r.id;
+  return `<section class="handoff" data-rv="${esc(r.id)}">
+    <div class="hd"><div><h3>${esc(r.title)} · ${esc(disc)} · finished</h3><p>${esc(when(r.finished_at || r.started_at))} · ${items.length} deficienc${items.length === 1 ? "y" : "ies"} · ${photos} photo${photos === 1 ? "" : "s"} · this is what the contractor gets</p></div><button class="x" data-close>close</button></div>
+    ${items.length ? `<div class="pk">${items.map(i => `<div class="row" data-id="${esc(i.item_id)}"><span class="id">${esc(i.item_id)}</span><div>${esc(i.description)}<small>${esc(i.location)} · sheet ${esc(i.sheet || "?")} · send to close: ${esc(i.evidence_required)}</small></div></div>`).join("")}</div>` : `<div class="pk"><div class="row" style="grid-template-columns:1fr"><span>Nothing was recorded in this review, so there is nothing to send.</span></div></div>`}
+    <div class="ms">
+      ${busy ? `<div class="thinking"><span class="dot"></span><span>The agent is writing the covering message from these ${items.length} item${items.length === 1 ? "" : "s"}…</span></div>`
+      : msg ? `<label>Message to the contractor · drafted by the agent, edit freely</label><input id="hoSubject" value="${esc(msg.subject)}"><textarea id="hoBody">${esc(msg.body)}</textarea>
+        <div class="acts"><button class="btn primary" id="hoSave">Save wording</button><button class="btn" id="hoCopy">Copy</button><button class="btn" id="hoAgain">Draft again</button></div>
+        <p class="note">Nothing has been sent. Fill in the date, then copy it into your email or text for now; sending and follow-ups from here come next.</p>`
+      : items.length ? `<p class="why">No message yet for this review.</p><div class="acts"><button class="btn primary" id="hoAgain">Draft the message to the contractor</button></div><p class="note">One agent call. It lists every item above and asks for the evidence by a date you fill in.</p>` : ""}
+    </div></section>`;
+}
+function wireHandoff() {
+  const box = $("#tab").querySelector(".handoff"); if (!box) return;
+  const rv = state.p.reviews.find(x => x.id === box.dataset.rv), msg = messageFor(rv.id);
+  box.querySelector("[data-close]").onclick = () => { state.openReview = "none"; renderField(); };
+  box.querySelectorAll(".pk .row[data-id]").forEach(el => el.onclick = () => location.hash = pHash(state.slug, "/item/" + encodeURIComponent(el.dataset.id)));
+  const ag = $("#hoAgain"); if (ag) ag.onclick = () => redraftMessage(rv);
+  const sv = $("#hoSave"); if (sv) sv.onclick = async () => {
+    const r = await fetch(`/api/drafts/${msg.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ subject: $("#hoSubject").value, body: $("#hoBody").value }) });
+    toast(r.ok ? "Wording saved" : "Could not save", !r.ok); if (r.ok) load();
+  };
+  const cp = $("#hoCopy"); if (cp) cp.onclick = () => navigator.clipboard.writeText($("#hoSubject").value + "\n\n" + $("#hoBody").value).then(() => toast("Copied"), () => toast("Could not copy", true));
+}
+/* ---- photo first: shoot, say where you are, the agent finds the sheet ---- */
+function lastFieldItem(code) { const list = state.p.register.filter(d => d.source === "field" && (!code || d.discipline === code)); return list.length ? list[list.length - 1] : null; }
+function unitLevelLists() {
+  const p = state.p, units = p.project.units.map(u => u.label || u.name || u);
+  const levels = [...new Set([...p.project.levels.map(l => l.name || l), ...p.project.units.flatMap(u => (u.levels || []).map(l => l.name || l))])];
+  return { units, levels };
+}
+/* ---- buildings → floors → the plan sheet. All deterministic, from the unit list and the sheet readings. ---- */
+function buildingOf(text) {
+  const m = String(text || "").match(/(\d{2,6})\s+([A-Za-z][A-Za-z.'-]*(?:\s+[A-Za-z][A-Za-z.'-]*){0,3})/);
+  if (!m) return null;
+  return { key: m[1], name: (m[1] + " " + m[2]).replace(/[\s,]+$/, "") };
+}
+function buildings() {
+  const out = [];
+  for (const u of state.p.project.units) {
+    const label = u.label || u.name || String(u), levels = (u.levels || []).map(l => l.name || l);
+    const b = buildingOf(u.address || label) || { key: label, name: label };
+    let g = out.find(x => x.key === b.key);
+    if (!g) { g = { ...b, units: [] }; out.push(g); }
+    g.units.push({ label, levels });
+  }
+  return out;
+}
+function sheetMentions(sh, b) {
+  if (!b) return false;
+  const r = sh.read || {}, texts = [sh.title || "", ...(r.units || []), ...((r.spaces || []).map(s => s.unit || ""))];
+  const num = /^\d+$/.test(b.key);
+  return texts.some(t => num ? new RegExp("(^|\\D)" + b.key + "(\\D|$)").test(String(t)) : String(t).toLowerCase().includes(b.key.toLowerCase()));
+}
+function buildingOfSheet(sh) { return buildings().find(b => sheetMentions(sh, b)) || null; }
+function floorsFor(b, unitLabel) {
+  const u = b && b.units.find(x => x.label === unitLabel);
+  if (u && u.levels.length) return u.levels;
+  const all = b ? [...new Set(b.units.flatMap(x => x.levels))] : [];
+  return all.length ? all : unitLevelLists().levels;
+}
+function isPlanSheet(sh) { const k = (sh.read || {}).sheet_kind || "", t = (sh.title || "").toUpperCase(); return k === "floor_plan" || k === "plan" || /FLOOR PLAN/.test(t); }
+function isSiteSheet(sh) { return (sh.read || {}).sheet_kind === "site_plan" || /SITE PLAN/.test((sh.title || "").toUpperCase()); }
+function planFor(code, b, level) {
+  const sheets = state.p.project.sheets, dn = c => DISC_NAMES[c] || c;
+  const scored = sheets.map((sh, i) => {
+    const r = sh.read || {}, hit = sheetMentions(sh, b), plan = isPlanSheet(sh), site = isSiteSheet(sh);
+    const view = level ? (sh.views || []).find(v => v.level === level) || null : null;
+    let s = 0;
+    if (hit) s += 8; if (sh.discipline === code) s += 4; if (plan) s += 6; else if (site) s += 1;
+    if (view) s += 3; if (level && (r.levels || []).includes(level)) s += 2;
+    if (["rendering", "notes", "details", "elevation", "section", "landscape"].includes(r.sheet_kind)) s -= 5;
+    return { sh, s, i, hit, plan, site, view };
+  }).sort((a, c) => c.s - a.s || a.i - c.i);
+  const best = scored[0]; if (!best) return null;
+  const num = best.sh.sheet_number || "p." + best.sh.page, where = b ? b.name : "that building";
+  let note = "", warn = false;
+  if (!b) note = "Pick the building to get its floor plan.";
+  else if (best.hit && best.plan && best.sh.discipline !== code) { note = `No ${dn(code).toLowerCase()} floor plan of ${where} in the set, so the ${dn(best.sh.discipline).toLowerCase()} plan stands in. Your pin lands on it just the same.`; warn = true; }
+  else if (best.hit && !best.plan) { note = `No floor plan shows ${where}; this is the closest sheet. Say the unit and floor in the words.`; warn = true; }
+  else if (!best.hit) { note = `No sheet names ${where}. This one opens; say the unit and floor in the words.`; warn = true; }
+  else if (level && !best.view) note = (best.sh.views || []).length ? `The ${level} plan is not boxed on this sheet yet; the whole sheet opens.` : "Whole sheet; the floors on it are not boxed yet.";
+  else if (level && best.view) note = `Opens straight on the ${level.toLowerCase()} plan.`;
+  const related = scored.filter(x => x !== best && x.hit).map(x => x.sh);
+  return { sheet: best.sh, view: best.view, note, warn, related, standIn: best.sh.discipline !== code };
+}
+function relatedSheets(sh) { const b = buildingOfSheet(sh); return { b, list: b ? state.p.project.sheets.filter(x => x.id !== sh.id && sheetMentions(x, b)) : [] }; }
+function cropStyle(sh, view) {
+  const url = `url('${sh.thumb_url || sh.image_url}')`;
+  if (!view) return `background-image:${url};background-size:contain`;
+  const px = view.w >= 1 ? 50 : view.x / (1 - view.w) * 100, py = view.h >= 1 ? 50 : view.y / (1 - view.h) * 100;
+  return `background-image:${url};background-size:${100 / view.w}% ${100 / view.h}%;background-position:${px}% ${py}%`;
+}
+function beginShot(code, file) {
+  if (state.shot && state.shot.photoUrl) URL.revokeObjectURL(state.shot.photoUrl);
+  const last = lastFieldItem(code) || lastFieldItem();
+  const unit = last ? last.unit || "" : "", b = unit ? buildings().find(x => x.units.some(u => u.label === unit)) : null;
+  state.shot = { disc: code, photo: file, photoUrl: URL.createObjectURL(file), bld: b ? b.key : "", unit, level: last ? last.level || "" : "", note: "", gps: "", gpsText: "", busy: false, pick: false };
+  askGps(state.shot); renderField();
+}
+function askGps(s) {
+  const show = () => { const g = $("#gps"); if (g) g.textContent = s.gpsText; };
+  if (!(window.isSecureContext && navigator.geolocation)) { s.gpsText = "Phone location is off on this connection (it needs https). Pick the unit and level below."; return; }
+  s.gpsText = "Getting the phone location…";
+  navigator.geolocation.getCurrentPosition(pos => { const c = pos.coords; s.gps = `${c.latitude.toFixed(5)},${c.longitude.toFixed(5)} ±${Math.round(c.accuracy)}m`;
+      const near = nearestRecorded(c.latitude, c.longitude);
+      if (near && near.m <= Math.max(25, c.accuracy) && near.unit) { s.unit = near.unit; if (near.level) s.level = near.level; const u = $("#wUnit"), l = $("#wLevel"); if (u) u.value = s.unit; if (l && near.level) l.value = s.level;
+        s.gpsText = `Location recorded (about ${Math.round(c.accuracy)} m). You are ${near.m} m from where ${near.id} was recorded, so ${near.unit}${near.level ? " · " + near.level : ""} is pre-selected. Change it if you have moved.`; }
+      else s.gpsText = `Location recorded to about ${Math.round(c.accuracy)} m and kept with the item. Phones cannot tell the buildings or floors apart on their own, so confirm the unit and level below; from your next items the app learns which spot is which unit.`;
+      show(); },
+    err => { s.gpsText = "Phone location not available (" + err.message + "). Pick the unit and level below."; show(); }, { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 });
+}
+function nearestRecorded(lat, lng) {
+  let best = null;
+  state.p.register.forEach(d => { const g = d.ref_meta && d.ref_meta.gps; if (!g || typeof g !== "string") return; const m = g.match(/^(-?[\d.]+),(-?[\d.]+)/); if (!m) return;
+    const dy = (lat - +m[1]) * 111320, dx = (lng - +m[2]) * 111320 * Math.cos(lat * Math.PI / 180), dist = Math.round(Math.hypot(dx, dy));
+    if (!best || dist < best.m) best = { m: dist, id: d.item_id, unit: d.unit, level: d.level }; });
+  return best;
+}
+function renderWhere(cur, rv) {
+  const s = state.shot, blds = buildings();
+  const opts = (list, val, none = "—") => `<option value="">${none}</option>` + list.map(x => `<option ${x === val ? "selected" : ""}>${esc(x)}</option>`).join("");
+  if (s.busy) return `<div class="where"><h3>Finding the sheet…</h3><div class="thinking"><span class="dot"></span><span>The agent is reading your photo, matching it to the ${esc(cur.name.toLowerCase())} sheets for ${esc(s.unit || "that unit")}${s.level ? ", " + esc(s.level) : ""}, and writing the deficiency in your words.</span></div></div>`;
+  const b = blds.find(x => x.key === s.bld) || null, units = b ? b.units.map(u => u.label) : unitLevelLists().units, floors = floorsFor(b, s.unit);
+  const pick = planFor(cur.code, b, s.level), sh = pick && pick.sheet;
+  return `<div class="where">
+    <h3>Where are you?</h3><div class="sub">Photo kept. Building, unit, floor: the floor plan opens, you tap the spot, the agent writes it up.</div>
+    <div class="shot"><div class="take"><img src="${s.photoUrl}" alt=""><input type="file" accept="image/*" capture="environment" id="shotAgain"></div>
+      <div class="note"><label style="margin-top:0">Your note (optional)</label><input id="wNote" placeholder="e.g. no GFCI, cover missing" value="${esc(s.note)}"></div></div>
+    <div class="row three">
+      <div><label>Building</label><select id="wBld">${blds.length ? opts(blds.map(x => x.key), s.bld, "Which building?").replace(/<option >([^<]*)<\/option>|<option selected>([^<]*)<\/option>/g, (m, a, c) => { const k = a || c, bb = blds.find(x => x.key === k); return `<option value="${esc(k)}" ${c ? "selected" : ""}>${esc(bb.name)}${bb.units.length > 1 ? ` · ${bb.units.length} units` : ""}</option>`; }) : `<option value="">No buildings listed</option>`}</select></div>
+      <div><label>Unit</label><select id="wUnit">${opts(units, s.unit)}</select></div>
+      <div><label>Floor</label><select id="wLevel">${opts(floors, s.level, "Which floor?")}</select></div>
+    </div>
+    ${sh ? `<div class="plan-pick"><div class="crop" style="${cropStyle(sh, pick.view)}"></div><div><b>${esc(sh.sheet_number || "p." + sh.page)} · ${esc(DISC_NAMES[sh.discipline] || sh.discipline)}${pick.standIn ? " · stands in" : ""}</b><h4>${esc(sh.title || "Sheet")}</h4><p class="${pick.warn ? "warn" : ""}">${esc(pick.note || "This floor plan opens; tap where the problem is.")}</p></div></div>` : ""}
+    <div class="agentnote" id="gps">${esc(s.gpsText)}</div>
+    <div class="acts">${sh ? `<button class="btn primary hot" id="wOpen">${b && s.level ? `Open the ${esc(s.level.toLowerCase())} plan` : b ? "Open the plan" : "Open this sheet"}</button>` : ""}<button class="btn" id="wFind">Let the agent pick the sheet</button><button class="btn" id="wPick">${s.pick ? "Picking below ↓" : "I'll pick"}</button><button class="cancel" id="wCancel">Cancel</button></div>
+  </div>`;
+}
+function wireWhere(cur, rv) {
+  const s = state.shot; if (s.busy) return;
+  const grab = () => { s.bld = $("#wBld").value; s.unit = $("#wUnit").value; s.level = $("#wLevel").value; s.note = $("#wNote").value; };
+  $("#wBld").onchange = () => { grab(); const b = buildings().find(x => x.key === s.bld); if (b && !b.units.some(u => u.label === s.unit)) s.unit = b.units.length ? b.units[0].label : ""; if (!floorsFor(b, s.unit).includes(s.level)) s.level = ""; renderField(); };
+  $("#wUnit").onchange = () => { grab(); const b = buildings().find(x => x.units.some(u => u.label === s.unit)); if (b) s.bld = b.key; if (!floorsFor(b, s.unit).includes(s.level)) s.level = ""; renderField(); };
+  $("#wLevel").onchange = () => { grab(); renderField(); };
+  $("#wNote").oninput = grab;
+  $("#shotAgain").onchange = e => { const f = e.target.files[0]; if (f) { grab(); URL.revokeObjectURL(s.photoUrl); s.photo = f; s.photoUrl = URL.createObjectURL(f); renderField(); } };
+  $("#wCancel").onclick = () => { URL.revokeObjectURL(s.photoUrl); state.shot = null; renderField(); };
+  $("#wPick").onclick = () => { grab(); s.pick = true; renderField(); const g = $(".gallery"); if (g) g.scrollIntoView({ behavior: "smooth", block: "start" }); };
+  $("#wFind").onclick = () => { grab(); locateShot(cur.code); };
+  const op = $("#wOpen"); if (op) op.onclick = () => { grab(); const b = buildings().find(x => x.key === s.bld), pick = planFor(cur.code, b, s.level); if (pick) carryShot(pick.sheet.id, pick.view); };
+}
+async function locateShot(code) {
+  const s = state.shot, slug = state.slug; s.busy = true; renderField();
+  let rv = activeReview(code); if (!rv) { rv = await startReview(code); if (!rv) { s.busy = false; renderField(); return; } }
+  const fd = new FormData(); fd.append("discipline", code); fd.append("unit", s.unit); fd.append("level", s.level); fd.append("note", s.note); fd.append("gps", s.gps || "");
+  fd.append("photo", s.photo, s.photo.name || "photo.jpg");
+  try {
+    const r = await fetch(pUrl(slug, "/findings/locate"), { method: "POST", body: fd });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { toast(j.detail || "The agent could not place it; pick the sheet yourself", true); s.busy = false; s.pick = true; renderField(); return; }
+    const sug = j.suggestion, sh = state.p.project.sheets.find(x => x.id === sug.sheet_id);
+    state.viewer = { sheetId: sug.sheet_id, scale: 0, draft: null, step: "form", photo: s.photo, photoUrl: s.photoUrl, note: s.note, sug, busy: false, gps: s.gps || "", disc: code, focus: (sh && sh.views || []).find(v => v.level === s.level) || null };
+    state.shot = null; toast(`The agent picked ${sh ? sh.sheet_number || "a sheet" : "a sheet"} · now tap the spot`);
+    location.hash = pHash(slug, "/field/" + sug.sheet_id);
+  } catch (e) { toast("Lost the connection; pick the sheet yourself", true); s.busy = false; s.pick = true; renderField(); }
+}
+function carryShot(sheetId, focus) {
+  const s = state.shot;
+  state.viewer = { sheetId, scale: 0, draft: null, step: "idle", photo: s.photo, photoUrl: s.photoUrl, note: s.note, sug: { unit: s.unit, level: s.level }, busy: false, gps: s.gps || "", carry: true, disc: s.disc, focus: focus || null };
+  state.shot = null; location.hash = pHash(state.slug, "/field/" + sheetId);
+}
+/* switch to another sheet of the same building, keeping the photo and the words */
+function switchSheet(sheetId, focus) {
+  const v = state.viewer || {}, level = v.sug && v.sug.level;
+  const sh = state.p.project.sheets.find(x => x.id === sheetId);
+  state.viewer = { ...v, sheetId, scale: 0, draft: null, step: v.step === "form" ? "form" : "idle", busy: false, focus: focus || (sh && level ? (sh.views || []).find(x => x.level === level) || null : null) };
+  location.hash = pHash(state.slug, "/field/" + sheetId);
+}
+/* one agent call per plan sheet: where each floor's plan drawing sits, so the viewer can open on a floor */
+async function mapFloors(list) {
+  state.mapping = { n: list.length, done: 0, cur: list[0] }; renderField();
+  let ok = 0;
+  for (const sh of list) {
+    state.mapping.cur = sh; renderField();
+    try { const r = await fetch(pUrl(state.slug, `/sheets/${sh.id}/views`), { method: "POST" }); if (r.ok) ok++; else toast((await r.json().catch(() => ({}))).detail || `Could not read ${sh.sheet_number}`, true); }
+    catch (e) { toast(`Lost the connection on ${sh.sheet_number}`, true); }
+    state.mapping.done++;
+  }
+  state.mapping = null; toast(`${ok} of ${list.length} plan sheet${list.length === 1 ? "" : "s"} boxed · open one and check the floors`, ok < list.length);
+  await load();
+}
+async function startReview(code) {
+  const r = await fetch(pUrl(state.slug, "/reviews"), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ discipline: code }) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) { toast(j.detail || "Could not start", true); return null; }
+  toast(j.resumed ? `Continuing ${j.review.title}` : `${j.review.title} started`);
+  await load();
+  return j.review;
+}
+
+/* ---- sheet viewer: pan, zoom, tap to pin --------------------------------- */
+function renderSheet(sheetId) {
+  const p = state.p, slug = state.slug, sh = p.project.sheets.find(x => x.id === sheetId);
+  if (!sh) { $("#main").innerHTML = `<a class="back" href="${pHash(slug, "/field")}">← Field review</a><p class="empty">No such sheet.</p>`; return; }
+  const v = state.viewer && state.viewer.sheetId === sheetId ? state.viewer : (state.viewer = { sheetId, scale: 0, draft: null, step: "idle", photo: null, photoUrl: null, note: "", sug: null, busy: false, gps: "", disc: state.fieldDisc || sh.discipline, focus: null });
+  if (!v.disc) v.disc = state.fieldDisc || sh.discipline;
+  v.fix = null;
+  const showPanel = !!v.draft || v.step === "form";
+  const rv = activeReview(v.disc), pins = findingsOn(sheetId), views = sh.views || [], rel = relatedSheets(sh);
+  $("#main").innerHTML = `
+    <div class="viewer">
+      <div class="vbar">
+        <a href="${pHash(slug, "/field")}" title="Back">‹</a>
+        <div class="ttl"><b>${esc(sh.sheet_number || sh.discipline + " p." + sh.page)}</b><span>${esc(sh.title || "")}</span></div>
+        ${rv ? `<span class="rev">● ${esc(rv.title)}</span>` : ""}
+        <div class="zoom"><button id="zOut">−</button><button id="zFit">Fit</button><button id="zIn">+</button></div>
+      </div>
+      ${views.length ? `<div class="floors"><span class="lbl">${esc(rel.b ? rel.b.name : "Floors")}</span>${views.map((x, i) => `<button data-view="${i}" class="${v.focus && v.focus.level === x.level && v.focus.x === x.x ? "on" : ""}">${esc(x.level)}</button>`).join("")}<button data-view="all" class="${v.focus ? "" : "on"}">Whole sheet</button><button id="fixBtn" class="fix" ${v.focus ? "" : "hidden"}>Fix box</button></div>` : ""}
+      <div class="stagewrap"><div class="canvas" id="canvas"><div class="stage" id="stage"><img id="sheetImg" src="${sh.image_url}" alt="">
+        ${pins.map(d => `<span class="pin" data-id="${esc(d.item_id)}" style="left:${d.pin_x * 100}%;top:${d.pin_y * 100}%" title="${esc(d.location)}">${esc(d.item_id.replace(/^[A-Z]+-/, ""))}<small>${esc(d.item_id)}</small></span>`).join("")}
+        ${v.draft ? `<span class="pin draft" style="left:${v.draft.x * 100}%;top:${v.draft.y * 100}%"></span>` : ""}
+      </div></div>
+        ${!v.draft ? `<div class="hint ${rel.list.length && !showPanel ? "up" : ""}">${v.step === "form" || v.carry ? "Tap where it is on this sheet" : rv ? "Tap where the problem is" : `Start the ${esc((DISC_NAMES[v.disc] || v.disc).toLowerCase())} field review first, then tap here`}</div>` : ""}
+        ${rel.list.length && !showPanel ? `<div class="related"><span class="lbl">Also ${esc(rel.b.name)}</span>${rel.list.map(x => `<div class="rel" data-id="${x.id}"><img src="${x.thumb_url || x.image_url}" alt="" loading="lazy"><span>${esc(x.sheet_number || "p." + x.page)}</span><small>${esc(x.title || DISC_NAMES[x.discipline] || x.discipline)}</small></div>`).join("")}</div>` : ""}
+      </div>
+      ${showPanel ? `<div class="panel" id="panel"></div>` : ""}
+    </div>`;
+  const canvas = $("#canvas"), stage = $("#stage"), img = $("#sheetImg");
+  const padT = () => parseFloat(getComputedStyle(canvas).paddingTop) || 0; /* the bars overlay the top of the canvas on wide screens */
+  const fit = () => { v.focus = null; const w = canvas.clientWidth - 40, h = canvas.clientHeight - padT() - 40; v.scale = innerWidth < 900 ? w / img.naturalWidth : Math.min(w / img.naturalWidth, h / img.naturalHeight); stage.style.marginLeft = ""; apply(); markFloor(); };
+  const apply = () => { img.style.width = Math.round(img.naturalWidth * v.scale) + "px"; img.style.height = "auto"; };
+  /* zoom so the floor's box fills the screen; when the sheet is narrower than the screen, shift it so the box sits in the middle */
+  const focusTo = f => { v.focus = f; const pt = padT(), w = canvas.clientWidth - 40, h = canvas.clientHeight - pt - 40;
+    v.scale = Math.min(6, Math.min(w / (f.w * img.naturalWidth), h / (f.h * img.naturalHeight))); apply();
+    const bw = f.w * img.naturalWidth * v.scale, bh = f.h * img.naturalHeight * v.scale;
+    stage.style.marginLeft = Math.max(20, (canvas.clientWidth - bw) / 2 - f.x * img.naturalWidth * v.scale) + "px";
+    canvas.scrollLeft = stage.offsetLeft + f.x * img.naturalWidth * v.scale - Math.max(0, (canvas.clientWidth - bw) / 2);
+    canvas.scrollTop = stage.offsetTop + f.y * img.naturalHeight * v.scale - pt - Math.max(0, (canvas.clientHeight - pt - bh) / 2); markFloor(); };
+  const markFloor = () => { $("#main").querySelectorAll(".floors button[data-view]").forEach(b => b.classList.toggle("on", b.dataset.view === "all" ? !v.focus : !!v.focus && views[+b.dataset.view] && views[+b.dataset.view].level === v.focus.level && views[+b.dataset.view].x === v.focus.x)); const fb = $("#fixBtn"); if (fb) fb.hidden = !v.focus || !!v.fix; };
+  $("#main").querySelectorAll(".floors button[data-view]").forEach(b => b.onclick = () => { if (v.fix) return; b.dataset.view === "all" ? fit() : focusTo(views[+b.dataset.view]); });
+  /* fix a floor box by hand: the box is drawn on the sheet, corners drag, Save stores every box on this sheet with this one marked as his */
+  const fixBtn = $("#fixBtn");
+  const endFix = () => { v.fix = null; $("#main").querySelectorAll(".fixbox, .fixbar").forEach(el => el.remove()); const h = $("#main").querySelector(".hint"); if (h) h.hidden = false; if (fixBtn) fixBtn.hidden = !v.focus; };
+  const startFix = () => {
+    const i = views.findIndex(x => v.focus && x.level === v.focus.level && x.x === v.focus.x); if (i < 0) return;
+    const f = v.fix = { i, x: views[i].x, y: views[i].y, w: views[i].w, h: views[i].h };
+    fixBtn.hidden = true; const h = $("#main").querySelector(".hint"); if (h) h.hidden = true;
+    const box = document.createElement("div"); box.className = "fixbox"; box.innerHTML = `<i class="nw"></i><i class="ne"></i><i class="sw"></i><i class="se"></i>`; stage.appendChild(box);
+    const bar = document.createElement("div"); bar.className = "fixbar" + (rel.list.length ? " up" : ""); bar.innerHTML = `<span>Drag the corners around the ${esc(views[i].level)} plan</span><button id="fixNo">Cancel</button><button id="fixOk" class="go">Save</button>`; canvas.parentElement.appendChild(bar);
+    const draw = () => { box.style.left = f.x * 100 + "%"; box.style.top = f.y * 100 + "%"; box.style.width = f.w * 100 + "%"; box.style.height = f.h * 100 + "%"; };
+    draw();
+    const clamp = (n, lo, hi) => Math.min(hi, Math.max(lo, n));
+    let drag = null;
+    box.onpointerdown = e => { e.stopPropagation(); e.preventDefault(); const k = e.target.tagName === "I" ? e.target.className : "move";
+      drag = { k, sx: e.clientX, sy: e.clientY, x: f.x, y: f.y, w: f.w, h: f.h, r: f.x + f.w, b: f.y + f.h }; try { box.setPointerCapture(e.pointerId); } catch (_) {} };
+    box.onpointermove = e => { if (!drag) return; const dx = (e.clientX - drag.sx) / (img.naturalWidth * v.scale), dy = (e.clientY - drag.sy) / (img.naturalHeight * v.scale), m = 0.03;
+      if (drag.k === "move") { f.x = clamp(drag.x + dx, 0, 1 - f.w); f.y = clamp(drag.y + dy, 0, 1 - f.h); }
+      else { const L = drag.k.includes("w"), T = drag.k.includes("n");
+        if (L) { f.x = clamp(drag.x + dx, 0, drag.r - m); f.w = drag.r - f.x; } else f.w = clamp(drag.w + dx, m, 1 - f.x);
+        if (T) { f.y = clamp(drag.y + dy, 0, drag.b - m); f.h = drag.b - f.y; } else f.h = clamp(drag.h + dy, m, 1 - f.y); }
+      draw(); };
+    box.onpointerup = box.onpointercancel = () => { drag = null; };
+    $("#fixNo").onclick = endFix;
+    $("#fixOk").onclick = async () => {
+      const ok = $("#fixOk"); ok.disabled = true; ok.textContent = "Saving…";
+      const body = views.map((x, j) => j === i ? { title: x.title || "", level: x.level, x: f.x, y: f.y, w: f.w, h: f.h, source: "engineer" } : { title: x.title || "", level: x.level, x: x.x, y: x.y, w: x.w, h: x.h, source: x.source || "engineer" });
+      const r = await fetch(pUrl(slug, `/sheets/${sh.id}/views`), { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ views: body }) });
+      if (!r.ok) { ok.disabled = false; ok.textContent = "Save"; toast((await r.json().catch(() => ({}))).detail || "Could not save the box", true); return; }
+      const saved = (await r.json()).views; views.splice(0, views.length, ...saved); sh.views = views;
+      endFix(); focusTo(views[i]); toast(`${views[i].level} box saved`);
+    };
+  };
+  if (fixBtn) fixBtn.onclick = startFix;
+  $("#main").querySelectorAll(".related .rel").forEach(el => el.onclick = () => switchSheet(el.dataset.id));
+  const zoomAt = (factor, cx, cy) => {
+    const rect = stage.getBoundingClientRect(); const fx = (cx - rect.left) / rect.width, fy = (cy - rect.top) / rect.height;
+    v.scale = Math.max(0.05, Math.min(6, v.scale * factor)); stage.style.marginLeft = ""; apply();
+    const r2 = stage.getBoundingClientRect(); canvas.scrollLeft += (r2.left + fx * r2.width) - cx; canvas.scrollTop += (r2.top + fy * r2.height) - cy;
+  };
+  const centre = () => ({ x: canvas.getBoundingClientRect().left + canvas.clientWidth / 2, y: canvas.getBoundingClientRect().top + canvas.clientHeight / 2 });
+  const first = () => v.scale ? apply() : v.focus ? focusTo(v.focus) : fit();
+  if (img.complete && img.naturalWidth) first(); else img.onload = first;
+  $("#zIn").onclick = () => { const c = centre(); zoomAt(1.4, c.x, c.y); };
+  $("#zOut").onclick = () => { const c = centre(); zoomAt(1 / 1.4, c.x, c.y); };
+  $("#zFit").onclick = fit;
+  canvas.onwheel = e => { if (e.ctrlKey || e.metaKey) { e.preventDefault(); zoomAt(e.deltaY < 0 ? 1.15 : 1 / 1.15, e.clientX, e.clientY); } };
+  // pointer handling: drag = pan (mouse), pinch = zoom, short still tap = pin
+  const pts = new Map(); let down = null, pinch = null;
+  canvas.onpointerdown = e => { if (e.target.closest(".pin:not(.draft)")) return; pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pts.size === 2) { const [a, b] = [...pts.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), s: v.scale }; down = null; }
+    else if (pts.size === 1) { down = { x: e.clientX, y: e.clientY, t: Date.now(), sl: canvas.scrollLeft, st: canvas.scrollTop, moved: false, mouse: e.pointerType === "mouse" }; if (down.mouse) canvas.setPointerCapture(e.pointerId); } };
+  canvas.onpointermove = e => { if (!pts.has(e.pointerId)) return; pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pinch && pts.size === 2) { const [a, b] = [...pts.values()]; const d = Math.hypot(a.x - b.x, a.y - b.y); zoomAt((pinch.s * d / pinch.d) / v.scale, (a.x + b.x) / 2, (a.y + b.y) / 2); return; }
+    if (down) { const dx = e.clientX - down.x, dy = e.clientY - down.y; if (Math.hypot(dx, dy) > 6) down.moved = true; if (down.mouse && down.moved) { canvas.scrollLeft = down.sl - dx; canvas.scrollTop = down.st - dy; } } };
+  const up = e => { pts.delete(e.pointerId); if (pts.size < 2) pinch = null;
+    if (down && !down.moved && Date.now() - down.t < 600 && pts.size === 0) { const rect = img.getBoundingClientRect(); const x = (e.clientX - rect.left) / rect.width, y = (e.clientY - rect.top) / rect.height; if (x >= 0 && x <= 1 && y >= 0 && y <= 1) tapSheet(sh, x, y); }
+    if (pts.size === 0) down = null; };
+  canvas.onpointerup = up; canvas.onpointercancel = up;
+  stage.querySelectorAll(".pin[data-id]").forEach(pin => pin.onclick = e => { e.stopPropagation(); location.hash = pHash(slug, "/item/" + encodeURIComponent(pin.dataset.id)); });
+  if (showPanel) renderPanel(sh, rv);
+}
+function captureForm() {
+  const v = state.viewer; if (!$("#fLoc")) return;
+  v.sug = { ...(v.sug || {}), location: $("#fLoc").value, description: $("#fDesc").value, evidence_required: $("#fEv").value, unit: $("#fUnit").value, level: $("#fLevel").value, space: $("#fSpace").value };
+}
+function tapSheet(sh, x, y) {
+  const v = state.viewer;
+  if (v.busy) return;
+  captureForm(); v.carry = false;
+  const code = v.disc || sh.discipline;
+  if (!activeReview(code)) { startReview(code).then(r => { if (r) { v.draft = { x, y }; v.step = "shoot"; render(); } }); return; }
+  v.draft = { x, y }; v.step = v.step === "form" ? "form" : "shoot"; render();
+}
+function renderPanel(sh, rv) {
+  const v = state.viewer, p = state.p, slug = state.slug, el = $("#panel"), s = v.sug || {};
+  const units = p.project.units.map(u => u.label || u.name || u), levels = [...new Set([...p.project.levels.map(l => l.name || l), ...p.project.units.flatMap(u => (u.levels || []).map(l => l.name || l))])];
+  const opts = (list, cur) => `<option value="">—</option>` + list.map(x => `<option ${x === cur ? "selected" : ""}>${esc(x)}</option>`).join("");
+  if (v.step === "shoot") el.innerHTML = `
+      <h3>New deficiency on ${esc(sh.sheet_number || "this sheet")}</h3><div class="sub">Take the photo, add a word if you like, and let the agent write it up with the location.</div>
+      <div class="shot">
+        <div class="take">${v.photoUrl ? `<img src="${v.photoUrl}" alt="">` : `<span><span class="ico">📷</span>Take photo</span>`}<input type="file" accept="image/*" capture="environment" id="photoIn"></div>
+        <div class="note"><label style="margin-top:0">Your note (optional)</label><input id="noteIn" placeholder="e.g. no GFCI, cover missing" value="${esc(v.note)}"></div>
+      </div>
+      <div class="acts"><button class="btn primary hot" id="ask">Ask the agent</button><button class="btn" id="manual">Write it myself</button><button class="cancel" id="cancel">Cancel</button></div>`;
+  else if (v.step === "thinking") el.innerHTML = `<h3>Reading the photo and the sheet…</h3><div class="thinking"><span class="dot"></span><span>The agent is working out the unit, level and room from where you tapped, and writing the deficiency in your words.</span></div>`;
+  else el.innerHTML = `
+      <h3>${v.sug ? "Check and save" : "Write the deficiency"}</h3>
+      <div class="sub">${v.sug && v.sug.sheet ? (v.draft ? "The agent picked this sheet from your photo and wrote it up. Edit anything, then save." : "The agent picked this sheet from your photo and where you are. <b>Tap the exact spot on the sheet</b>, check the words, save.") : v.sug ? `Suggested by the agent from your photo and the pin. Edit anything.` : "Fill it in and save."}${v.sug && v.sug.rejections && v.sug.rejections.length ? ` <span class="agentnote">(<b>${v.sug.rejections.length}</b> draft${v.sug.rejections.length === 1 ? "" : "s"} rejected by the rules before this one)</span>` : ""}</div>
+      ${v.photoUrl ? `<div class="shot"><div class="take"><img src="${v.photoUrl}" alt=""><input type="file" accept="image/*" capture="environment" id="photoIn"></div><div class="note"><label style="margin-top:0">Location a contractor can walk to</label><input id="fLoc" value="${esc(s.location || "")}" placeholder="Unit C, Upper Floor, Bath 2: wall behind toilet"></div></div>` : `<label>Location a contractor can walk to</label><input id="fLoc" value="${esc(s.location || "")}" placeholder="Unit C, Upper Floor, Bath 2: wall behind toilet">`}
+      <div class="row">
+        <div><label>Unit</label><select id="fUnit">${opts(units, s.unit || "")}</select></div>
+        <div><label>Level</label><select id="fLevel">${opts(levels, s.level || "")}</select></div>
+        <div><label>Room</label><input id="fSpace" value="${esc(s.space || "")}" placeholder="Bath 2"></div>
+      </div>
+      <label>What is wrong</label><textarea id="fDesc" placeholder="Receptacle beside the basin has no GFCI protection and the cover plate is missing.">${esc(s.description || "")}</textarea>
+      <label>What the contractor must send to close it</label><input id="fEv" value="${esc(s.evidence_required || "photo: completed work")}" placeholder="photo: repaired; report: test sheet">
+      <div class="agentnote">photo, report, letter or document, separated by “;”</div>
+      <div class="acts"><button class="btn primary" id="save" ${v.draft ? "" : "disabled"}>Save as ${esc(rv ? rv.discipline : sh.discipline)}-${String(nextNumber(rv ? rv.discipline : sh.discipline)).padStart(2, "0")}</button>${!v.draft ? `<span class="agentnote">Tap the spot on the sheet first</span>` : !v.photoUrl ? `<span class="agentnote">No photo yet</span>` : ""}<button class="cancel" id="cancel">Cancel</button></div>`;
+  const pin = $("#photoIn"); if (pin) pin.onchange = () => { const f = pin.files[0]; if (!f) return; v.photo = f; if (v.photoUrl) URL.revokeObjectURL(v.photoUrl); v.photoUrl = URL.createObjectURL(f); renderPanel(sh, rv); };
+  const note = $("#noteIn"); if (note) note.oninput = () => v.note = note.value;
+  const cancel = $("#cancel"); if (cancel) cancel.onclick = () => { resetDraft(); render(); };
+  const manual = $("#manual"); if (manual) manual.onclick = () => { v.step = "form"; v.sug = null; renderPanel(sh, rv); };
+  const ask = $("#ask"); if (ask) ask.onclick = () => askAgent(sh, rv);
+  const save = $("#save"); if (save) save.onclick = () => { if (v.draft) saveFinding(sh, rv); };
+}
+function nextNumber(code) { let n = 0; state.p.register.forEach(d => { const m = d.item_id.match(new RegExp("^" + code + "-(\\d+)$")); if (m) n = Math.max(n, +m[1]); }); return n + 1; }
+function resetDraft() { const v = state.viewer; if (!v) return; if (v.photoUrl) URL.revokeObjectURL(v.photoUrl); Object.assign(v, { draft: null, step: "idle", photo: null, photoUrl: null, note: "", sug: null, busy: false, gps: "", carry: false }); }
+async function askAgent(sh, rv) {
+  const v = state.viewer; v.step = "thinking"; v.busy = true; renderPanel(sh, rv);
+  const fd = new FormData(); fd.append("sheet_id", sh.id); fd.append("pin_x", v.draft.x); fd.append("pin_y", v.draft.y); fd.append("note", v.note); fd.append("discipline", rv ? rv.discipline : sh.discipline);
+  if (v.photo) fd.append("photo", v.photo, v.photo.name || "photo.jpg");
+  try {
+    const r = await fetch(pUrl(state.slug, "/findings/suggest"), { method: "POST", body: fd });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { toast(j.detail || "The agent could not answer; write it yourself", true); v.sug = null; }
+    else { v.sug = j.suggestion; toast("Suggestion ready"); }
+  } catch (e) { toast("Lost the connection; write it yourself", true); v.sug = null; }
+  v.busy = false; v.step = "form"; renderPanel(sh, rv);
+}
+async function saveFinding(sh, rv) {
+  const v = state.viewer; if (!rv) return toast("Start a field review first", true); if (!v.draft) return toast("Tap the spot on the sheet first", true);
+  const fd = new FormData(); if (v.gps) fd.append("gps", v.gps);
+  fd.append("sheet_id", sh.id); fd.append("pin_x", v.draft.x); fd.append("pin_y", v.draft.y); fd.append("review_id", rv.id);
+  fd.append("location", $("#fLoc").value); fd.append("description", $("#fDesc").value); fd.append("evidence_required", $("#fEv").value);
+  fd.append("unit", $("#fUnit").value); fd.append("level", $("#fLevel").value); fd.append("space", $("#fSpace").value); fd.append("note", v.note);
+  fd.append("discipline", v.sug && v.sug.discipline ? v.sug.discipline : rv.discipline);
+  if (v.photo) fd.append("photo", v.photo, v.photo.name || "photo.jpg");
+  $("#save").disabled = true;
+  const r = await fetch(pUrl(state.slug, "/findings"), { method: "POST", body: fd });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) { $("#save").disabled = false; return toast(j.detail || "Could not save", true); }
+  toast(`${j.item.item_id} saved · ${j.item.location}`); resetDraft(); await load();
 }
 
 /* ---- live run feed --------------------------------------------------- */
@@ -564,7 +1166,7 @@ function wireDrop(el, kind, slug) {
   input.addEventListener("change", () => { const items = filesFromInput(input, keepTop); const label = input.files[0] && input.files[0].webkitRelativePath ? input.files[0].webkitRelativePath.split("/")[0] : null; send(kind, slug, items, label); input.value = ""; });
 }
 
-window.addEventListener("hashchange", () => { if (route().page === "home" && state.p) { state.p = null; } load(); });
+window.addEventListener("hashchange", () => { const r = route(); if (r.page === "home" && state.p) { state.p = null; } if (r.page !== "sheet") { resetDraft(); state.viewer = null; } if (!(r.page === "project" && r.tab === "field") && r.page !== "sheet" && state.shot) { URL.revokeObjectURL(state.shot.photoUrl); state.shot = null; } load(); });
 load();
 </script>
 </body>

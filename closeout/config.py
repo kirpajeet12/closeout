@@ -18,6 +18,8 @@ class Settings:
     region: str = os.environ.get("AWS_REGION", "us-east-1")
     data_dir: Path = Path(os.environ.get("CLOSEOUT_DATA_DIR", "./data")).resolve()
     max_tokens: int = int(os.environ.get("CLOSEOUT_MAX_TOKENS", "2000"))
+    # how messages to the contractor are signed; never a person's name
+    office: str = os.environ.get("CLOSEOUT_OFFICE", "the engineer's office")
 
 
 SETTINGS = Settings()
