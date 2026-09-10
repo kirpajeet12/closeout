@@ -13,3 +13,9 @@ ios/artifacts/
 *.xcarchive
 xcuserdata/
 *.xcuserstate
+
+# demo film media (scripts are committed, media is not)
+demo-video/footage/
+demo-video/audio/
+demo-video/output/
+demo-video/music/
