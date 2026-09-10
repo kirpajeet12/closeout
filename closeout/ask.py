@@ -356,8 +356,25 @@ def where_text(where: dict | None) -> str:
     return "; ".join(parts)
 
 
+SPOKEN_STYLE = ("SPOKEN: this answer is read aloud to the engineer, who is walking the site. One or two short sentences "
+                "that sound natural when spoken. No lists, no headings, no symbols. Say item numbers as they are (EL-01).")
+HISTORY_TURNS = 6
+
+
+def history_text(history: list[dict] | None) -> str:
+    """The last few exchanges, so a follow-up like "and the second floor?" has something to follow."""
+    turns = [h for h in (history or []) if isinstance(h, dict) and str(h.get("q") or "").strip()][-HISTORY_TURNS:]
+    if not turns:
+        return ""
+    lines = ["EARLIER IN THIS CONVERSATION (oldest first):"]
+    for h in turns:
+        lines.append(f"- Engineer: {' '.join(str(h['q']).split())[:300]}")
+        lines.append(f"  Closeout: {' '.join(str(h.get('a') or '').split())[:300]}")
+    return "\n".join(lines)
+
+
 def ask(store: Store, project_id: str, question: str, where: dict | None = None, settings: Settings = SETTINGS, model=None,
-        office: str = "the engineer's office") -> dict:
+        office: str = "the engineer's office", history: list[dict] | None = None, spoken: bool = False) -> dict:
     """Answer one question from the records. Raises ValueError for an empty question."""
     q = " ".join(str(question or "").split())
     if not q:
@@ -366,8 +383,13 @@ def ask(store: Store, project_id: str, question: str, where: dict | None = None,
     ctx = AskContext()
     agent = Agent(model=model or make_model(settings, fast=True), tools=make_ask_tools(ctx, facts), system_prompt=ASK_SYSTEM,
                   callback_handler=None)
-    result = agent([{"text": facts_text(facts, office)}, {"text": f"ENGINEER IS ON: {where_text(where)}"},
-                    {"text": f"QUESTION: {q[:600]}"}, {"text": "Look up what you need, then call answer once."}])
+    blocks = [{"text": facts_text(facts, office)}, {"text": f"ENGINEER IS ON: {where_text(where)}"}]
+    if history_text(history):
+        blocks.append({"text": history_text(history)})
+    if spoken:
+        blocks.append({"text": SPOKEN_STYLE})
+    blocks += [{"text": f"QUESTION: {q[:600]}"}, {"text": "Look up what you need, then call answer once."}]
+    result = agent(blocks)
     if not ctx.recorded:
         raise RuntimeError("no answer was recorded" + (f"; last rejection: {ctx.errors[-1]}" if ctx.errors else ""))
     return {**ctx.recorded, "action": ctx.proposed, "usage": _usage(result), "rejections": ctx.errors}

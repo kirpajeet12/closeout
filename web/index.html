@@ -526,6 +526,27 @@
   .askbar.listening form { background: #8b1a1a; }
   .askbar.listening form button.mic { background: #fff; color: #8b1a1a; animation: pulse 1s ease-in-out infinite; }
   @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12); } }
+  /* Live: a hands-free conversation. The bar turns into a call strip: an orb that shows whether Closeout is listening,
+     thinking or speaking, the words as they are heard, and one way out. */
+  .askbar form button.live { background: transparent; color: #fff; width: 34px; height: 34px; margin-left: -6px; }
+  .askbar form button.live svg { width: 18px; height: 18px; display: block; }
+  .askbar.live form { display: none; }
+  .livebar { display: none; align-items: center; gap: 14px; background: var(--ink); border-radius: 999px; padding: 8px 8px 8px 12px; box-shadow: 0 12px 34px rgba(18,19,20,.32); color: #fff; }
+  .askbar.live .livebar { display: flex; }
+  .livebar .orb { position: relative; width: 44px; height: 44px; border-radius: 50%; flex: none; border: 0; padding: 0; cursor: pointer; background: radial-gradient(circle at 35% 35%, #ffffff, #b8bcc4 70%); box-shadow: 0 0 0 0 rgba(255,255,255,.35); transition: background .3s, box-shadow .3s; }
+  .livebar .orb::after { content: ""; position: absolute; inset: -6px; border-radius: 50%; border: 2px solid transparent; }
+  .livebar[data-state="listening"] .orb { background: radial-gradient(circle at 35% 35%, #ff8a80, #c62828 70%); animation: orb-listen 1.4s ease-in-out infinite; }
+  .livebar[data-state="thinking"] .orb { background: radial-gradient(circle at 35% 35%, #ffe082, #f9a825 70%); animation: orb-think 1.8s ease-in-out infinite; }
+  .livebar[data-state="speaking"] .orb { background: radial-gradient(circle at 35% 35%, #ffffff, #cfd3da 70%); }
+  .livebar[data-state="speaking"] .orb::after { border-color: rgba(255,255,255,.7); animation: orb-speak 1.1s ease-out infinite; }
+  .livebar[data-state="tap"] .orb { background: radial-gradient(circle at 35% 35%, #ffffff, #8f949c 70%); }
+  @keyframes orb-listen { 0%, 100% { box-shadow: 0 0 0 0 rgba(198,40,40,.55); } 50% { box-shadow: 0 0 0 12px rgba(198,40,40,0); } }
+  @keyframes orb-think { 0%, 100% { transform: scale(.94); } 50% { transform: scale(1.06); } }
+  @keyframes orb-speak { 0% { transform: scale(.85); opacity: 1; } 100% { transform: scale(1.35); opacity: 0; } }
+  .livebar .words { flex: 1; min-width: 0; }
+  .livebar .words b { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .14em; color: #a9adb4; font-weight: 600; }
+  .livebar .words span { display: block; font-size: 15px; line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .livebar .end { border: 0; background: #fff; color: var(--ink); border-radius: 999px; padding: 0 16px; height: 38px; font: 600 14px var(--sans); cursor: pointer; flex: none; }
   .askpanel .act { margin-top: 10px; border: 1px solid var(--line-2); border-radius: 12px; padding: 12px 14px; background: var(--paper); display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
   .askpanel .act .lbl { flex: 1 1 200px; font-size: 14px; }
   .askpanel .act .lbl b { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: var(--mute); margin-bottom: 2px; }
@@ -547,7 +568,8 @@
 <div class="toast" id="toast"></div>
 <div class="askbar" id="askbar" hidden>
   <div class="askpanel" id="askpanel" hidden></div>
-  <form id="askform" autocomplete="off"><button type="button" class="mic" id="askmic" aria-label="Speak" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><path d="M12 17v4M8 21h8"/></svg></button><input type="text" id="askq" placeholder="Ask Closeout… e.g. what is still open at 6895?" maxlength="600"><button type="submit" id="askgo" aria-label="Ask">↑</button></form>
+  <form id="askform" autocomplete="off"><button type="button" class="mic" id="askmic" aria-label="Speak" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><path d="M12 17v4M8 21h8"/></svg></button><button type="button" class="live" id="asklive" aria-label="Talk with Closeout" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12h2M7 8v8M11 5v14M15 8v8M19 10v4M21 12h0"/></svg></button><input type="text" id="askq" placeholder="Ask Closeout… e.g. what is still open at 6895?" maxlength="600"><button type="submit" id="askgo" aria-label="Ask">↑</button></form>
+  <div class="livebar" id="livebar" data-state="tap"><button class="orb" id="liveorb" type="button" aria-label="Talk"></button><div class="words"><b id="livestate">Tap to talk</b><span id="livewords">Closeout is listening for a question</span></div><button class="end" id="liveend" type="button">End</button></div>
 </div>
 
 <script>
@@ -1903,7 +1925,7 @@ function renderAsk() {
   document.body.classList.toggle("askable", on);
   $("#askbar").hidden = !on;
   $("#askq").placeholder = window.innerWidth <= 760 ? "Ask Closeout…" : "Ask Closeout… e.g. what is still open at 6895?";
-  if (!on) { $("#askpanel").hidden = true; askState.last = null; }
+  if (!on) { $("#askpanel").hidden = true; askState.last = null; if (typeof live !== "undefined" && live.on) liveEnd(); }
 }
 function askPanel(q, a, went, wait, action) {
   const el = $("#askpanel");
@@ -1930,9 +1952,11 @@ async function askConfirm(action) {
     await load();
     if (action.then) applyGo(action.then);
     if (askState.spoken) askSay("Done.");
+    return true;
   } catch (e) {
     act.classList.remove("busy");
     toast(e.message || "Could not do that", true);
+    return e.message || "Could not do that";
   }
 }
 function goLabel(go) {
@@ -2002,6 +2026,108 @@ if (SR) {
     rec.onerror = ev => { if (ev.error === "not-allowed") toast("Allow the microphone in the browser to speak to Closeout", true); else if (ev.error !== "aborted" && ev.error !== "no-speech") toast("Could not hear that; try again", true); };
     rec.onend = () => { bar.classList.remove("listening"); input.placeholder = was; rec = null; const q = (final || input.value).trim(); if (q) { input.value = q; askState.spoken = true; askSend(); } };
     try { rec.start(); } catch (e) { rec = null; bar.classList.remove("listening"); input.placeholder = was; toast("Voice is not available here", true); }
+  };
+}
+
+/* Live: a hands-free conversation. Closeout listens, answers out loud, and listens again. A prepared change is
+   confirmed by the engineer saying yes (or tapping Confirm); Closeout never confirms on its own. */
+const live = { on: false, rec: null, state: "tap", history: [], pending: null, misses: 0, speaking: null };
+const YES = /^(yes|yeah|yep|yup|confirm|go ahead|do it|ok|okay|sure)\b/i, NO = /^(no|nope|cancel|never mind|don'?t|stop)\b/i;
+function liveSet(state, words) {
+  live.state = state;
+  const bar = $("#livebar"); bar.dataset.state = state;
+  $("#livestate").textContent = { listening: "Listening", thinking: "Thinking", speaking: "Speaking", tap: "Tap to talk" }[state] || state;
+  if (words !== undefined) $("#livewords").textContent = words;
+}
+function liveVoice() {
+  const vs = window.speechSynthesis.getVoices();
+  return vs.find(v => /en[-_]CA/i.test(v.lang) && /Samantha|Karen|Siri|Enhanced|Premium/i.test(v.name)) || vs.find(v => /^en/i.test(v.lang) && /Samantha|Enhanced|Premium/i.test(v.name)) || vs.find(v => /en[-_]CA/i.test(v.lang)) || null;
+}
+function liveSpeak(text, then) {
+  let done = false; const finish = () => { if (done) return; done = true; live.speaking = null; then(); };
+  try {
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(String(text)); u.lang = "en-CA"; u.rate = 1.04; const v = liveVoice(); if (v) u.voice = v;
+    u.onend = finish; u.onerror = finish; live.speaking = u;
+    liveSet("speaking", text);
+    window.speechSynthesis.speak(u);
+    setTimeout(finish, Math.min(30000, 2500 + String(text).length * 75));   // iOS sometimes drops onend
+  } catch (e) { finish(); }
+}
+function liveListen() {
+  if (!live.on || live.rec) return;
+  try { window.speechSynthesis.cancel(); } catch (e) {}
+  const rec = new SR(); rec.lang = "en-CA"; rec.interimResults = true; rec.maxAlternatives = 1;
+  let heard = "", final = "";
+  rec.onresult = ev => { let t = ""; for (const r of ev.results) t += r[0].transcript; heard = t; $("#livewords").textContent = t; if (ev.results[ev.results.length - 1].isFinal) final = t; };
+  rec.onerror = ev => { if (ev.error === "not-allowed") { live.denied = true; toast("Allow the microphone in the browser to talk with Closeout", true); } };
+  rec.onend = () => {
+    live.rec = null;
+    if (!live.on) return;
+    const q = (final || heard).trim();
+    if (q) { live.misses = 0; liveHeard(q); return; }
+    live.misses += 1;
+    if (live.denied || live.misses >= 3) { liveSet("tap", "Tap the circle when you are ready"); return; }
+    liveListen();
+  };
+  try { live.rec = rec; rec.start(); liveSet("listening", "…"); }
+  catch (e) { live.rec = null; liveSet("tap", "Tap the circle to talk"); }
+}
+async function liveHeard(q) {
+  if (live.pending) {
+    const action = live.pending;
+    if (YES.test(q)) {
+      live.pending = null; liveSet("thinking", q);
+      if (!$("#askact")) askPanel(live.last.q, live.last.a, "", false, action);
+      const ok = await askConfirm(action);
+      const said = ok === true ? "Done. " + action.label : `That did not go through. ${ok}`;
+      liveHistory(q, said); liveSpeak(said, liveListen); return;
+    }
+    if (NO.test(q)) { live.pending = null; $("#askpanel").hidden = true; liveHistory(q, "Left as it was."); liveSpeak("Okay, left as it was.", liveListen); return; }
+    live.pending = null; $("#askpanel").hidden = true;   // anything else is a new question; the change is dropped
+  }
+  liveSet("thinking", q);
+  askPanel(q, "Looking through the records…", "", true);
+  let answer, action = null, went = "";
+  try {
+    const r = await fetch(pUrl(state.slug, "/ask"), { method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ question: q, where: askWhere(), history: live.history.slice(-6), spoken: true }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.detail || "Closeout could not answer that just now");
+    answer = j.answer; action = j.action || null;
+    went = action ? "" : applyGo(j.go);
+  } catch (e) { answer = e.message || "Closeout could not answer that just now; ask again"; }
+  if (!live.on) return;
+  askPanel(q, answer, went, false, action);
+  live.last = { q, a: answer };
+  liveHistory(q, answer);
+  live.pending = action;
+  liveSpeak(answer + (action ? ` ${action.label}. Say yes to confirm, or no.` : ""), liveListen);
+}
+function liveHistory(q, a) { live.history.push({ q, a }); if (live.history.length > 12) live.history.shift(); }
+function liveStart() {
+  if (!SR || live.on) return;
+  live.on = true; live.history = []; live.pending = null; live.misses = 0; live.denied = false;
+  $("#askbar").classList.add("live");
+  try { window.speechSynthesis.getVoices(); } catch (e) {}
+  liveListen();
+}
+function liveEnd() {
+  live.on = false; live.pending = null;
+  try { if (live.rec) live.rec.abort(); } catch (e) {} live.rec = null;
+  try { window.speechSynthesis.cancel(); } catch (e) {}
+  $("#askbar").classList.remove("live"); liveSet("tap", "Closeout is listening for a question");
+}
+if (SR) {
+  $("#asklive").hidden = false;
+  $("#asklive").onclick = liveStart;
+  $("#liveend").onclick = liveEnd;
+  $("#liveorb").onclick = () => {
+    if (!live.on) return;
+    if (live.state === "listening") { try { live.rec && live.rec.stop(); } catch (e) {} return; }   // send what was heard
+    if (live.state === "thinking") return;
+    try { window.speechSynthesis.cancel(); } catch (e) {}   // interrupt the answer, or wake from "tap"
+    live.speaking = null; live.misses = 0; liveListen();
   };
 }
 </script>

@@ -109,6 +109,8 @@ class FindingPatch(BaseModel):
 class AskBody(BaseModel):
     question: str
     where: dict | None = None
+    history: list[dict] = []   # earlier turns of the same conversation, {"q": ..., "a": ...}
+    spoken: bool = False       # the answer will be read aloud: keep it short and natural
 
 
 class DocsReviewIn(BaseModel):
@@ -661,7 +663,8 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         prj = _project(st, slug)
         run_id = st.create_run(prj["id"], batch_id="", model_id=settings.fast_model_id, kind="ask")
         try:
-            out = ask_mod.ask(st, prj["id"], body.question, body.where, settings, office=settings.office)
+            out = ask_mod.ask(st, prj["id"], body.question, body.where, settings, office=settings.office,
+                              history=body.history, spoken=body.spoken)
         except ValueError as e:
             st.finish_run(run_id, "failed", {"error": str(e)})
             raise HTTPException(400, str(e))

@@ -163,3 +163,19 @@ def test_edit_item_changes_only_the_named_fields(asking, tmp_path):
     st = Store(asking.settings.data_dir / "closeout.db")
     d = st.deficiency(st.project_by_slug(slug)["id"], "EL-01")
     assert d["description"].endswith("plate missing entirely.") and d["location"].startswith("Unit C")
+
+
+def test_a_spoken_follow_up_carries_the_conversation_and_asks_for_a_short_answer(asking, tmp_path):
+    slug, rev, _ = _finished_review(asking, tmp_path)
+    cl, pid = asking, slug
+    FakeAskAgent.answers = [{"text": "Two are still open on the second floor."}]
+    history = [{"q": "what is open at the row houses?", "a": "Three items are open."}, {"q": "", "a": "ignored"}]
+    r = cl.post(f"/api/projects/{pid}/ask", json={"question": "and the second floor?", "history": history, "spoken": True})
+    assert r.status_code == 200 and r.json()["answer"] == "Two are still open on the second floor."
+    sent = "\n".join(b["text"] for b in FakeAskAgent.calls[-1])
+    assert "EARLIER IN THIS CONVERSATION" in sent and "Engineer: what is open at the row houses?" in sent
+    assert "Closeout: Three items are open." in sent and "ignored" not in sent
+    assert "SPOKEN:" in sent and sent.index("SPOKEN:") < sent.index("QUESTION: and the second floor?")
+    r = cl.post(f"/api/projects/{pid}/ask", json={"question": "and the second floor?"})
+    sent = "\n".join(b["text"] for b in FakeAskAgent.calls[-1])
+    assert "SPOKEN:" not in sent and "EARLIER" not in sent
