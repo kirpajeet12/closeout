@@ -195,8 +195,24 @@ def _unpack_zips(root: Path, rel: list[str]) -> list[str]:
     return out
 
 
+def _office_name(s: str) -> str:
+    """The office names project folders '<job no>_<disciplines>_<address>_<city code>_<contact>_<phone>'.
+    A project's web address must never carry the contact's name or phone, so keep only job number, address and city."""
+    parts = [x.strip() for x in s.split("_")]
+    if len(parts) < 3 or not re.match(r"^\d{2}-\d{4}$", parts[0]):
+        return s
+    keep = [parts[0]]
+    for x in parts[2:]:
+        if re.search(r"\d[\d\s().-]{6,}\d", x):      # a phone number: stop here
+            break
+        keep.append(x)
+        if re.match(r"^[A-Z]{3}$", x):                # the city code ends the address
+            break
+    return " ".join(keep)
+
+
 def _slug(s: str) -> str:
-    return re.sub(r"[^a-z0-9]+", "-", (s or "project").lower()).strip("-") or "project"
+    return re.sub(r"[^a-z0-9]+", "-", _office_name(s or "project").lower()).strip("-") or "project"
 
 
 def _stamp() -> str:

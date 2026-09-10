@@ -252,3 +252,12 @@ def test_empty_zip_is_refused(client):
     r = client.post("/api/projects", files=[("files", ("empty.zip", buf.getvalue()))], data={"read_with_model": "false"})
     assert r.status_code == 400
     assert client.get("/api/projects").json()["active_run_id"] is None
+
+
+def test_project_web_address_never_carries_the_contact_name_or_phone():
+    from closeout.api import _slug
+
+    assert _slug("24-3453_PL_42220_Yarrow Central Rd_CWK_Some Person_604-555-0100") == "24-3453-42220-yarrow-central-rd-cwk"
+    assert _slug("24-3672_ELBCHPL_6891_Laurel St_VAN_Some Person_604-555-0100") == "24-3672-6891-laurel-st-van"
+    assert _slug("24-3672_EL_6891_Laurel St_604 555 0100") == "24-3672-6891-laurel-st"   # no city code, phone still dropped
+    assert _slug("Row Houses phase 2") == "row-houses-phase-2"                            # plain names are untouched
