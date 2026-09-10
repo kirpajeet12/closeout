@@ -379,7 +379,7 @@
   .xrow .chev { color: var(--mute); font-size: 18px; margin-left: -6px; }
   .xrow.sheetrow img { width: 64px; height: 44px; object-fit: cover; object-position: top left; border-radius: 6px; border: 1px solid var(--line-2); background: #fff; }
   .xrow.sheetrow .pins { padding: 2px 8px; border-radius: 999px; background: var(--hot); color: #fff; font-size: 11px; font-weight: 700; }
-  .xrow.filerow .fi { margin: 0 3px; } .xrow.filerow.cur b { font-weight: 600; }
+  .xrow.filerow { cursor: pointer; } .xrow.filerow .fi { margin: 0 3px; } .xrow.filerow.cur b { font-weight: 600; }
   .xrow.ghost { border: 1px dashed var(--line-2); margin: 3px 0; background: transparent; } .xrow.ghost b { color: var(--ink-2); font-weight: 500; } .xrow.ghost .who { font-size: 11px; color: var(--hot); font-weight: 600; white-space: nowrap; }
   .fi.crp { background: var(--hot); }
   .xrow .scope { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--mute); white-space: nowrap; cursor: pointer; } .xrow .scope input { accent-color: var(--ink); }
@@ -668,7 +668,7 @@ function folderTree(pr) {
   const copies = {}; (pr.documents || []).forEach(d => { const k = baseName(d) + "|" + (d.dated || ""); copies[k] = (copies[k] || 0) + 1; });
   const seenDoc = new Set(), docs = (pr.documents || []).filter(d => { const k = baseName(d) + "|" + (d.dated || ""); if (seenDoc.has(k)) return false; seenDoc.add(k); return true; });
   const folder = (key, name, meta, opts = {}) => ({ key, name, meta, kind: "folder", folders: [], items: [], ...opts });
-  const fileItem = d => ({ kind: "file", name: baseName(d), meta: [d.kind === "drawing" ? (d.is_current ? "current set" : "older issue") : d.kind === "document" ? "letter or form" : "file", d.dated ? "issued " + d.dated : "", d.pages ? d.pages + " p." : "", copies[baseName(d) + "|" + (d.dated || "")] > 1 ? copies[baseName(d) + "|" + (d.dated || "")] + " copies in the folder" : ""].filter(Boolean).join(" · "), path: d.rel_path, current: d.kind === "drawing" && d.is_current });
+  const fileItem = d => ({ kind: "file", id: d.id, name: baseName(d), meta: [d.kind === "drawing" ? (d.is_current ? "current set" : "older issue") : d.kind === "document" ? "letter or form" : "file", d.dated ? "issued " + d.dated : "", d.pages ? d.pages + " p." : "", copies[baseName(d) + "|" + (d.dated || "")] > 1 ? copies[baseName(d) + "|" + (d.dated || "")] + " copies in the folder" : ""].filter(Boolean).join(" · "), path: d.rel_path, current: d.kind === "drawing" && d.is_current });
   const ghost = (m, who) => ({ kind: "ghost", name: m.what, meta: m.why, who });
   // the CRP checklist, section by section
   const crp = folder("crp", "Documents before occupancy", "the CRP's checklist, section by section", { crp: true });
@@ -713,7 +713,7 @@ function renderExplorer(pr) {
   const crumbs = [root]; { let f = root; for (const k of state.folder) { f = f.folders.find(x => x.key === k); crumbs.push(f); } }
   const cnt = f => f.sec ? `${f.got}/${f.need}` : `${f.n}${f.ghosts ? ` <em>+${f.ghosts}</em>` : ""}`;
   const tree = (f, depth) => `<div class="node ${f === cur ? "on" : ""} ${crumbs.includes(f) ? "open" : ""}" data-path="${esc(pathOf(f, root))}" style="--d:${depth}"><i class="fi ${f.site ? "site" : f.bld ? "bld" : f.crp || f.sec ? "crp" : f.root || f.prj ? "root" : ""}"></i><b>${esc(f.name)}</b><small>${cnt(f)}</small></div>${crumbs.includes(f) ? f.folders.map(c => tree(c, depth + 1)).join("") : ""}`;
-  const row = i => i.kind === "file" ? `<div class="xrow filerow ${i.current ? "cur" : ""}"><i class="fi doc"></i><div><b>${esc(i.name)}</b><small>${esc(i.meta)}</small></div></div>`
+  const row = i => i.kind === "file" ? `<a class="xrow filerow ${i.current ? "cur" : ""}" href="${pUrl(state.slug, "/documents/" + encodeURIComponent(i.id) + "/file")}" target="_blank" rel="noopener"><i class="fi doc"></i><div><b>${esc(i.name)}</b><small>${esc(i.meta)}</small></div><span class="chev">›</span></a>`
     : i.kind === "check" ? (i.out ? "" : `<div class="xrow ${i.files.length ? "filerow" : "ghost"}"><i class="fi ${i.files.length ? "doc" : "ghost"}"></i><div><b>${esc(i.name)}</b><small>${i.files.length ? esc(i.files.join(" · ")) : "not on file yet"}</small></div><label class="scope"><input type="checkbox" data-scope="${esc(i.name)}"> Not in scope</label></div>`)
     : `<div class="xrow ghost"><i class="fi ghost"></i><div><b>${esc(i.name)}</b><small>${esc(i.meta)}</small></div><span class="who">not in the folder yet</span></div>`;
   const outRows = cur.items.filter(i => i.kind === "check" && i.out);

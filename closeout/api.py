@@ -509,6 +509,21 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         st.set_docs_scope(prj["id"], sorted(names))
         return {"docs_scope": sorted(names)}
 
+    @app.get("/api/projects/{slug}/documents/{doc_id}/file")
+    def document_file(slug: str, doc_id: str):
+        """The file itself, straight from the project folder, so a row in the Documents tab opens the PDF."""
+        st = store()
+        prj = _project(st, slug)
+        d = next((x for x in st.documents(prj["id"]) if x["id"] == doc_id), None)
+        if not d:
+            raise HTTPException(404, "no such document")
+        root = Path(prj["source_root"] or "").resolve()
+        p = (root / d["rel_path"]).resolve()
+        if not prj["source_root"] or not p.is_relative_to(root) or not p.is_file():
+            raise HTTPException(404, "file missing from the project folder")
+        return FileResponse(p, media_type=mimetypes.guess_type(p.name)[0] or "application/octet-stream", filename=p.name,
+                            content_disposition_type="inline")
+
     @app.get("/api/projects/{slug}/documents/tree")
     def documents_tree(slug: str) -> dict:
         """The folder arranged site → building → discipline → sheets, plain code over the readings."""

@@ -6,6 +6,7 @@ validation (discipline codes, building names, checklist rows, exact file names, 
 from __future__ import annotations
 
 import pytest
+from pathlib import Path
 from fastapi.testclient import TestClient
 from PIL import Image
 
@@ -165,3 +166,20 @@ def test_scope_toggle_round_trips(client, tmp_path):
     r = client.post(f"/api/projects/{slug}/documents/scope", json={"name": "Envelope", "in_scope": True})
     assert r.json()["docs_scope"] == []
     assert client.post(f"/api/projects/{slug}/documents/scope", json={"name": "Moon survey", "in_scope": False}).status_code == 404
+
+
+def test_a_document_row_opens_the_file_from_the_project_folder(client, tmp_path):
+    slug = _seed(client, tmp_path)
+    st = Store(client.settings.data_dir / "closeout.db")
+    prj = st.project_by_slug(slug)
+    root = tmp_path / "folder"
+    st.upsert_project(slug, prj["name"], str(root))
+    (root / "PM").mkdir(parents=True, exist_ok=True)
+    (root / "PM" / "Fire Safety Plan rev2.pdf").write_bytes(b"%PDF-1.4 fake")
+    doc = next(d for d in st.documents(prj["id"]) if d["kind"] == "document")
+    r = client.get(f"/api/projects/{slug}/documents/{doc['id']}/file")
+    assert r.status_code == 200 and r.headers["content-type"] == "application/pdf" and r.content.startswith(b"%PDF")
+    assert "inline" in r.headers["content-disposition"]
+    assert client.get(f"/api/projects/{slug}/documents/doc_nope/file").status_code == 404
+    (root / "PM" / "Fire Safety Plan rev2.pdf").unlink()
+    assert client.get(f"/api/projects/{slug}/documents/{doc['id']}/file").status_code == 404
