@@ -108,6 +108,8 @@ def test_review_keeps_only_claims_that_match_the_folder(client, tmp_path):
         {"tool": "record_question", "question": "Is a sprinkler system part of this contract, so that the fire protection schedules apply?", "discipline": "EL"},
         {"tool": "record_question", "question": "The city wants a survey.", "building": "6893 Elm St"},                                  # not a question
         {"tool": "record_question", "question": "Does the geotechnical letter cover the retaining wall at the lane?", "building": "6899 Elm St"},   # unknown building
+        {"tool": "record_file", "file": "Fire Safety Plan rev2.pdf", "building": "6893 Elm St"},
+        {"tool": "record_file", "file": "Fire Safety Plan.pdf", "building": "6893 Elm St"},                                              # not the exact name
         {"tool": "record_summary", "summary": "Two drawing sets are on file. The electrical set is a site plan only and no letters of assurance are in the folder yet."},
     ]
     r = client.post(f"/api/projects/{slug}/documents/review", json={"already": ["Architectural site plan"]})
@@ -120,7 +122,8 @@ def test_review_keeps_only_claims_that_match_the_folder(client, tmp_path):
     assert out["summary"].startswith("Two drawing sets")
     assert out["questions"] == [{"question": "Is a sprinkler system part of this contract, so that the fire protection schedules apply?",
                                  "discipline": "EL", "building": "", "answer": ""}]
-    assert len(out["rejections"]) == 8 and out["usage"]["inputTokens"] == 1200
+    assert out["placed"] == [{"file": "Fire Safety Plan rev2.pdf", "building": "6893 Elm St", "discipline": ""}]
+    assert len(out["rejections"]) == 9 and out["usage"]["inputTokens"] == 1200
     assert out["buildings"] == ["6895 Elm St", "6893 Elm St", "6897 Elm St", "6891 Elm St"]
     # the agent got text only: the buildings, the sheets, the file names, the checklist and the rule-listed gaps
     text = FakeDocsAgent.prompts[0][0]["text"]

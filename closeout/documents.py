@@ -169,6 +169,8 @@ Use the tools:
   "" for the whole project; `building` is a building name from the list or "" for the whole site; `checklist` is the exact
   checklist row name when the gap is one of those rows, else "".
 - record_on_file(checklist, file): a checklist row that a file in the folder plainly satisfies, by its exact file name.
+- record_file(file, building, discipline): a file in the folder (exact file name) that belongs to ONE building's folder rather
+  than the site: a letter, form or report that names that building only. Files that cover the whole project stay where they are.
 - record_question(question, discipline, building): when the folder does not tell you whether something is missing or needed
   (a document that depends on the site, the contract or the city), do not guess: ask the engineer in one plain sentence and
   they fill in the answer. At most five questions.
@@ -182,6 +184,7 @@ class DocsContext:
     missing: list[dict] = field(default_factory=list)
     on_file: list[dict] = field(default_factory=list)
     questions: list[dict] = field(default_factory=list)
+    placed: list[dict] = field(default_factory=list)
     summary: str = ""
     errors: list[str] = field(default_factory=list)
 
@@ -278,7 +281,28 @@ def make_docs_tools(ctx: DocsContext, disciplines: set[str], buildings: set[str]
         ctx.questions.append({"question": q, "discipline": discipline, "building": building, "answer": ""})
         return f"recorded question {len(ctx.questions)}"
 
-    return [record_missing, record_on_file, record_question, record_summary]
+    @tool
+    def record_file(file: str, building: str, discipline: str = "") -> str:
+        """File one document from the folder under one building, because it names that building only.
+
+        Args:
+            file: The exact file name as listed in FILES IN THE FOLDER.
+            building: A building name from the list.
+            discipline: Discipline code from the project, or "" to keep the file's own discipline.
+        """
+        f = (file or "").strip()
+        if f not in files:
+            return _reject(ctx, f"no such file {f[:60]!r}")
+        if building not in buildings:
+            return _reject(ctx, f"unknown building {building!r}")
+        if discipline and discipline not in disciplines:
+            return _reject(ctx, f"unknown discipline {discipline!r}")
+        if any(x["file"] == f for x in ctx.placed):
+            return _reject(ctx, f"already filed: {f[:60]!r}")
+        ctx.placed.append({"file": f, "building": building, "discipline": discipline})
+        return f"filed {f} under {building}"
+
+    return [record_missing, record_on_file, record_file, record_question, record_summary]
 
 
 def folder_text(view: dict, tree: dict, already: list[str]) -> str:
@@ -328,4 +352,4 @@ def review_documents(store: Store, project_id: str, view: dict, already: list[st
     if not ctx.missing and not ctx.on_file and not ctx.questions and not ctx.summary:
         raise RuntimeError("agent finished without recording anything" + (f"; last rejection: {ctx.errors[-1]}" if ctx.errors else ""))
     return {"summary": ctx.summary, "missing": ctx.missing, "on_file": ctx.on_file, "buildings": [b["name"] for b in tree["buildings"]],
-            "questions": ctx.questions, "usage": _usage(result), "rejections": ctx.errors}
+            "questions": ctx.questions, "placed": ctx.placed, "usage": _usage(result), "rejections": ctx.errors}
