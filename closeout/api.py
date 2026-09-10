@@ -110,7 +110,12 @@ class DocsReviewIn(BaseModel):
 
 class DocsAnswerIn(BaseModel):
     index: int
-    answer: str = ""      # the gaps the web app's rules already show, so the agent does not repeat them
+    answer: str = ""
+
+
+class DocsScopeIn(BaseModel):
+    name: str             # exact checklist row name
+    in_scope: bool = True      # the gaps the web app's rules already show, so the agent does not repeat them
 
 
 class NewProject(BaseModel):
@@ -375,7 +380,7 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
                 "runs": runs, "latest_run_id": latest, "active_run_id": active if any(r["id"] == active for r in runs) else None,
                 "packet": build_packet(st, latest) if latest else None, "batches": batches,
                 "messages": st.all_drafts(pid), "decisions": st.decisions(pid), "model_id": settings.model_id,
-                "reviews": st.reviews(pid), "docs_review": prj.get("docs_review"),
+                "reviews": st.reviews(pid), "docs_review": prj.get("docs_review"), "docs_scope": prj.get("docs_scope") or [],
                 "occupancy_docs": [list(row) for row in documents_mod.OCCUPANCY_DOCS]}
 
     @app.get("/api/sheets/{sheet_id}/image")
@@ -491,6 +496,18 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         qs[body.index]["answer"] = " ".join(body.answer.split())[:600]
         st.set_docs_review(prj["id"], review)
         return {"docs_review": review}
+
+    @app.post("/api/projects/{slug}/documents/scope")
+    def set_document_scope(slug: str, body: DocsScopeIn) -> dict:
+        """The engineer ticks a checklist row out of (or back into) scope for this project. No agent call."""
+        st = store()
+        prj = _project(st, slug)
+        if body.name not in {name for _, name, _ in documents_mod.OCCUPANCY_DOCS}:
+            raise HTTPException(404, "no such checklist row")
+        names = set(prj.get("docs_scope") or [])
+        (names.discard if body.in_scope else names.add)(body.name)
+        st.set_docs_scope(prj["id"], sorted(names))
+        return {"docs_scope": sorted(names)}
 
     @app.get("/api/projects/{slug}/documents/tree")
     def documents_tree(slug: str) -> dict:

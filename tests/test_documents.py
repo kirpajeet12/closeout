@@ -154,3 +154,14 @@ def test_review_needs_drawings_and_fails_cleanly_when_the_agent_records_nothing(
     detail = client.get(f"/api/projects/{slug}").json()
     assert detail["docs_review"] is None
     assert detail["runs"][-1]["status"] == "failed" and detail["runs"][-1]["kind"] == "documents"
+
+
+def test_scope_toggle_round_trips(client, tmp_path):
+    """A row ticked out of scope drops into docs_scope and comes back out; unknown names are refused."""
+    slug = _seed(client, tmp_path)
+    r = client.post(f"/api/projects/{slug}/documents/scope", json={"name": "Envelope", "in_scope": False})
+    assert r.status_code == 200 and r.json()["docs_scope"] == ["Envelope"]
+    assert client.get(f"/api/projects/{slug}").json()["docs_scope"] == ["Envelope"]
+    r = client.post(f"/api/projects/{slug}/documents/scope", json={"name": "Envelope", "in_scope": True})
+    assert r.json()["docs_scope"] == []
+    assert client.post(f"/api/projects/{slug}/documents/scope", json={"name": "Moon survey", "in_scope": False}).status_code == 404

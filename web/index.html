@@ -338,6 +338,20 @@
   .filt select { appearance: none; -webkit-appearance: none; border: 1px solid var(--line-2); background: var(--card) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23777' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 12px center; border-radius: 999px; padding: 8px 30px 8px 14px; font-size: 13px; color: var(--ink); font-family: inherit; max-width: 100%; }
   .filt select.on { border-color: var(--ink); background-color: var(--ink); color: #fff; }
   .filt .n { margin-left: auto; font-family: var(--mono); font-size: 12px; color: var(--mute); white-space: nowrap; }
+  .tier { margin-top: 28px; padding: 20px 22px 22px; border-radius: 18px; background: var(--card); border: 1px solid var(--line-2); }
+  .tier.site { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .tier .th { display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: start; }
+  .tier .th .k { display: grid; place-items: center; min-width: 52px; height: 52px; padding: 0 10px; border-radius: 14px; background: var(--paper); color: var(--ink); font: 700 15px var(--mono); letter-spacing: .02em; }
+  .tier.site .th .k { background: #fff; color: var(--ink); }
+  .tier .th h2 { margin: 2px 0 0; font-size: 22px; letter-spacing: -.02em; } .tier .th p { margin: 4px 0 0; color: var(--ink-2); font-size: 14px; max-width: 70ch; } .tier.site .th p { color: #c9ccd2; }
+  .tier h4.grp { margin-top: 20px; } .tier.site h4.grp { color: #fff; } .tier.site h4.grp small { color: #9a9ea6; }
+  .tier .gallery { margin-top: 10px; } .tier .gallery.hero { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+  .tier.site .sheet { border-color: #33363b; } .tier.site .sheet .cap { background: #1b1d21; } .tier.site .sheet .cap b, .tier.site .sheet .cap span { color: #fff; } .tier.site .sheet .cap small { color: #9a9ea6; }
+  .tier .none { margin: 8px 0 0; font-size: 13px; color: var(--mute); }
+  .tier .gaps { list-style: none; margin: 16px 0 0; padding: 14px 0 0; border-top: 1px dashed var(--line-2); display: grid; gap: 8px; } .tier.site .gaps { border-top-color: #3a3d43; }
+  .tier .gaps li { display: grid; grid-template-columns: 30px 1fr; gap: 10px; align-items: start; font-size: 14px; } .tier .gaps li i { display: grid; place-items: center; height: 24px; border-radius: 7px; font: 700 10px var(--mono); background: var(--hot); color: #fff; }
+  .tier .gaps li b { display: block; font-weight: 600; } .tier .gaps li span { display: block; font-size: 12px; color: var(--mute); margin-top: 2px; } .tier.site .gaps li span { color: #9a9ea6; }
+  .tier .gaps .lbl { grid-column: 1 / -1; font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: var(--mute); font-weight: 600; }
   .explorer { margin-top: 24px; display: grid; grid-template-columns: 1fr; gap: 0; border: 1px solid var(--line-2); border-radius: 16px; overflow: hidden; background: var(--card); }
   .treepane { display: none; }
   .treepane .node { display: grid; grid-template-columns: 18px 1fr auto; gap: 8px; align-items: center; padding: 7px 12px 7px calc(12px + var(--d) * 16px); font-size: 13px; cursor: pointer; border-radius: 8px; color: var(--ink-2); }
@@ -361,11 +375,16 @@
   .xrow.sheetrow .pins { padding: 2px 8px; border-radius: 999px; background: var(--hot); color: #fff; font-size: 11px; font-weight: 700; }
   .xrow.filerow .fi { margin: 0 3px; } .xrow.filerow.cur b { font-weight: 600; }
   .xrow.ghost { border: 1px dashed var(--line-2); margin: 3px 0; background: transparent; } .xrow.ghost b { color: var(--ink-2); font-weight: 500; } .xrow.ghost .who { font-size: 11px; color: var(--hot); font-weight: 600; white-space: nowrap; }
+  .fi.crp { background: var(--hot); }
+  .xrow .scope { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--mute); white-space: nowrap; cursor: pointer; } .xrow .scope input { accent-color: var(--ink); }
+  .xrow.ghost .scope { color: var(--ink-2); }
+  .outscope { margin: 8px 4px 0; } .outscope summary { cursor: pointer; font-size: 13px; color: var(--mute); padding: 6px 6px; } .xrow.out { opacity: .55; } .xrow.out b { text-decoration: line-through; font-weight: 500; }
   .folderpane .none { padding: 12px 10px; font-size: 13px; color: var(--mute); margin: 0; }
   @media (min-width: 900px) { .explorer { grid-template-columns: 280px 1fr; } .treepane { display: block; padding: 10px 8px; border-right: 1px solid var(--line-2); background: var(--paper); } .folderpane { padding: 8px 14px 14px; } }
   .viewer .floors .pinf { display: flex; gap: 6px; margin-left: auto; padding-left: 10px; border-left: 1px solid #2b2d31; }
   .viewer .floors .pinf button { background: transparent; border: 1px solid #3a3d42; color: #b9bcc2; } .viewer .floors .pinf button.on { background: #fff; color: var(--ink); border-color: #fff; }
   .pin.other { opacity: .38; width: 22px; height: 22px; font-size: 8px; } .pin.other small { display: none; } .pin.closed { background: var(--ready); }
+  @media (max-width: 760px) { .tier { padding: 16px 14px 18px; border-radius: 14px; } .tier .th { gap: 12px; } .tier .th .k { min-width: 42px; height: 42px; font-size: 13px; } .tier .th h2 { font-size: 19px; } }
   .agentdocs .lead-row { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin-top: 14px; } .agentdocs .lead-row small { color: var(--mute); font-size: 12px; }
   .agentdocs .summary { margin: 18px 0 0; padding: 14px 16px; border-radius: 12px; background: var(--paper); border: 1px solid var(--line); font-size: 15px; line-height: 1.5; }
   .agentdocs h4.grp { margin-top: 22px; }
@@ -611,76 +630,79 @@ function renderDrawings() {
       <div class="fact"><b>Current sheets</b><span>${pr.sheets.length} across ${Object.keys(byDisc).length} discipline${Object.keys(byDisc).length === 1 ? "" : "s"}</span></div>
       <div class="fact"><b>Files in the folder</b><span>${pr.documents.length} · <a href="${pHash(slug, "/docs")}">Documents</a></span></div>
     </div>
-    ${renderExplorer(pr)}
     ${renderAsk(pr)}
+    ${renderHierarchy(pr)}
     <p class="empty" style="margin-top:22px">Tap a sheet to open it. To record a deficiency on it, start a field review first.</p>`
   : projectDrop("Add the project drawings", "Upload one zip of the project folder, or drop the folder here from a computer. The app files the drawing sets, the agent reads every current sheet, and the drawings still missing are listed here.");
   $("#tab").querySelectorAll(".sheet").forEach(s => s.onclick = () => location.hash = pHash(slug, "/field/" + s.dataset.id));
   const pb = $("#askPrint"); if (pb) pb.onclick = () => print();
   wireDrop($("#dropPrj"), "drawings", slug); renderStatus();
-  wireExplorer();
 }
 
-/* The project as a folder tree, the way a file explorer shows it: Site first (the site plan is the anchor), then one folder per
-   building, and inside each a folder per discipline holding that building's sheets and the files that belong to it. Placement
-   is plain code over the sheet readings; the agent adds the blanks (what is not in the folder yet) and may file a loose
-   document under a building. On a wide screen the tree sits on the left and the open folder on the right; on a phone you
-   drill in folder by folder. */
+/* The Documents tab as a folder tree, the way a file explorer shows it. Two top folders: the occupancy paperwork
+   arranged by the sections of the CRP's checklist (so anyone can tell which section to look in), and the project folder
+   itself: Site first, then one folder per building, each with a folder per discipline holding the letters, forms and
+   drawing issues that belong there. Blanks (what is not on file yet) are dashed rows inside the right folder. Anything
+   the CRP list carries that this project does not need (say, building envelope) is ticked "not in scope" and drops out
+   of the count; it stays one tap away at the bottom of its section. On a wide screen the tree sits on the left and the
+   open folder on the right; on a phone you drill in folder by folder. */
 function folderTree(pr) {
   const blds = buildings(), rv = state.p.docs_review, discs = pr.disciplines || [], dn = c => DISC_NAMES[c] || c;
-  const owner = new Map(pr.sheets.map(sh => [sh.id, sheetOwner(sh, blds)]));
   const placed = new Map(((rv || {}).placed || []).map(x => [x.file, x]));
-  const missing = (rv ? rv.missing : []), rules = docsNeeded(pr);
+  const missing = rv ? rv.missing : [], onFile = (rv || {}).on_file || [], scope = new Set(state.p.docs_scope || []);
   const copies = {}; (pr.documents || []).forEach(d => { const k = baseName(d) + "|" + (d.dated || ""); copies[k] = (copies[k] || 0) + 1; });
   const seenDoc = new Set(), docs = (pr.documents || []).filter(d => { const k = baseName(d) + "|" + (d.dated || ""); if (seenDoc.has(k)) return false; seenDoc.add(k); return true; });
   const folder = (key, name, meta, opts = {}) => ({ key, name, meta, kind: "folder", folders: [], items: [], ...opts });
-  const sheetItem = sh => ({ kind: "sheet", id: sh.id, name: `${sh.sheet_number || "p." + sh.page} · ${sh.title || ""}`, meta: `${dn(sh.discipline)} · ${((sh.read || {}).sheet_kind || "sheet").replace(/_/g, " ")}`, thumb: sh.thumb_url || sh.image_url, pins: findingsOn(sh.id).length });
   const fileItem = d => ({ kind: "file", name: baseName(d), meta: [d.kind === "drawing" ? (d.is_current ? "current set" : "older issue") : d.kind === "document" ? "letter or form" : "file", d.dated ? "issued " + d.dated : "", d.pages ? d.pages + " p." : "", copies[baseName(d) + "|" + (d.dated || "")] > 1 ? copies[baseName(d) + "|" + (d.dated || "")] + " copies in the folder" : ""].filter(Boolean).join(" · "), path: d.rel_path, current: d.kind === "drawing" && d.is_current });
-  const ghost = (m, who) => ({ kind: "ghost", name: m.what, meta: m.why, who, disc: m.discipline || m.code || "" });
-  const discFolder = (code, parentKey) => folder(parentKey + "/" + code, dn(code), "", { code });
-  // Site
-  const site = folder("site", "Site", "site plans and everything that covers all buildings", { site: true });
-  const plans = folder("site/plans", "Site plans", "the anchor of every field review");
-  pr.sheets.filter(sh => !owner.get(sh.id) && isSiteSheet(sh)).forEach(sh => plans.items.push(sheetItem(sh)));
-  site.folders.push(plans);
-  const siteDisc = {};
-  const codes = [...new Set([...discs.map(d => d.code), ...docs.map(d => d.discipline)])];
-  codes.forEach(code => { const f = discFolder(code, "site"); if (!(code in DISC_NAMES)) f.name = groupName(code); siteDisc[code] = f; site.folders.push(f); });
-  pr.sheets.filter(sh => !owner.get(sh.id) && !isSiteSheet(sh)).forEach(sh => siteDisc[sh.discipline] && siteDisc[sh.discipline].items.push(sheetItem(sh)));
-  docs.forEach(d => { const pl = placed.get(baseName(d)); if (pl) return; (siteDisc[d.discipline] || siteDisc.OTHER || site).items.push(fileItem(d)); });
-  rules.forEach(m => (siteDisc[m.code] || site).items.push(ghost(m, "rule")));
+  const ghost = (m, who) => ({ kind: "ghost", name: m.what, meta: m.why, who });
+  // the CRP checklist, section by section
+  const crp = folder("crp", "Documents before occupancy", "the CRP's checklist, section by section", { crp: true });
+  const secs = new Map();
+  (state.p.occupancy_docs || []).forEach(([grp, name, re]) => {
+    if (!secs.has(grp)) { const f = folder("crp/" + secs.size, grp, "", { sec: true }); secs.set(grp, f); crp.folders.push(f); }
+    const rx = new RegExp(re, "i"), files = [...new Set([...docs.filter(d => rx.test(baseName(d))).map(baseName), ...onFile.filter(o => o.checklist === name).map(o => o.file)])];
+    secs.get(grp).items.push({ kind: "check", name, files, out: scope.has(name), agent: onFile.some(o => o.checklist === name) });
+  });
+  secs.forEach(f => { const inn = f.items.filter(i => !i.out); f.got = inn.filter(i => i.files.length).length; f.need = inn.length; f.out = f.items.length - inn.length; f.meta = `${f.got} of ${f.need} on file${f.out ? ` · ${f.out} not in scope` : ""}`; });
+  // the project folder: site, then one folder per building
+  const site = folder("site", "Site", "everything that covers all buildings", { site: true });
+  const siteDisc = {}, codes = [...new Set([...discs.map(d => d.code), ...docs.map(d => d.discipline)])];
+  codes.forEach(code => { const f = folder("site/" + code, code in DISC_NAMES ? dn(code) : groupName(code), "", { code }); siteDisc[code] = f; site.folders.push(f); });
+  docs.forEach(d => { if (placed.get(baseName(d))) return; (siteDisc[d.discipline] || siteDisc.OTHER || site).items.push(fileItem(d)); });
   missing.filter(m => !m.building).forEach(m => (siteDisc[m.discipline] || site).items.push(ghost(m, "agent")));
-  // one folder per building
   const bfs = blds.map(b => {
     const units = b.units.map(u => u.label.replace(/\s*\(.*$/, "")).join(", ");
-    const bf = folder("b/" + b.key, b.name, [units || "named on the drawings", b.levels.length ? b.levels.join(", ") : ""].filter(Boolean).join(" · "), { bld: b.key, badge: b.key });
+    const bf = folder("b/" + b.key, b.name, units || "named on the drawings", { bld: b.key, badge: b.key });
     discs.forEach(d => {
-      const f = discFolder(d.code, "b/" + b.key);
-      pr.sheets.filter(sh => owner.get(sh.id) === b && sh.discipline === d.code).forEach(sh => f.items.push(sheetItem(sh)));
+      const f = folder("b/" + b.key + "/" + d.code, dn(d.code), "", { code: d.code });
       docs.filter(x => { const pl = placed.get(baseName(x)); return pl && pl.building === b.name && (pl.discipline || x.discipline) === d.code; }).forEach(x => f.items.push({ ...fileItem(x), who: "agent" }));
       missing.filter(m => m.building === b.name && (m.discipline || "") === d.code).forEach(m => f.items.push(ghost(m, "agent")));
-      if (!f.items.some(i => i.kind === "sheet")) { const pick = planFor(d.code, b, ""); if (pick && pick.standIn && pick.sheet) f.note = `No ${dn(d.code).toLowerCase()} sheet of its own · ${dn(pick.sheet.discipline)} ${pick.sheet.sheet_number || "p." + pick.sheet.page} stands in on site`; else f.note = "Nothing in the set"; }
-      bf.folders.push(f);
+      if (f.items.length) bf.folders.push(f);
     });
     missing.filter(m => m.building === b.name && !discs.some(d => d.code === m.discipline)).forEach(m => bf.items.push(ghost(m, "agent")));
+    if (!bf.folders.length && !bf.items.length) bf.note = "Nothing filed under this building yet. The agent files a letter or form here when it names this building only.";
     return bf;
   });
+  const prj = folder("prj", "Project folder", "as it came, filed by site, building and discipline", { prj: true });
+  prj.folders.push(site, ...bfs);
   const root = folder("", pr.name, [pr.address, pr.city].filter(Boolean).join(", "), { root: true });
-  root.folders.push(site, ...bfs);
-  const count = f => { f.n = f.items.filter(i => i.kind !== "ghost").length + f.folders.reduce((a, c) => a + count(c), 0); f.ghosts = f.items.filter(i => i.kind === "ghost").length + f.folders.reduce((a, c) => a + c.ghosts, 0); return f.n; };
+  root.folders.push(crp, prj);
+  const count = f => { f.n = f.items.filter(i => i.kind === "file" || (i.kind === "check" && i.files.length && !i.out)).length + f.folders.reduce((a, c) => a + count(c), 0); f.ghosts = f.items.filter(i => i.kind === "ghost" || (i.kind === "check" && !i.files.length && !i.out)).length + f.folders.reduce((a, c) => a + c.ghosts, 0); return f.n; };
   count(root);
   return root;
 }
 function findFolder(root, path) { let f = root; for (const k of path) { const n = f.folders.find(x => x.key === k); if (!n) return root; f = n; } return f; }
 function renderExplorer(pr) {
-  const root = folderTree(pr), cur = findFolder(root, state.folder), slug = state.slug;
+  const root = folderTree(pr), cur = findFolder(root, state.folder);
   if (cur === root) state.folder = [];
   const crumbs = [root]; { let f = root; for (const k of state.folder) { f = f.folders.find(x => x.key === k); crumbs.push(f); } }
-  const tree = (f, depth) => `<div class="node ${f === cur ? "on" : ""} ${crumbs.includes(f) ? "open" : ""}" data-path="${esc(pathOf(f, root))}" style="--d:${depth}"><i class="fi ${f.site ? "site" : f.bld ? "bld" : f.root ? "root" : ""}"></i><b>${esc(f.name)}</b><small>${f.n}${f.ghosts ? ` <em>+${f.ghosts}</em>` : ""}</small></div>${crumbs.includes(f) ? f.folders.map(c => tree(c, depth + 1)).join("") : ""}`;
-  const row = i => i.kind === "sheet" ? `<a class="xrow sheetrow" href="${pHash(slug, "/field/" + i.id)}"><img src="${i.thumb}" alt="" loading="lazy"><div><b>${esc(i.name)}</b><small>${esc(i.meta)}</small></div>${i.pins ? `<span class="pins">${i.pins}</span>` : ""}</a>`
-    : i.kind === "file" ? `<div class="xrow filerow ${i.current ? "cur" : ""}"><i class="fi doc"></i><div><b>${esc(i.name)}</b><small>${esc(i.meta)}${i.who ? " · filed here by the agent" : ""}</small></div></div>`
-    : `<div class="xrow ghost"><i class="fi ghost"></i><div><b>${esc(i.name)}</b><small>${esc(i.meta)}</small></div><span class="who">${i.who === "agent" ? "not in the folder yet · agent" : "not in the folder yet · rule"}</span></div>`;
-  const sub = f => `<div class="xrow folderrow" data-path="${esc(pathOf(f, root))}"><i class="fi ${f.site ? "site" : f.bld ? "bld" : ""}">${f.badge ? esc(f.badge) : ""}</i><div><b>${esc(f.name)}</b><small>${esc(f.meta || (f.note || `${f.n} item${f.n === 1 ? "" : "s"}`))}</small></div><small class="n">${f.n}${f.ghosts ? ` <em>+${f.ghosts}</em>` : ""}</small><span class="chev">›</span></div>`;
+  const cnt = f => f.sec ? `${f.got}/${f.need}` : `${f.n}${f.ghosts ? ` <em>+${f.ghosts}</em>` : ""}`;
+  const tree = (f, depth) => `<div class="node ${f === cur ? "on" : ""} ${crumbs.includes(f) ? "open" : ""}" data-path="${esc(pathOf(f, root))}" style="--d:${depth}"><i class="fi ${f.site ? "site" : f.bld ? "bld" : f.crp || f.sec ? "crp" : f.root || f.prj ? "root" : ""}"></i><b>${esc(f.name)}</b><small>${cnt(f)}</small></div>${crumbs.includes(f) ? f.folders.map(c => tree(c, depth + 1)).join("") : ""}`;
+  const row = i => i.kind === "file" ? `<div class="xrow filerow ${i.current ? "cur" : ""}"><i class="fi doc"></i><div><b>${esc(i.name)}</b><small>${esc(i.meta)}${i.who ? " · filed here by the agent" : ""}</small></div></div>`
+    : i.kind === "check" ? (i.out ? "" : `<div class="xrow ${i.files.length ? "filerow" : "ghost"}"><i class="fi ${i.files.length ? "doc" : "ghost"}"></i><div><b>${esc(i.name)}</b><small>${i.files.length ? esc(i.files.join(" · ")) + (i.agent ? " · confirmed by the agent" : "") : "not on file yet"}</small></div><label class="scope"><input type="checkbox" data-scope="${esc(i.name)}"> Not in scope</label></div>`)
+    : `<div class="xrow ghost"><i class="fi ghost"></i><div><b>${esc(i.name)}</b><small>${esc(i.meta)}</small></div><span class="who">not in the folder yet · agent</span></div>`;
+  const outRows = cur.items.filter(i => i.kind === "check" && i.out);
+  const sub = f => `<div class="xrow folderrow" data-path="${esc(pathOf(f, root))}"><i class="fi ${f.site ? "site" : f.bld ? "bld" : f.crp || f.sec ? "crp" : f.prj ? "root" : ""}">${f.badge ? esc(f.badge) : ""}</i><div><b>${esc(f.name)}</b><small>${esc(f.meta || f.note || `${f.n} item${f.n === 1 ? "" : "s"}`)}</small></div><small class="n">${cnt(f)}</small><span class="chev">›</span></div>`;
   return `<div class="explorer">
     <aside class="treepane">${tree(root, 0)}</aside>
     <section class="folderpane">
@@ -688,6 +710,7 @@ function renderExplorer(pr) {
       ${cur.note && !cur.items.length && !cur.folders.length ? `<p class="none">${esc(cur.note)}</p>` : ""}
       ${cur.folders.map(sub).join("")}
       ${cur.items.map(row).join("")}
+      ${outRows.length ? `<details class="outscope"><summary>${outRows.length} not in scope for this project</summary>${outRows.map(i => `<div class="xrow out"><i class="fi doc"></i><div><b>${esc(i.name)}</b><small>removed from the count</small></div><label class="scope"><input type="checkbox" checked data-scope="${esc(i.name)}"> Not in scope</label></div>`).join("")}</details>` : ""}
       ${!cur.folders.length && !cur.items.length && !cur.note ? `<p class="none">Empty folder.</p>` : ""}
     </section>
   </div>`;
@@ -695,7 +718,40 @@ function renderExplorer(pr) {
 function pathOf(f, root) { const walk = (n, acc) => { if (n === f) return acc; for (const c of n.folders) { const r = walk(c, [...acc, c.key]); if (r) return r; } return null; }; return (walk(root, []) || []).join("|"); }
 function wireExplorer() {
   const ex = $("#tab").querySelector(".explorer"); if (!ex) return;
-  ex.querySelectorAll("[data-path]").forEach(el => el.onclick = e => { e.preventDefault(); state.folder = el.dataset.path ? el.dataset.path.split("|") : []; const y = scrollY; renderDrawings(); scrollTo(0, y); });
+  ex.querySelectorAll("[data-path]").forEach(el => el.onclick = e => { e.preventDefault(); state.folder = el.dataset.path ? el.dataset.path.split("|") : []; const y = scrollY; render(); scrollTo(0, y); });
+  ex.querySelectorAll("input[data-scope]").forEach(inp => inp.onchange = async () => {
+    const r = await fetch(pUrl(state.slug, "/documents/scope"), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: inp.dataset.scope, in_scope: !inp.checked }) }), j = await r.json();
+    if (!r.ok) { inp.checked = !inp.checked; return toast(j.detail || "Could not save", true); }
+    state.p.docs_scope = j.docs_scope; const y = scrollY; render(); scrollTo(0, y); toast(inp.checked ? "Removed from the count" : "Back in scope");
+  });
+}
+
+/* The set as the site is built: the site first (the site plan is the anchor of every field review), then one card per
+   building with its units, floors and sheets per discipline. Plain code over the readings; the agent's gaps land in place. */
+function renderHierarchy(pr) {
+  const blds = buildings(), discs = pr.disciplines || [], dn = c => DISC_NAMES[c] || c, rv = state.p.docs_review;
+  const owner = new Map(pr.sheets.map(sh => [sh.id, sheetOwner(sh, blds)]));
+  const card = sh => `<div class="sheet" data-id="${sh.id}"><img src="${sh.thumb_url || sh.image_url}" alt="" loading="lazy"><div class="cap"><b>${esc(sh.sheet_number || "p." + sh.page)}</b><span>${esc(sh.title || "")}</span><small>${esc(dn(sh.discipline))} · ${esc(((sh.read || {}).sheet_kind || "sheet").replace(/_/g, " "))}</small></div></div>`;
+  const gaps = b => (rv ? rv.missing : []).filter(m => (m.building || "") === (b ? b.name : ""));
+  const gapList = (list, lbl) => list.length ? `<ul class="gaps"><li class="lbl">${esc(lbl)}</li>${list.map(m => `<li><i>${esc(m.discipline || "ALL")}</i><div><b>${esc(m.what)}</b><span>${esc(m.why)}</span></div></li>`).join("")}</ul>` : "";
+  const byDisc = list => discs.map(d => [d.code, list.filter(sh => sh.discipline === d.code)]).filter(([, l]) => l.length);
+  const site = pr.sheets.filter(sh => !owner.get(sh.id)), plans = site.filter(isSiteSheet), rest = site.filter(sh => !isSiteSheet(sh));
+  const addr = [pr.address, pr.city].filter(Boolean).join(", ");
+  let html = `<section class="tier site"><div class="th"><span class="k">SITE</span><div><h2>${esc(pr.name)}</h2><p>${esc(addr ? addr + " · " : "")}${blds.length} building${blds.length === 1 ? "" : "s"} · ${site.length} site-wide sheet${site.length === 1 ? "" : "s"}. The site plan is the anchor: it names every building, and every field review starts from it.</p></div></div>
+    ${plans.length ? `<h4 class="grp">Site plans<small>${[...new Set(plans.map(sh => dn(sh.discipline)))].join(", ")}</small></h4><div class="gallery hero">${plans.map(card).join("")}</div>` : `<p class="none">No sheet in the set is read as a site plan.</p>`}
+    ${byDisc(rest).map(([code, shs]) => `<h4 class="grp">${esc(dn(code))} · site-wide<small>${shs.length} sheet${shs.length === 1 ? "" : "s"}</small></h4><div class="gallery">${shs.map(card).join("")}</div>`).join("")}
+    ${gapList(gaps(null), "Still missing for the whole site, per the agent")}
+  </section>`;
+  for (const b of blds) {
+    const mine = pr.sheets.filter(sh => owner.get(sh.id) === b);
+    const units = b.units.map(u => u.label.replace(/\s*\(.*$/, "")).join(", ");
+    html += `<section class="tier bld"><div class="th"><span class="k">${esc(b.key)}</span><div><h2>${esc(b.name)}</h2><p>${units ? esc(units) : "No unit in the project model names this building; the drawings do"}${b.levels.length ? ` · floors: ${esc(b.levels.join(", "))}` : ""} · ${mine.length} sheet${mine.length === 1 ? "" : "s"} of its own</p></div></div>
+      ${discs.map(d => { const shs = mine.filter(sh => sh.discipline === d.code), pick = shs.length ? null : planFor(d.code, b, ""), stand = pick && pick.standIn && pick.sheet ? pick.sheet : null;
+        return `<h4 class="grp">${esc(dn(d.code))}<small>${shs.length ? `${shs.length} sheet${shs.length === 1 ? "" : "s"}` : stand ? `no sheet of its own · ${esc(dn(stand.discipline))} ${esc(stand.sheet_number || "p." + stand.page)} stands in` : "none in the set"}</small></h4>${shs.length ? `<div class="gallery">${shs.map(card).join("")}</div>` : ""}`; }).join("")}
+      ${gapList(gaps(b), "Still missing for this building, per the agent")}
+    </section>`;
+  }
+  return html;
 }
 
 /* What to ask the client or the architect for before the first field review. Plain code over the sheet readings; no agent call,
@@ -781,14 +837,12 @@ function renderDocs() {
   const pr = state.p.project, slug = state.slug, docs = pr.documents || [];
   $("#tab").innerHTML = docs.length ? `
     <p class="lead" style="margin-top:22px">${docs.length} files, kept exactly as the folder came. Filed by discipline and issue date from the folder names; the newest drawing set of each discipline is the one the agent read. Nothing is moved or renamed.</p>
-    ${renderFiles(pr)}
+    ${renderExplorer(pr)}
     <h3 class="sec">Revision log</h3>
     <p class="lead" style="margin:0">Every issue of every drawing set, newest first, with the reason the office wrote on the folder. The same file filed twice (discipline folder and the PM copy) is one line.</p>
     ${renderRevisions(pr)}
     <h3 class="sec">What the folder is still missing</h3>
     ${renderAgentDocs(pr)}
-    <h3 class="sec">Documents before occupancy</h3>
-    ${renderOccupancy(pr)}
     <div class="drop small" id="dropPrj" style="margin-top:24px"><div><h2>Add to the folder</h2><p>Drop the project folder again, or upload a zip, with the new letters, certificates and drawing issues. Everything is re-filed; the current sets are read again.</p></div><input type="file" webkitdirectory multiple>${zipBtn("Zip")}</div>
     <div class="status ${esc(state.run.kind)}" id="status"></div>`
   : projectDrop("Add the project folder", "Upload one zip of the whole project folder: drawings, letters, forms, certificates. The app files it by discipline and date, keeps every issue on record and shows which occupancy documents are still missing.");

@@ -253,7 +253,8 @@ class Store:
                                 ("reviews", "package_json", "TEXT"),
                                 ("drafts", "review_id", "TEXT NOT NULL DEFAULT ''"),
                                 ("sheets", "views_json", "TEXT NOT NULL DEFAULT '[]'"),
-                                ("projects", "docs_review_json", "TEXT")):
+                                ("projects", "docs_review_json", "TEXT"),
+                                ("projects", "docs_scope_json", "TEXT")):
             if col not in self._cols(table):
                 self.conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {ddl}")
         if "project_id" not in self._cols("deficiencies"):
@@ -682,7 +683,14 @@ class Store:
         d = dict(r)
         d["model"] = json.loads(d.pop("model_json") or "{}")
         d["docs_review"] = json.loads(d.pop("docs_review_json", None) or "null")
+        d["docs_scope"] = json.loads(d.pop("docs_scope_json", None) or "[]")
         return d
+
+    def set_docs_scope(self, project_id: str, names: list[str]) -> None:
+        """Checklist rows the engineer marked not in scope for this project (by exact name)."""
+        self.conn.execute("UPDATE projects SET docs_scope_json=?, updated_at=? WHERE id=?",
+                          (json.dumps(sorted(set(names))), now(), project_id))
+        self.conn.commit()
 
     def set_docs_review(self, project_id: str, review: dict | None) -> None:
         """The agent's last answer on what the folder is missing; one per project, replaced on each call."""
