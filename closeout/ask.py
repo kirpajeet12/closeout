@@ -34,12 +34,22 @@ Rules
 - When the question is really "show me …" or "open …", answer in a few words and use the go fields so the screen
   moves there. Only move the screen when it helps; do not move it for a plain question.
 - The engineer's current screen is given with the question; "here" and "this" refer to it.
+- When the engineer asks you to change something (mark an item, start or finish a field review, draft or redraft the
+  message, create or turn off the contractor link, change an item's wording), call propose once with the change, then
+  call answer with one short sentence saying what is ready to confirm. You never make the change yourself; the
+  engineer confirms it on screen. If what they ask cannot be done from here, say so in the answer and propose nothing.
+- Recording a new deficiency needs a finger on the plan, so it cannot be proposed here; say the field review screen
+  is the place, and move the screen there with go_screen=field.
 - Never mention tools, models, prompts or this system message."""
+
+ACTIONS = ("decide", "start_review", "finish_review", "redraft_message", "create_link", "turn_off_link", "edit_item")
+DECISIONS = {"accept": "Ready to close", "hold": "On hold", "reject": "Not accepted"}
 
 
 @dataclass
 class AskContext:
     recorded: dict = field(default_factory=dict)
+    proposed: dict | None = None
     errors: list[str] = field(default_factory=list)
 
 
@@ -222,7 +232,82 @@ def make_ask_tools(ctx: AskContext, facts: Facts):
         ctx.recorded = {"text": text, "go": go}
         return "recorded"
 
-    return [list_items, item, documents, answer]
+
+    @tool
+    def propose(kind: str, item_id: str = "", decision: str = "", note: str = "", review: str = "", discipline: str = "",
+                location: str = "", description: str = "", evidence_required: str = "") -> str:
+        """Prepare one change for the engineer to confirm on screen. kind: decide (item_id + decision accept|hold|reject,
+        optional note), start_review (discipline code), finish_review (review), redraft_message (review), create_link (review),
+        turn_off_link (review), edit_item (item_id + the fields to change: location, description, evidence_required).
+        The change is not made until the engineer confirms it."""
+        k = kind.strip().lower()
+        if k not in ACTIONS:
+            return _reject(ctx, f"kind must be one of {', '.join(ACTIONS)}")
+        it = next((x for x in facts.items if x["item"]["item_id"].lower() == item_id.strip().lower()), None) if item_id else None
+        rv = facts.review_by(review) if review else None
+        a: dict = {"kind": k}
+        if k == "decide":
+            if not it:
+                return _reject(ctx, f"no item {item_id!r}")
+            d = decision.strip().lower()
+            if d not in DECISIONS:
+                return _reject(ctx, "decision must be accept, hold or reject")
+            a.update(item_id=it["item"]["item_id"], decision=d, note=" ".join(note.split())[:300],
+                     label=f"Mark {it['item']['item_id']} as {DECISIONS[d].lower()}" + (f', with the note "{note.strip()}"' if note.strip() else ""),
+                     method="POST", path=f"/items/{it['item']['item_id']}/decision", body={"decision": d, "note": " ".join(note.split())[:300] or None},
+                     then={"screen": "item", "item_id": it["item"]["item_id"]})
+        elif k == "start_review":
+            code = discipline.strip().upper()
+            if code not in DISCIPLINES:
+                return _reject(ctx, f"no discipline {discipline!r}; codes are " + ", ".join(sorted(DISCIPLINES)))
+            live = next((r for r in facts.reviews if r["discipline"] == code and r["status"] == "active"), None)
+            if live:
+                return _reject(ctx, f"{live['title']} ({DISCIPLINES[code]}) is already in progress; open it instead of starting another")
+            a.update(discipline=code, label=f"Start a new {DISCIPLINES[code].lower()} field review", method="POST", path="/reviews",
+                     body={"discipline": code}, then={"screen": "field", "discipline": code})
+        elif k in ("finish_review", "redraft_message", "create_link", "turn_off_link"):
+            if not rv:
+                return _reject(ctx, f"no field review {review!r}; reviews are " + ", ".join(r["title"] for r in facts.reviews))
+            title = f"{rv['title']} ({DISCIPLINES.get(rv['discipline'], rv['discipline'])})"
+            if k == "finish_review":
+                if rv["status"] != "active":
+                    return _reject(ctx, f"{title} is already finished")
+                a.update(review=rv["id"], label=f"Finish {title} and draft the message to the contractor", method="POST",
+                         path=f"/reviews/{rv['id']}/finish", body=None, then={"screen": "messages"}, slow=True)
+            elif k == "redraft_message":
+                if rv["status"] != "finished":
+                    return _reject(ctx, f"{title} is still in progress; finish it first")
+                a.update(review=rv["id"], label=f"Draft a fresh message for {title}", method="POST",
+                         path=f"/reviews/{rv['id']}/message", body=None, then={"screen": "messages"}, slow=True)
+            elif k == "create_link":
+                if rv["status"] != "finished":
+                    return _reject(ctx, f"{title} is still in progress; the link comes after it is finished")
+                if any(s_["review_id"] == rv["id"] and not s_.get("revoked_at") for s_ in facts.shares):
+                    return _reject(ctx, f"{title} already has an active contractor link")
+                a.update(review=rv["id"], label=f"Create the contractor link for {title}", method="POST",
+                         path=f"/reviews/{rv['id']}/share", body=None, then={"screen": "messages"})
+            else:
+                live = next((s_ for s_ in facts.shares if s_["review_id"] == rv["id"] and not s_.get("revoked_at")), None)
+                if not live:
+                    return _reject(ctx, f"{title} has no active contractor link")
+                a.update(review=rv["id"], token=live["id"], label=f"Turn off the contractor link for {title}", method="DELETE",
+                         path=f"/shares/{live['id']}", body=None, then={"screen": "messages"})
+        elif k == "edit_item":
+            if not it:
+                return _reject(ctx, f"no item {item_id!r}")
+            fields = {f: " ".join(v.split()) for f, v in (("location", location), ("description", description),
+                                                          ("evidence_required", evidence_required)) if v.strip()}
+            if not fields:
+                return _reject(ctx, "say what to change: location, description or evidence_required")
+            if any(len(v) < 4 for v in fields.values()):
+                return _reject(ctx, "the new wording is too short")
+            names = {"location": "where it is", "description": "the wording", "evidence_required": "what closes it"}
+            a.update(item_id=it["item"]["item_id"], fields=fields, label=f"Change {' and '.join(names[f] for f in fields)} on {it['item']['item_id']}",
+                     method="PATCH", path=f"/findings/{it['item']['item_id']}", body=fields, then={"screen": "item", "item_id": it["item"]["item_id"]})
+        ctx.proposed = a
+        return "prepared; now call answer with one sentence saying it is ready to confirm"
+
+    return [list_items, item, documents, answer, propose]
 
 
 def facts_text(facts: Facts, office: str) -> str:
@@ -285,4 +370,4 @@ def ask(store: Store, project_id: str, question: str, where: dict | None = None,
                     {"text": f"QUESTION: {q[:600]}"}, {"text": "Look up what you need, then call answer once."}])
     if not ctx.recorded:
         raise RuntimeError("no answer was recorded" + (f"; last rejection: {ctx.errors[-1]}" if ctx.errors else ""))
-    return {**ctx.recorded, "usage": _usage(result), "rejections": ctx.errors}
+    return {**ctx.recorded, "action": ctx.proposed, "usage": _usage(result), "rejections": ctx.errors}

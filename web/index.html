@@ -521,7 +521,19 @@
   .askpanel .went { margin-top: 8px; font-size: 12px; color: var(--ready); font-weight: 600; }
   .askpanel .x { position: absolute; top: 8px; right: 10px; border: 0; background: transparent; color: var(--mute); font-size: 18px; cursor: pointer; padding: 4px 6px; }
   .askpanel .fine { margin-top: 8px; font-size: 11px; color: var(--mute); }
-  @media (max-width: 760px) { .askbar { bottom: 10px; width: calc(100% - 20px); } body.askable .wrap { padding-bottom: 96px; } }
+  .askbar form button.mic { background: transparent; color: #fff; width: 34px; height: 34px; margin-left: -8px; }
+  .askbar form button.mic svg { width: 18px; height: 18px; display: block; }
+  .askbar.listening form { background: #8b1a1a; }
+  .askbar.listening form button.mic { background: #fff; color: #8b1a1a; animation: pulse 1s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12); } }
+  .askpanel .act { margin-top: 10px; border: 1px solid var(--line-2); border-radius: 12px; padding: 12px 14px; background: var(--paper); display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .askpanel .act .lbl { flex: 1 1 200px; font-size: 14px; }
+  .askpanel .act .lbl b { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: var(--mute); margin-bottom: 2px; }
+  .askpanel .act .btns { display: flex; gap: 8px; }
+  .askpanel .act .btn { padding: 9px 14px; border-radius: 10px; font-size: 14px; min-height: 40px; }
+  .askpanel .act.busy { opacity: .6; pointer-events: none; }
+  .askpanel .done { margin-top: 8px; font-size: 13px; color: var(--ready); font-weight: 600; }
+  @media (max-width: 760px) { .askbar { bottom: 10px; width: calc(100% - 20px); } body.askable .wrap { padding-bottom: 96px; } .askpanel .act .btns { width: 100%; } .askpanel .act .btn { flex: 1; } }
 </style>
 </head>
 <body>
@@ -535,7 +547,7 @@
 <div class="toast" id="toast"></div>
 <div class="askbar" id="askbar" hidden>
   <div class="askpanel" id="askpanel" hidden></div>
-  <form id="askform" autocomplete="off"><input type="text" id="askq" placeholder="Ask Closeout… e.g. what is still open at 6895?" maxlength="600"><button type="submit" id="askgo" aria-label="Ask">↑</button></form>
+  <form id="askform" autocomplete="off"><button type="button" class="mic" id="askmic" aria-label="Speak" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><path d="M12 17v4M8 21h8"/></svg></button><input type="text" id="askq" placeholder="Ask Closeout… e.g. what is still open at 6895?" maxlength="600"><button type="submit" id="askgo" aria-label="Ask">↑</button></form>
 </div>
 
 <script>
@@ -1885,11 +1897,35 @@ function renderAsk() {
   $("#askq").placeholder = window.innerWidth <= 760 ? "Ask Closeout…" : "Ask Closeout… e.g. what is still open at 6895?";
   if (!on) { $("#askpanel").hidden = true; askState.last = null; }
 }
-function askPanel(q, a, went, wait) {
+function askPanel(q, a, went, wait, action) {
   const el = $("#askpanel");
-  el.innerHTML = `<div class="q">${esc(q)}</div><div class="a${wait ? " wait" : ""}">${esc(a)}</div>${went ? `<div class="went">${esc(went)}</div>` : ""}${wait ? "" : `<div class="fine">From this project's records. Closeout answers; the engineer decides.</div>`}<button class="x" type="button" aria-label="Close">×</button>`;
+  el.innerHTML = `<div class="q">${esc(q)}</div><div class="a${wait ? " wait" : ""}">${esc(a)}</div>${went ? `<div class="went">${esc(went)}</div>` : ""}
+    ${action ? `<div class="act" id="askact"><div class="lbl"><b>Ready to confirm</b>${esc(action.label)}</div><div class="btns"><button class="btn primary" id="askyes">Confirm</button><button class="btn" id="askno">Cancel</button></div></div>` : ""}
+    ${wait ? "" : `<div class="fine">From this project's records. Closeout ${action ? "prepares" : "answers"}; the engineer decides.</div>`}<button class="x" type="button" aria-label="Close">×</button>`;
   el.hidden = false;
   el.querySelector(".x").onclick = () => { el.hidden = true; };
+  if (action) {
+    $("#askno").onclick = () => { el.hidden = true; };
+    $("#askyes").onclick = () => askConfirm(action);
+  }
+}
+async function askConfirm(action) {
+  const act = $("#askact"); if (!act) return;
+  act.classList.add("busy");
+  if (action.slow) act.querySelector(".lbl").innerHTML = `<b>Working</b>${esc(action.label)}…`;
+  try {
+    const r = await fetch(pUrl(state.slug, action.path), { method: action.method, headers: action.body ? { "content-type": "application/json" } : {}, body: action.body ? JSON.stringify(action.body) : undefined });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.detail || "Could not do that");
+    act.outerHTML = `<div class="done">Done · ${esc(action.label)}</div>`;
+    toast("Done");
+    await load();
+    if (action.then) applyGo(action.then);
+    if (askState.spoken) askSay("Done.");
+  } catch (e) {
+    act.classList.remove("busy");
+    toast(e.message || "Could not do that", true);
+  }
 }
 function goLabel(go) {
   const p = state.p;
@@ -1926,8 +1962,9 @@ async function askSend() {
     const r = await fetch(pUrl(state.slug, "/ask"), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ question: q, where: askWhere() }) });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(j.detail || "Closeout could not answer that just now");
-    const went = applyGo(j.go);
-    askPanel(q, j.answer, went, false);
+    const went = j.action ? "" : applyGo(j.go);
+    askPanel(q, j.answer, went, false, j.action);
+    if (askState.spoken) askSay(j.answer + (j.action ? ` ${j.action.label}. Confirm on the screen.` : ""));
     input.value = "";
   } catch (e) {
     askPanel(q, e.message || "Closeout could not answer that just now; ask again", "", false);
@@ -1935,7 +1972,30 @@ async function askSend() {
     askState.busy = false; $("#askbar").classList.remove("busy"); $("#askgo").disabled = false;
   }
 }
-$("#askform").onsubmit = e => { e.preventDefault(); askSend(); };
+$("#askform").onsubmit = e => { e.preventDefault(); askState.spoken = false; askSend(); };
+
+/* Voice: the phone's own speech recognition fills the box and sends; the answer is read back when the question
+   was spoken. Nothing leaves the device beyond what typing would send. */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+function askSay(text) {
+  try { window.speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(String(text)); u.lang = "en-CA"; u.rate = 1.02; window.speechSynthesis.speak(u); } catch (e) { /* no voice on this device */ }
+}
+if (SR) {
+  const mic = $("#askmic"); mic.hidden = false;
+  let rec = null;
+  mic.onclick = () => {
+    if (rec) { rec.stop(); return; }
+    try { window.speechSynthesis.cancel(); } catch (e) {}
+    rec = new SR(); rec.lang = "en-CA"; rec.interimResults = true; rec.maxAlternatives = 1;
+    const input = $("#askq"), bar = $("#askbar"), was = input.placeholder;
+    bar.classList.add("listening"); input.placeholder = "Listening…"; input.value = "";
+    let final = "";
+    rec.onresult = ev => { let t = ""; for (const r of ev.results) t += r[0].transcript; input.value = t; if (ev.results[ev.results.length - 1].isFinal) final = t; };
+    rec.onerror = ev => { if (ev.error === "not-allowed") toast("Allow the microphone in the browser to speak to Closeout", true); else if (ev.error !== "aborted" && ev.error !== "no-speech") toast("Could not hear that; try again", true); };
+    rec.onend = () => { bar.classList.remove("listening"); input.placeholder = was; rec = null; const q = (final || input.value).trim(); if (q) { input.value = q; askState.spoken = true; askSend(); } };
+    try { rec.start(); } catch (e) { rec = null; bar.classList.remove("listening"); input.placeholder = was; toast("Voice is not available here", true); }
+  };
+}
 </script>
 </body>
 </html>

@@ -12,8 +12,10 @@ from tests.test_share import _finished_review
 class FakeAskAgent:
     """Stands in for strands.Agent: calls the answer tool with canned arguments, first one that is accepted wins."""
     answers: list[dict] = []
+    proposals: list[dict] = []
     calls: list = []
     lookups: list[str] = []
+    replies: list[str] = []
 
     def __init__(self, model=None, tools=None, system_prompt="", callback_handler=None):
         self.tools = {t.tool_name if hasattr(t, "tool_name") else getattr(t, "__name__", "tool"): t for t in tools}
@@ -24,6 +26,9 @@ class FakeAskAgent:
         for name, t in self.tools.items():
             if "list_items" in name:
                 FakeAskAgent.lookups.append(t())
+        propose = next(t for name, t in self.tools.items() if "propose" in name)
+        for args in FakeAskAgent.proposals:
+            FakeAskAgent.replies.append(propose(**args))
         answer = next(t for name, t in self.tools.items() if "answer" in name)
         for args in FakeAskAgent.answers:
             if answer(**args) == "recorded":
@@ -40,6 +45,7 @@ def asking(client, monkeypatch):  # noqa: F811
     monkeypatch.setattr(ask_mod, "make_model", lambda settings, fast=False: None)
     monkeypatch.setattr(ask_mod, "Agent", FakeAskAgent)
     FakeAskAgent.answers, FakeAskAgent.calls, FakeAskAgent.lookups = [], [], []
+    FakeAskAgent.proposals, FakeAskAgent.replies = [], []
     return client
 
 
@@ -99,3 +105,61 @@ def test_item_and_sheet_screens_resolve_to_ids(asking, tmp_path):
     FakeAskAgent.answers = [{"text": "Here is the upper floor power plan.", "go_screen": "sheet", "sheet": "EL-2"}]
     j = asking.post(f"/api/projects/{slug}/ask", json={"question": "show me EL-2"}).json()
     assert j["go"]["screen"] == "sheet" and j["go"]["sheet"] == "EL-2" and j["go"]["sheet_id"].startswith("sh")
+
+
+def test_a_change_is_prepared_but_not_made_until_the_engineer_confirms(asking, tmp_path):
+    slug, rev, _ = _finished_review(asking, tmp_path)
+    FakeAskAgent.proposals = [
+        {"kind": "decide", "item_id": "EL-77", "decision": "accept"},                 # no such item
+        {"kind": "decide", "item_id": "el-01", "decision": "maybe"},                  # no such decision
+        {"kind": "decide", "item_id": "el-01", "decision": "hold", "note": "waiting on the photo"},
+    ]
+    FakeAskAgent.answers = [{"text": "Ready to confirm: EL-01 on hold with your note."}]
+    j = asking.post(f"/api/projects/{slug}/ask", json={"question": "put EL-01 on hold, waiting on the photo"}).json()
+    a = j["action"]
+    assert a["kind"] == "decide" and a["method"] == "POST" and a["path"] == "/items/EL-01/decision"
+    assert a["body"] == {"decision": "hold", "note": "waiting on the photo"} and a["then"] == {"screen": "item", "item_id": "EL-01"}
+    assert a["label"] == 'Mark EL-01 as on hold, with the note "waiting on the photo"'
+    assert j["go"] is None and FakeAskAgent.replies[0].startswith("REJECTED") and FakeAskAgent.replies[1].startswith("REJECTED")
+    st = Store(asking.settings.data_dir / "closeout.db")
+    pid = st.project_by_slug(slug)["id"]
+    assert st.decisions(pid) == []                                   # nothing changed yet
+    r = asking.post(f"/api/projects/{slug}{a['path']}", json=a["body"])   # the screen's Confirm button does exactly this
+    assert r.status_code == 200 and st.decisions(pid)[0]["decision"] == "hold"
+
+
+def test_review_and_link_changes_respect_the_state_of_the_review(asking, tmp_path):
+    slug, rev, _ = _finished_review(asking, tmp_path)
+    # finished review: cannot be finished again, can get a link; no active electrical review: one can start
+    FakeAskAgent.proposals = [{"kind": "finish_review", "review": "Field review 1"}, {"kind": "create_link", "review": "field review 1"}]
+    FakeAskAgent.answers = [{"text": "Ready to confirm."}]
+    j = asking.post(f"/api/projects/{slug}/ask", json={"question": "send field review 1 to the contractor"}).json()
+    assert FakeAskAgent.replies[0].startswith("REJECTED") and "already finished" in FakeAskAgent.replies[0]
+    assert j["action"]["kind"] == "create_link" and j["action"]["path"] == f"/reviews/{rev['id']}/share"
+    asking.post(f"/api/projects/{slug}/reviews/{rev['id']}/share")
+    FakeAskAgent.proposals, FakeAskAgent.replies = [{"kind": "create_link", "review": "Field review 1"}, {"kind": "turn_off_link", "review": "Field review 1"}], []
+    j = asking.post(f"/api/projects/{slug}/ask", json={"question": "turn the link off"}).json()
+    assert "already has an active" in FakeAskAgent.replies[0]
+    assert j["action"]["kind"] == "turn_off_link" and j["action"]["method"] == "DELETE" and j["action"]["path"].startswith("/shares/")
+    FakeAskAgent.proposals, FakeAskAgent.replies = [{"kind": "start_review", "discipline": "xx"}, {"kind": "start_review", "discipline": "el"}], []
+    j = asking.post(f"/api/projects/{slug}/ask", json={"question": "start an electrical review"}).json()
+    assert FakeAskAgent.replies[0].startswith("REJECTED") and j["action"]["body"] == {"discipline": "EL"} and j["action"]["then"] == {"screen": "field", "discipline": "EL"}
+    asking.post(f"/api/projects/{slug}/reviews", json={"discipline": "EL"})
+    FakeAskAgent.proposals, FakeAskAgent.replies = [{"kind": "start_review", "discipline": "EL"}], []
+    j = asking.post(f"/api/projects/{slug}/ask", json={"question": "start another"}).json()
+    assert "already in progress" in FakeAskAgent.replies[0] and j["action"] is None
+
+
+def test_edit_item_changes_only_the_named_fields(asking, tmp_path):
+    slug, _, _ = _finished_review(asking, tmp_path)
+    FakeAskAgent.proposals = [{"kind": "edit_item", "item_id": "EL-01"}, {"kind": "edit_item", "item_id": "EL-01", "description": "Receptacle beside the basin has no cover plate; plate missing entirely."}]
+    FakeAskAgent.answers = [{"text": "Ready to confirm the new wording on EL-01."}]
+    j = asking.post(f"/api/projects/{slug}/ask", json={"question": "change EL-01 wording"}).json()
+    a = j["action"]
+    assert FakeAskAgent.replies[0].startswith("REJECTED")
+    assert a["method"] == "PATCH" and a["path"] == "/findings/EL-01" and list(a["body"]) == ["description"] and a["label"] == "Change the wording on EL-01"
+    r = asking.patch(f"/api/projects/{slug}{a['path']}", json=a["body"])
+    assert r.status_code == 200
+    st = Store(asking.settings.data_dir / "closeout.db")
+    d = st.deficiency(st.project_by_slug(slug)["id"], "EL-01")
+    assert d["description"].endswith("plate missing entirely.") and d["location"].startswith("Unit C")

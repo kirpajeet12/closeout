@@ -633,7 +633,7 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
             st.finish_run(run_id, "failed", {"error": f"{type(e).__name__}: {e}"})
             raise HTTPException(502, "Closeout could not answer that just now; ask again")
         st.finish_run(run_id, "done", out["usage"])
-        return {"answer": out["text"], "go": out["go"], "usage": out["usage"]}
+        return {"answer": out["text"], "go": out["go"], "action": out.get("action"), "usage": out["usage"]}
 
     @app.post("/api/projects/{slug}/reviews/{review_id}/finish")
     def finish_review(slug: str, review_id: str) -> dict:
