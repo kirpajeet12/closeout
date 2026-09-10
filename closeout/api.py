@@ -19,8 +19,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterator
 
+import httpx
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse, Response, StreamingResponse
 from pydantic import BaseModel
 
 from . import ask as ask_mod, documents as documents_mod, pipeline, plans as plans_mod, project as project_mod, review as review_mod
@@ -111,6 +112,10 @@ class AskBody(BaseModel):
     where: dict | None = None
     history: list[dict] = []   # earlier turns of the same conversation, {"q": ..., "a": ...}
     spoken: bool = False       # the answer will be read aloud: keep it short and natural
+
+
+class SpeakBody(BaseModel):
+    text: str
 
 
 class DocsReviewIn(BaseModel):
@@ -673,6 +678,34 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
             raise HTTPException(502, "Closeout could not answer that just now; ask again")
         st.finish_run(run_id, "done", out["usage"])
         return {"answer": out["text"], "go": out["go"], "action": out.get("action"), "usage": out["usage"]}
+
+    VOICE_TONE = ("A calm, clear colleague reading a short note aloud to an engineer on a building site. "
+                  "Natural pace, plain, no drama. Item numbers like EL-01 are read as letters and digits.")
+
+    @app.get("/api/voice")
+    def voice_status() -> dict:
+        """Whether the natural voice is on. The key itself never leaves the server."""
+        return {"available": bool(settings.voice_key)}
+
+    @app.post("/api/projects/{slug}/speak")
+    def speak(slug: str, body: SpeakBody):
+        """Turn one answer into speech with the voice service. Text in, audio out; nothing is stored."""
+        _project(store(), slug)
+        text = " ".join(str(body.text or "").split())[:1500]
+        if not settings.voice_key:
+            raise HTTPException(404, "the natural voice is not set up here")
+        if not text:
+            raise HTTPException(400, "nothing to say")
+        try:
+            r = httpx.post("https://api.openai.com/v1/audio/speech", timeout=30,
+                           headers={"authorization": f"Bearer {settings.voice_key}"},
+                           json={"model": settings.voice_model, "voice": settings.voice_name, "input": text,
+                                 "instructions": VOICE_TONE, "response_format": "mp3"})
+        except httpx.HTTPError:
+            raise HTTPException(502, "the voice service did not answer")
+        if r.status_code != 200:
+            raise HTTPException(502, "the voice service could not read that")
+        return Response(content=r.content, media_type="audio/mpeg", headers={"cache-control": "no-store"})
 
     @app.post("/api/projects/{slug}/reviews/{review_id}/finish")
     def finish_review(slug: str, review_id: str) -> dict:

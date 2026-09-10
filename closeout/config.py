@@ -22,6 +22,10 @@ class Settings:
     office: str = os.environ.get("CLOSEOUT_OFFICE", "the engineer's office")
     # one shared office code for the live site; empty = open (local use). Contractor links never need it.
     access_code: str = os.environ.get("CLOSEOUT_ACCESS_CODE", "")
+    # spoken answers: an OpenAI key turns on the natural voice; without it the phone's own voice reads the answer
+    voice_key: str = os.environ.get("OPENAI_API_KEY", "")
+    voice_model: str = os.environ.get("CLOSEOUT_VOICE_MODEL", "gpt-4o-mini-tts")
+    voice_name: str = os.environ.get("CLOSEOUT_VOICE", "marin")
 
 
 SETTINGS = Settings()

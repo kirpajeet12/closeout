@@ -2043,20 +2043,52 @@ function liveVoice() {
   const vs = window.speechSynthesis.getVoices();
   return vs.find(v => /en[-_]CA/i.test(v.lang) && /Samantha|Karen|Siri|Enhanced|Premium/i.test(v.name)) || vs.find(v => /^en/i.test(v.lang) && /Samantha|Enhanced|Premium/i.test(v.name)) || vs.find(v => /en[-_]CA/i.test(v.lang)) || null;
 }
-function liveSpeak(text, then) {
-  let done = false; const finish = () => { if (done) return; done = true; live.speaking = null; then(); };
+/* The natural voice comes from the server when it is set up there; otherwise the phone reads the answer itself.
+   One audio element is unlocked on the Talk tap so the phone lets later answers play on their own. */
+const SILENT = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=";
+live.natural = null; live.audio = null; live.audioUrl = null;
+async function voiceStatus() {
+  if (live.natural === null) { try { live.natural = !!(await (await fetch("/api/voice")).json()).available; } catch (e) { live.natural = false; } }
+  return live.natural;
+}
+function liveUnlockAudio() {
+  try { if (!live.audio) { live.audio = new Audio(); live.audio.preload = "auto"; } live.audio.src = SILENT; live.audio.play().catch(() => {}); } catch (e) {}
+}
+function livePhoneVoice(text, finish) {
   try {
     window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(String(text)); u.lang = "en-CA"; u.rate = 1.04; const v = liveVoice(); if (v) u.voice = v;
     u.onend = finish; u.onerror = finish; live.speaking = u;
-    liveSet("speaking", text);
     window.speechSynthesis.speak(u);
     setTimeout(finish, Math.min(30000, 2500 + String(text).length * 75));   // iOS sometimes drops onend
   } catch (e) { finish(); }
 }
+async function liveSpeak(text, then) {
+  let done = false; const finish = () => { if (done) return; done = true; live.speaking = null; then(); };
+  liveSet("speaking", text);
+  if (await voiceStatus() && live.audio) {
+    try {
+      const r = await fetch(pUrl(state.slug, "/speak"), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text: String(text) }) });
+      if (!r.ok) throw new Error("no voice");
+      if (!live.on) return;
+      const blob = await r.blob();
+      if (live.audioUrl) URL.revokeObjectURL(live.audioUrl);
+      live.audioUrl = URL.createObjectURL(blob);
+      const a = live.audio; a.onended = finish; a.onerror = finish; a.src = live.audioUrl; live.speaking = a;
+      await a.play();
+      setTimeout(finish, 45000);
+      return;
+    } catch (e) { /* fall through to the phone's own voice */ }
+  }
+  if (live.on) livePhoneVoice(text, finish);
+}
+function liveHush() {
+  try { window.speechSynthesis.cancel(); } catch (e) {}
+  try { if (live.audio) { live.audio.pause(); live.audio.onended = null; live.audio.onerror = null; live.audio.removeAttribute("src"); } } catch (e) {}
+}
 function liveListen() {
   if (!live.on || live.rec) return;
-  try { window.speechSynthesis.cancel(); } catch (e) {}
+  liveHush();
   const rec = new SR(); rec.lang = "en-CA"; rec.interimResults = true; rec.maxAlternatives = 1;
   let heard = "", final = "";
   rec.onresult = ev => { let t = ""; for (const r of ev.results) t += r[0].transcript; heard = t; $("#livewords").textContent = t; if (ev.results[ev.results.length - 1].isFinal) final = t; };
@@ -2110,12 +2142,13 @@ function liveStart() {
   live.on = true; live.history = []; live.pending = null; live.misses = 0; live.denied = false;
   $("#askbar").classList.add("live");
   try { window.speechSynthesis.getVoices(); } catch (e) {}
+  liveUnlockAudio(); voiceStatus();
   liveListen();
 }
 function liveEnd() {
   live.on = false; live.pending = null;
   try { if (live.rec) live.rec.abort(); } catch (e) {} live.rec = null;
-  try { window.speechSynthesis.cancel(); } catch (e) {}
+  liveHush();
   $("#askbar").classList.remove("live"); liveSet("tap", "Closeout is listening for a question");
 }
 if (SR) {
@@ -2126,7 +2159,7 @@ if (SR) {
     if (!live.on) return;
     if (live.state === "listening") { try { live.rec && live.rec.stop(); } catch (e) {} return; }   // send what was heard
     if (live.state === "thinking") return;
-    try { window.speechSynthesis.cancel(); } catch (e) {}   // interrupt the answer, or wake from "tap"
+    liveHush();   // interrupt the answer, or wake from "tap"
     live.speaking = null; live.misses = 0; liveListen();
   };
 }
