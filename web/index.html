@@ -760,7 +760,7 @@ function renderHierarchy(pr) {
   for (const b of blds) {
     const mine = pr.sheets.filter(sh => owner.get(sh.id) === b);
     const units = b.units.map(u => u.label.replace(/\s*\(.*$/, "")).join(", ");
-    html += `<section class="tier bld"><div class="th"><span class="k">${esc(b.key)}</span><div><h2>${esc(b.name)}</h2><p>${units ? esc(units) : "No unit in the project model names this building; the drawings do"}${b.levels.length ? ` · floors: ${esc(b.levels.join(", "))}` : ""} · ${mine.length} sheet${mine.length === 1 ? "" : "s"} of its own</p></div></div>
+    html += `<section class="tier bld"><div class="th"><span class="k">${esc(b.key)}</span><div><h2>${esc(b.name)}</h2><p>${units ? esc(units) : "No unit is listed under this building; only the drawings name it"}${b.levels.length ? ` · floors: ${esc(b.levels.join(", "))}` : ""} · ${mine.length} sheet${mine.length === 1 ? "" : "s"} of its own</p></div></div>
       ${discs.map(d => { const shs = mine.filter(sh => sh.discipline === d.code), pick = shs.length ? null : planFor(d.code, b, ""), stand = pick && pick.standIn && pick.sheet ? pick.sheet : null;
         return `<h4 class="grp">${esc(dn(d.code))}<small>${shs.length ? `${shs.length} sheet${shs.length === 1 ? "" : "s"}` : stand ? `no sheet of its own · ${esc(dn(stand.discipline))} ${esc(stand.sheet_number || "p." + stand.page)} stands in` : "none in the set"}</small></h4>${shs.length ? `<div class="gallery">${shs.map(card).join("")}</div>` : ""}`; }).join("")}
       ${gapList(gaps(b), "Still missing for this building")}
