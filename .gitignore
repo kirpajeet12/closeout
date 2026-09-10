@@ -19,3 +19,7 @@ demo-video/footage/
 demo-video/audio/
 demo-video/output/
 demo-video/music/
+
+# live server settings (never committed)
+deploy/.env
+deploy/.deploy

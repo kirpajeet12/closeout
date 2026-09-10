@@ -1,0 +1,13 @@
+# Caddy is the front door: it gets and renews the HTTPS certificate by itself
+# and passes requests to the app. {$CLOSEOUT_HOST} comes from the server's .env.
+{$CLOSEOUT_HOST} {
+    encode gzip
+    request_body {
+        max_size 512MB
+    }
+    reverse_proxy app:8765 {
+        transport http {
+            read_timeout 600s
+        }
+    }
+}

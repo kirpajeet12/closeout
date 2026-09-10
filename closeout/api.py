@@ -7,6 +7,8 @@ Everything hangs off a project: /api/projects/{slug}/... Nothing here calls the 
 """
 from __future__ import annotations
 
+import hashlib
+import hmac
 import json
 import mimetypes
 import re
@@ -18,7 +20,7 @@ from pathlib import Path
 from typing import Iterator
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse, StreamingResponse
 from pydantic import BaseModel
 
 from . import ask as ask_mod, documents as documents_mod, pipeline, plans as plans_mod, project as project_mod, review as review_mod
@@ -232,6 +234,24 @@ def project_card(st: Store, prj: dict, active_run_id: str | None) -> dict:
         "active": bool(active_run_id) and any(r["id"] == active_run_id for r in runs),
         "created_at": prj["created_at"],
     }
+
+
+SIGNIN_HTML = """<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Closeout</title>
+<style>
+  :root { --ink:#151412; --mute:#6f6a60; --line:#e6e1d6; --bg:#f6f4ee; }
+  * { box-sizing:border-box } body { margin:0; min-height:100vh; display:grid; place-items:center; background:var(--bg); color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Inter","Helvetica Neue",Arial,sans-serif; }
+  form { width:min(360px,calc(100vw - 40px)); background:#fff; border:1px solid var(--line); border-radius:20px; padding:32px 28px 28px; box-shadow:0 20px 60px rgba(20,18,10,.08) }
+  .wordmark { font-weight:800; letter-spacing:.22em; font-size:12px } h1 { font-size:22px; margin:18px 0 6px; letter-spacing:-.01em }
+  p { margin:0 0 20px; color:var(--mute); font-size:14px; line-height:1.45 }
+  input { width:100%; font-size:17px; padding:13px 14px; border:1px solid var(--line); border-radius:12px; outline:none; background:#fbfaf7 }
+  input:focus { border-color:var(--ink) } button { margin-top:12px; width:100%; padding:13px; font-size:16px; font-weight:600; border:0; border-radius:12px; background:var(--ink); color:#fff; cursor:pointer }
+  .bad { color:#a13d2d; font-size:13px; margin:10px 0 0 } .foot { margin-top:18px; font-size:12px; color:var(--mute) }
+</style></head><body>
+<form method="post" action="/signin"><div class="wordmark">CLOSEOUT</div><h1>Office access</h1><p>Enter the office code to open the projects. Contractor links open without it.</p>
+<input type="password" name="code" autocomplete="current-password" autofocus placeholder="Office code" required>__BAD__<button type="submit">Open</button>
+<div class="foot">Closeout keeps records and prepares reviews; the engineer decides.</div></form></body></html>"""
 
 
 def create_app(settings: Settings = SETTINGS) -> FastAPI:
@@ -1047,6 +1067,48 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         if not page.exists():
             return JSONResponse({"detail": "web/index.html not built yet; API is at /docs"}, status_code=404)
         return HTMLResponse(page.read_text())
+
+    # --- office access code: everything except contractor links and the sign-in page needs the cookie --------------
+    access_code = settings.access_code
+    open_prefixes = ("/c/", "/api/c/")
+
+    def _access_token() -> str:
+        return hashlib.sha256(f"closeout-access:{access_code}".encode()).hexdigest()
+
+    def _signed_in(request: Request) -> bool:
+        return not access_code or hmac.compare_digest(request.cookies.get("closeout_access", ""), _access_token())
+
+    @app.middleware("http")
+    async def access_gate(request: Request, call_next):
+        path = request.url.path
+        if _signed_in(request) or path == "/signin" or path.startswith(open_prefixes):
+            return await call_next(request)
+        if path.startswith("/api/"):
+            return JSONResponse({"detail": "sign in first"}, status_code=401)
+        return RedirectResponse("/signin", status_code=303)
+
+    @app.get("/signin", include_in_schema=False)
+    def signin_page(request: Request):
+        if _signed_in(request):
+            return RedirectResponse("/", status_code=303)
+        return HTMLResponse(SIGNIN_HTML.replace("__BAD__", ""))
+
+    @app.post("/signin", include_in_schema=False)
+    async def signin(request: Request):
+        form = await request.form()
+        given = str(form.get("code", ""))
+        if not access_code or not hmac.compare_digest(given.strip(), access_code):
+            return HTMLResponse(SIGNIN_HTML.replace("__BAD__", '<p class="bad">That code did not match. Try again.</p>'), status_code=403)
+        resp = RedirectResponse("/", status_code=303)
+        resp.set_cookie("closeout_access", _access_token(), max_age=60 * 60 * 24 * 30, httponly=True, samesite="lax",
+                        secure=request.url.scheme == "https", path="/")
+        return resp
+
+    @app.post("/signout", include_in_schema=False)
+    def signout():
+        resp = RedirectResponse("/signin", status_code=303)
+        resp.delete_cookie("closeout_access", path="/")
+        return resp
 
     return app
 

@@ -122,7 +122,17 @@ def image_bytes_for_model(path: Path) -> tuple[bytes, str]:
 
 
 def _heic_to_jpeg(src: Path, dest: Path) -> None:
-    """macOS-only conversion; keeps the EXIF block (capture time, GPS, altitude)."""
+    """Keeps the EXIF block (capture time, GPS, altitude). pillow-heif on any OS; macOS sips as the fallback."""
+    try:
+        from pillow_heif import register_heif_opener
+
+        register_heif_opener()
+        with Image.open(src) as im:
+            exif = im.info.get("exif")
+            im.convert("RGB").save(dest, format="JPEG", quality=90, **({"exif": exif} if exif else {}))
+        return
+    except ImportError:
+        pass
     import subprocess
     subprocess.run(["sips", "-s", "format", "jpeg", "-s", "formatOptions", "90", str(src), "--out", str(dest)],
                    check=True, capture_output=True)

@@ -20,6 +20,8 @@ class Settings:
     max_tokens: int = int(os.environ.get("CLOSEOUT_MAX_TOKENS", "2000"))
     # how messages to the contractor are signed; never a person's name
     office: str = os.environ.get("CLOSEOUT_OFFICE", "the engineer's office")
+    # one shared office code for the live site; empty = open (local use). Contractor links never need it.
+    access_code: str = os.environ.get("CLOSEOUT_ACCESS_CODE", "")
 
 
 SETTINGS = Settings()
