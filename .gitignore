@@ -8,3 +8,8 @@ inbox/
 *.egg-info/
 node_modules/
 web/dist/
+ios/build*/
+ios/artifacts/
+*.xcarchive
+xcuserdata/
+*.xcuserstate
