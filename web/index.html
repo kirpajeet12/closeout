@@ -150,6 +150,7 @@
   td .what { font-weight: 600; } td .where { color: var(--mute); font-size: 13px; margin-top: 2px; }
   td.st { width: 1%; white-space: nowrap; } td.call { width: 18%; color: var(--mute); font-size: 13px; }
   td.go { width: 1%; color: var(--mute); }
+  td.call:empty::before { content: "—"; }
   td.num { font-family: var(--mono); font-size: 13px; white-space: nowrap; }
   .pill { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; letter-spacing: .02em; white-space: nowrap; }
   .pill.ready { color: var(--ready); background: var(--ready-bg); } .pill.needs { color: var(--needs); background: var(--needs-bg); }
@@ -298,16 +299,16 @@
   .capture input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
   .capture .ico { width: 56px; height: 56px; border-radius: 50%; background: var(--hot); display: grid; place-items: center; font-size: 26px; flex: none; }
   .capture b { display: block; font-size: 18px; letter-spacing: -.01em; } .capture small { display: block; color: rgba(255,255,255,.72); margin-top: 3px; line-height: 1.35; font-size: 13px; }
-  .where { margin: 16px 0 24px; padding: 18px 20px; border-radius: 18px; background: #fff; border: 1px solid var(--line-2); box-shadow: 0 10px 30px rgba(18,19,20,.08); }
-  .where h3 { margin: 0 0 4px; font-size: 20px; letter-spacing: -.01em; } .where .sub { color: var(--mute); font-size: 13px; margin-bottom: 12px; }
-  .where label { display: block; font-size: 12px; color: var(--mute); text-transform: uppercase; letter-spacing: .1em; margin: 12px 0 5px; }
-  .where input, .where select { width: 100%; font: inherit; font-size: 16px; border: 1px solid var(--line-2); border-radius: 10px; padding: 11px 12px; background: #fff; min-height: 44px; }
-  .where .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .where .acts { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; align-items: center; }
-  .where .acts .btn { min-height: 44px; padding: 10px 16px; border-radius: 10px; font-size: 15px; }
-  .where .acts .cancel { margin-left: auto; color: var(--mute); border: 0; background: transparent; font: inherit; cursor: pointer; }
-  .where .shot .take { width: 112px; height: 112px; }
-  .where .row.three { grid-template-columns: 1.3fr 1fr 1fr; }
+  .locate { margin: 16px 0 24px; padding: 18px 20px; border-radius: 18px; background: #fff; border: 1px solid var(--line-2); box-shadow: 0 10px 30px rgba(18,19,20,.08); }
+  .locate h3 { margin: 0 0 4px; font-size: 20px; letter-spacing: -.01em; } .locate .sub { color: var(--mute); font-size: 13px; margin-bottom: 12px; }
+  .locate label { display: block; font-size: 12px; color: var(--mute); text-transform: uppercase; letter-spacing: .1em; margin: 12px 0 5px; }
+  .locate input, .locate select { width: 100%; font: inherit; font-size: 16px; border: 1px solid var(--line-2); border-radius: 10px; padding: 11px 12px; background: #fff; min-height: 44px; }
+  .locate .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .locate .acts { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; align-items: center; }
+  .locate .acts .btn { min-height: 44px; padding: 10px 16px; border-radius: 10px; font-size: 15px; }
+  .locate .acts .cancel { margin-left: auto; color: var(--mute); border: 0; background: transparent; font: inherit; cursor: pointer; }
+  .locate .shot .take { width: 112px; height: 112px; }
+  .locate .row.three { grid-template-columns: 1.3fr 1fr 1fr; }
   .plan-pick { display: grid; grid-template-columns: 148px 1fr; gap: 14px; align-items: center; margin-top: 14px; padding: 12px; border-radius: 14px; background: var(--paper); border: 1px solid var(--line); }
   .plan-pick .crop { aspect-ratio: 1.35; border-radius: 10px; background: #fff center / contain no-repeat; border: 1px solid var(--line-2); box-shadow: inset 0 0 0 1px rgba(0,0,0,.02); }
   .plan-pick b { display: block; font-family: var(--mono); font-size: 12px; letter-spacing: .08em; color: var(--mute); }
@@ -422,12 +423,30 @@
   .viewer .fixbar.up { bottom: 122px; }
   .viewer .fixbar button { border: 0; border-radius: 999px; min-height: 36px; padding: 0 14px; font: 600 13px/1 var(--sans, inherit); color: #fff; background: #2b2d31; }
   .viewer .fixbar button.go { background: var(--hot); }
-  @media (max-width: 760px) { .where .row.three { grid-template-columns: 1fr; } .plan-pick { grid-template-columns: 112px 1fr; } .viewer .related .rel { width: 78px; } }
+  @media (max-width: 760px) { .locate .row.three { grid-template-columns: 1fr; } .plan-pick { grid-template-columns: 112px 1fr; } .viewer .related .rel { width: 78px; } }
   .pickhint { margin: 18px 0 6px; font-weight: 600; font-size: 15px; } .pickhint span { color: var(--hot); }
   .panel .acts .btn:disabled { opacity: .45; cursor: not-allowed; }
   .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(20px); background: var(--ink); color: #fff; padding: 10px 16px; border-radius: 10px; font-size: 14px; opacity: 0; transition: .2s; pointer-events: none; z-index: 9; }
   .toast.show { opacity: 1; transform: translateX(-50%); } .toast.err { background: var(--hot); }
   @media (max-width: 760px) { .hero, .grid2, .drops, .refs { grid-template-columns: 1fr; } .wrap { padding: 0 16px 60px; } .tabs { overflow-x: auto; } }
+  /* On a phone the deficiency list folds from a five-column table into one card per item: number and status on the first
+     line, the wording under it, the engineer's call last. */
+  @media (max-width: 760px) {
+    table.deflist thead { display: none; }
+    table.deflist, table.deflist tbody { display: block; }
+    table.deflist tr.row { display: grid; grid-template-columns: auto 1fr auto; column-gap: 10px; align-items: center; padding: 12px 14px; border-top: 1px solid var(--line); }
+    table.deflist tr.row:first-child { border-top: 0; }
+    table.deflist td { display: block; padding: 0; border: 0; width: auto; }
+    table.deflist td.id { grid-column: 1; grid-row: 1; }
+    table.deflist td.st { grid-column: 2; grid-row: 1; }
+    table.deflist td.go { grid-column: 3; grid-row: 1 / span 3; }
+    table.deflist td.what-cell { grid-column: 1 / span 2; grid-row: 2; margin-top: 6px; }
+    table.deflist td.call { grid-column: 1 / span 2; grid-row: 3; margin-top: 4px; }
+    table.deflist td.call:empty { display: none; }
+    table.deflist td.call:empty::before { content: none; }
+    .viewer .floors { flex-wrap: wrap; }
+    .viewer .floors .pinf { flex-basis: 100%; margin-left: 0; padding-left: 0; border-left: 0; padding-top: 6px; border-top: 1px solid #2b2d31; }
+  }
 </style>
 </head>
 <body>
@@ -446,8 +465,6 @@ const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt
 const when = s => { const d = new Date(s); return isNaN(d) ? String(s ?? "") : d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }); };
 const fileUrl = (id, page) => `/api/evidence/${id}/file` + (page ? `#page=${page}` : "");
 const isImg = name => /\.(jpe?g|png|heic|heif|webp)$/i.test(name || "");
-const PRICE = { inputTokens: 3 / 1e6, outputTokens: 15 / 1e6 };
-const cost = r => { const u = JSON.parse((r && r.usage_json) || "{}"); return (u.inputTokens || 0) * PRICE.inputTokens + (u.outputTokens || 0) * PRICE.outputTokens; };
 const state = { home: null, p: null, slug: null, es: null, run: { kind: "idle", text: "", done: 0, total: 0 }, fieldDisc: null, viewer: null, shot: null, openReview: null, finishing: null, drafting: null, mapping: null, docsAsking: false, filters: { bld: "", disc: "", rv: "" }, folder: [], pinMode: "" };
 
 function toast(msg, err) { const t = $("#toast"); t.textContent = msg; t.className = "toast show" + (err ? " err" : ""); setTimeout(() => t.className = "toast", 3200); }
@@ -497,7 +514,7 @@ function render() {
   document.body.classList.toggle("viewing", r.page === "sheet" && !!p);
   $("#crumbs").innerHTML = inP ? `<a href="#/">Projects</a><span>›</span><b>${esc(p.project.name)}</b>${r.page === "item" ? `<span>›</span><span>${esc(r.id)}</span>` : ""}` : `<span>${state.home ? `${state.home.projects.length} project${state.home.projects.length === 1 ? "" : "s"}` : ""}</span>`;
   if (r.page === "home") renderHome();
-  else if (!p) $("#main").innerHTML = `<a class="back" href="#/">← Projects</a><p class="empty">No project called “${esc(r.slug)}”.</p>`;
+  else if (!p) $("#main").innerHTML = `<a class="back" href="#/">← Projects</a><p class="empty">That project is not here.</p>`;
   else if (r.page === "item") renderItem(r.id);
   else if (r.page === "sheet") renderSheet(r.sheetId);
   else renderProject(r.tab);
@@ -512,7 +529,7 @@ function renderHome() {
     <div class="cards" style="margin-top:18px">
       ${list.map(c => { const pct = k => c.items ? (c[k] / c.items * 100) + "%" : "0%"; return `
       <div class="pcard" data-slug="${esc(c.slug)}">
-        ${c.active ? `<span class="live" title="Agent is working"></span>` : ""}
+        ${c.active ? `<span class="live" title="Working"></span>` : ""}
         <h2>${esc(c.name)}</h2>
         <div class="addr">${esc([c.address, c.city].filter(Boolean).join(", ") || (c.sheets ? "" : "No drawings yet"))}</div>
         <div class="big">${c.ready}<small>of ${c.items} ready to close</small></div>
@@ -521,14 +538,14 @@ function renderHome() {
       </div>`; }).join("")}
       <div class="newp" id="newp">
         <div><span class="np-k">New project</span><h2 class="np-t">Send the whole folder once.</h2></div>
-        <div class="np-steps"><div><i>1</i>Zip the project folder as it is: every discipline, every issue, the letters too.</div><div><i>2</i>The app files it by discipline and date; the agent reads every current sheet.</div><div><i>3</i>You see what is still missing: drawings before the field review, documents before occupancy.</div></div>
+        <div class="np-steps"><div><i>1</i>Zip the project folder as it is: every discipline, every issue, the letters too.</div><div><i>2</i>Closeout files it by discipline and date, and reads every current sheet.</div><div><i>3</i>You see what is missing: drawings before the review, documents before occupancy.</div></div>
         <label class="np-zip"><b>Upload the project zip</b><span>From the phone or the computer · one .zip</span><input type="file" accept=".zip,application/zip,application/x-zip-compressed"></label>
         <div class="folder">or drop the folder here from a computer<input type="file" webkitdirectory multiple></div>
         <div class="or"><span>or start by name</span></div>
         <form id="newForm"><input type="text" id="newName" placeholder="Project name, e.g. Maple Court" autocomplete="off"><button type="submit">Create</button></form>
       </div>
     </div>
-    <footer><span>Nothing here is an engineering determination. The engineer decides.</span>${h.model_id ? `<span>Agents run on ${esc(h.model_id.replace(/^us\./, ""))}</span>` : ""}</footer>`;
+    <footer><span>Closeout drafts. The engineer decides.</span></footer>`;
   $("#main").querySelectorAll(".pcard").forEach(c => c.onclick = () => location.hash = pHash(c.dataset.slug));
   $("#newForm").onsubmit = async e => {
     e.preventDefault();
@@ -550,7 +567,7 @@ function renderProject(tab) {
   $("#main").innerHTML = `
     <div class="phead">
       <div><h1>${esc(pr.name)}</h1><div class="sub">${esc([pr.address, pr.city, pr.building_type].filter(Boolean).join(" · ") || "No drawings read yet")}</div></div>
-      ${p.latest_run_id ? `<a class="btn" href="/api/runs/${p.latest_run_id}/packet.md" target="_blank">Review packet</a>` : ""}
+      ${p.latest_run_id ? `<a class="btn" href="/api/runs/${p.latest_run_id}/packet.md" target="_blank">Review report</a>` : ""}
     </div>
     <div class="tabs">${Object.keys(T).map(k => `<a href="${pHash(slug, k === "list" ? "" : "/" + k)}" class="${tab === k ? "on" : ""}">${T[k]}<small>${counts[k]}</small></a>`).join("")}</div>
     <div id="tab"></div>`;
@@ -582,7 +599,7 @@ function renderList() {
         <div class="bar"><i class="ready" style="width:${pct("ready")}"></i><i class="needs" style="width:${pct("needs")}"></i><i class="unclear" style="width:${pct("unclear")}"></i></div>
         <div class="legend"><span><i style="background:var(--ready)"></i>${n.ready} ready</span><span><i style="background:var(--needs)"></i>${n.needs} need something</span><span><i style="background:var(--unclear)"></i>${n.unclear} unclear</span><span><i style="background:var(--none-bg);border:1px solid var(--line-2)"></i>${n.none} nothing yet</span></div>
       </div>
-      <div class="drop big" id="dropEv"><div class="arrow">↓</div><h2>Drop evidence</h2><p>${p.register.length ? "Drag the contractor's folder of photos, reports and letters here, or upload it as one zip. The agent files each one against the list." : "Load the deficiency list first, then drop what the contractor sends."}</p><input type="file" webkitdirectory multiple>${zipBtn("Upload a zip")}</div>
+      <div class="drop big" id="dropEv"><div class="arrow">↓</div><h2>Drop evidence</h2><p>${p.register.length ? "Drag the contractor's folder of photos, reports and letters here, or upload it as one zip. Each file is matched to the item it belongs to." : "Load the deficiency list first, then drop what the contractor sends."}</p><input type="file" webkitdirectory multiple>${zipBtn("Upload a zip")}</div>
     </div>
     <div class="drops">
       <div class="drop small" id="dropReg"><div><h2>Deficiency list</h2><p>${p.register.length ? `${p.register.length} items loaded. Drop a folder with the CSV and photos to replace it.` : "Drop a folder with the register CSV and the field-review photos."}</p></div><input type="file" webkitdirectory multiple>${zipBtn("Zip")}</div>
@@ -595,21 +612,20 @@ function renderList() {
       <select id="fDisc" class="${f.disc ? "on" : ""}"><option value="">Every discipline</option>${codes.map(c => `<option value="${esc(c)}" ${f.disc === c ? "selected" : ""}>${esc(DISC_NAMES[c] || c)}</option>`).join("")}</select>
       <select id="fRv" class="${f.rv ? "on" : ""}"><option value="">Every field review</option>${p.reviews.map(r => `<option value="${esc(r.id)}" ${f.rv === r.id ? "selected" : ""}>${esc(r.discipline)} · ${esc(r.title)}${r.status === "active" ? " · in progress" : ""}</option>`).join("")}</select>
       ${filtering ? `<button class="btn" id="fClear">Clear</button>` : ""}<span class="n">${list.length} of ${all.length}</span></div>` : ""}
-    ${list.length ? `<table><thead><tr><th>Item</th><th>What was asked</th><th>Status</th><th>Your call</th><th></th></tr></thead><tbody>
+    ${list.length ? `<table class="deflist"><thead><tr><th>Item</th><th>Deficiency</th><th>Status</th><th>Your call</th><th></th></tr></thead><tbody>
       ${list.map(i => { const s = status(i); return `<tr class="row" data-id="${esc(i.item.item_id)}">
         <td class="id">${esc(i.item.item_id)}</td>
-        <td><div class="what">${esc(i.item.description)}</div><div class="where">${esc(i.item.location)}${i.item.sheet ? ` · sheet ${esc(i.item.sheet)}` : ""}</div></td>
+        <td class="what-cell"><div class="what">${esc(i.item.description)}</div><div class="where">${esc(i.item.location)}${i.item.sheet ? ` · sheet ${esc(i.item.sheet)}` : ""}</div></td>
         <td class="st"><span class="pill ${s.k}">${esc(s.t)}</span></td>
-        <td class="call">${i.decision ? esc(CALL[i.decision.decision] || i.decision.decision) : "—"}</td>
+        <td class="call">${i.decision ? esc(CALL[i.decision.decision] || i.decision.decision) : ""}</td>
         <td class="go">›</td></tr>`; }).join("")}
     </tbody></table>` : all.length ? `<p class="empty">Nothing matches these filters.</p>` : `<p class="empty">No deficiency list yet. Drop one above to start.</p>`}
     ${p.packet && p.packet.unmatched.length ? `<h3 class="sec">Files that did not fit any item</h3><div class="left">${p.packet.unmatched.map(u => `
       <div class="card"><div class="thumb">${isImg(u.filename) ? `<img src="${fileUrl(u.evidence_id)}" alt="">` : esc((u.filename || "").split(".").pop().toUpperCase())}</div>
       <div><div class="file">${esc(u.filename)}</div><p>${esc(leftover(u))}</p></div></div>`).join("")}</div>` : ""}
     <footer>
-      ${rid ? `<a href="/api/runs/${rid}/packet.md" target="_blank">Review packet</a><a href="/api/runs/${rid}/packet" target="_blank">Packet as JSON</a>` : ""}
-      ${p.packet ? `<span>${p.packet.evidence_index.length} files on record</span><span>Last run ≈ $${cost(p.packet.run).toFixed(2)} on ${esc(p.model_id.replace(/^us\./, ""))}</span>` : ""}
-      <span>Nothing here is an engineering determination. The engineer decides.</span>
+      ${rid ? `<a href="/api/runs/${rid}/packet.md" target="_blank">Review report</a>` : ""}
+      ${p.packet ? `<span>${p.packet.evidence_index.length} files on record</span>` : ""}
     </footer>`;
   $("#tab").querySelectorAll("tr.row").forEach(r => r.onclick = () => location.hash = pHash(slug, "/item/" + encodeURIComponent(r.dataset.id)));
   [["fBld", "bld"], ["fDisc", "disc"], ["fRv", "rv"]].forEach(([id, k]) => { const el = $("#" + id); if (el) el.onchange = () => { state.filters[k] = el.value; renderList(); }; });
@@ -632,7 +648,7 @@ function renderDrawings() {
     ${renderHierarchy(pr)}
     <p class="empty" style="margin-top:18px">Tap a sheet to open it. To record a deficiency on it, start a field review first.</p>
     ${renderAsk(pr)}`
-  : projectDrop("Add the project drawings", "Upload one zip of the project folder, or drop the folder here from a computer. The app files the drawing sets, the agent reads every current sheet, and the drawings still missing are listed here.");
+  : projectDrop("Add the project drawings", "Upload one zip of the project folder, or drop the folder here. Closeout files the sets, reads every current sheet and lists what is missing.");
   $("#tab").querySelectorAll(".sheet").forEach(s => s.onclick = () => location.hash = pHash(slug, "/field/" + s.dataset.id));
   const pb = $("#askPrint"); if (pb) pb.onclick = () => print();
   wireDrop($("#dropPrj"), "drawings", slug); renderStatus();
@@ -679,7 +695,7 @@ function folderTree(pr) {
       if (f.items.length) bf.folders.push(f);
     });
     missing.filter(m => m.building === b.name && !discs.some(d => d.code === m.discipline)).forEach(m => bf.items.push(ghost(m, "agent")));
-    if (!bf.folders.length && !bf.items.length) bf.note = "Nothing filed under this building yet. The agent files a letter or form here when it names this building only.";
+    if (!bf.folders.length && !bf.items.length) bf.note = "Nothing filed under this building yet.";
     return bf;
   });
   const prj = folder("prj", "Project folder", "as it came, filed by site, building and discipline", { prj: true });
@@ -697,9 +713,9 @@ function renderExplorer(pr) {
   const crumbs = [root]; { let f = root; for (const k of state.folder) { f = f.folders.find(x => x.key === k); crumbs.push(f); } }
   const cnt = f => f.sec ? `${f.got}/${f.need}` : `${f.n}${f.ghosts ? ` <em>+${f.ghosts}</em>` : ""}`;
   const tree = (f, depth) => `<div class="node ${f === cur ? "on" : ""} ${crumbs.includes(f) ? "open" : ""}" data-path="${esc(pathOf(f, root))}" style="--d:${depth}"><i class="fi ${f.site ? "site" : f.bld ? "bld" : f.crp || f.sec ? "crp" : f.root || f.prj ? "root" : ""}"></i><b>${esc(f.name)}</b><small>${cnt(f)}</small></div>${crumbs.includes(f) ? f.folders.map(c => tree(c, depth + 1)).join("") : ""}`;
-  const row = i => i.kind === "file" ? `<div class="xrow filerow ${i.current ? "cur" : ""}"><i class="fi doc"></i><div><b>${esc(i.name)}</b><small>${esc(i.meta)}${i.who ? " · filed here by the agent" : ""}</small></div></div>`
-    : i.kind === "check" ? (i.out ? "" : `<div class="xrow ${i.files.length ? "filerow" : "ghost"}"><i class="fi ${i.files.length ? "doc" : "ghost"}"></i><div><b>${esc(i.name)}</b><small>${i.files.length ? esc(i.files.join(" · ")) + (i.agent ? " · confirmed by the agent" : "") : "not on file yet"}</small></div><label class="scope"><input type="checkbox" data-scope="${esc(i.name)}"> Not in scope</label></div>`)
-    : `<div class="xrow ghost"><i class="fi ghost"></i><div><b>${esc(i.name)}</b><small>${esc(i.meta)}</small></div><span class="who">not in the folder yet · agent</span></div>`;
+  const row = i => i.kind === "file" ? `<div class="xrow filerow ${i.current ? "cur" : ""}"><i class="fi doc"></i><div><b>${esc(i.name)}</b><small>${esc(i.meta)}</small></div></div>`
+    : i.kind === "check" ? (i.out ? "" : `<div class="xrow ${i.files.length ? "filerow" : "ghost"}"><i class="fi ${i.files.length ? "doc" : "ghost"}"></i><div><b>${esc(i.name)}</b><small>${i.files.length ? esc(i.files.join(" · ")) : "not on file yet"}</small></div><label class="scope"><input type="checkbox" data-scope="${esc(i.name)}"> Not in scope</label></div>`)
+    : `<div class="xrow ghost"><i class="fi ghost"></i><div><b>${esc(i.name)}</b><small>${esc(i.meta)}</small></div><span class="who">not in the folder yet</span></div>`;
   const outRows = cur.items.filter(i => i.kind === "check" && i.out);
   const sub = f => `<div class="xrow folderrow" data-path="${esc(pathOf(f, root))}"><i class="fi ${f.site ? "site" : f.bld ? "bld" : f.crp || f.sec ? "crp" : f.prj ? "root" : ""}">${f.badge ? esc(f.badge) : ""}</i><div><b>${esc(f.name)}</b><small>${esc(f.meta || f.note || `${f.n} item${f.n === 1 ? "" : "s"}`)}</small></div><small class="n">${cnt(f)}</small><span class="chev">›</span></div>`;
   return `<div class="explorer">
@@ -739,7 +755,7 @@ function renderHierarchy(pr) {
   let html = `<section class="tier site"><div class="th"><span class="k">SITE</span><div><h2>${esc(pr.name)}</h2><p>${esc(addr ? addr + " · " : "")}${blds.length} building${blds.length === 1 ? "" : "s"} · ${site.length} site-wide sheet${site.length === 1 ? "" : "s"}. The site plan is the anchor: it names every building, and every field review starts from it.</p></div></div>
     ${plans.length ? `<h4 class="grp">Site plans<small>${[...new Set(plans.map(sh => dn(sh.discipline)))].join(", ")}</small></h4><div class="gallery hero">${plans.map(card).join("")}</div>` : `<p class="none">No sheet in the set is read as a site plan.</p>`}
     ${byDisc(rest).map(([code, shs]) => `<h4 class="grp">${esc(dn(code))} · site-wide<small>${shs.length} sheet${shs.length === 1 ? "" : "s"}</small></h4><div class="gallery">${shs.map(card).join("")}</div>`).join("")}
-    ${gapList(gaps(null), "Still missing for the whole site, per the agent")}
+    ${gapList(gaps(null), "Still missing for the whole site")}
   </section>`;
   for (const b of blds) {
     const mine = pr.sheets.filter(sh => owner.get(sh.id) === b);
@@ -747,7 +763,7 @@ function renderHierarchy(pr) {
     html += `<section class="tier bld"><div class="th"><span class="k">${esc(b.key)}</span><div><h2>${esc(b.name)}</h2><p>${units ? esc(units) : "No unit in the project model names this building; the drawings do"}${b.levels.length ? ` · floors: ${esc(b.levels.join(", "))}` : ""} · ${mine.length} sheet${mine.length === 1 ? "" : "s"} of its own</p></div></div>
       ${discs.map(d => { const shs = mine.filter(sh => sh.discipline === d.code), pick = shs.length ? null : planFor(d.code, b, ""), stand = pick && pick.standIn && pick.sheet ? pick.sheet : null;
         return `<h4 class="grp">${esc(dn(d.code))}<small>${shs.length ? `${shs.length} sheet${shs.length === 1 ? "" : "s"}` : stand ? `no sheet of its own · ${esc(dn(stand.discipline))} ${esc(stand.sheet_number || "p." + stand.page)} stands in` : "none in the set"}</small></h4>${shs.length ? `<div class="gallery">${shs.map(card).join("")}</div>` : ""}`; }).join("")}
-      ${gapList(gaps(b), "Still missing for this building, per the agent")}
+      ${gapList(gaps(b), "Still missing for this building")}
     </section>`;
   }
   return html;
@@ -825,7 +841,7 @@ function renderAsk(pr) {
     <div class="head"><p class="lead">${esc(lead)}</p>
       ${need.length ? `<button class="btn" id="askPrint">Print this list</button>` : ""}</div>
     ${need.length ? `<ol>${need.map(n => `<li><i>${esc(n.code)}</i><div><b>${esc(n.what)}</b><span>${esc(n.why)}</span></div></li>`).join("")}</ol>` : ""}
-    <p class="fine">${esc(pr.name)} · ${esc([pr.address, pr.city].filter(Boolean).join(", "))} · written by the app from the sheet readings, not an engineering determination.</p>
+    <p class="fine">${esc(pr.name)} · ${esc([pr.address, pr.city].filter(Boolean).join(", "))} · Closeout's reading of the folder. Not an engineering determination.</p>
   </details>`;
 }
 
@@ -848,16 +864,16 @@ function issueNote(d) {
 function renderDocs() {
   const pr = state.p.project, slug = state.slug, docs = pr.documents || [];
   $("#tab").innerHTML = docs.length ? `
-    <p class="lead" style="margin-top:22px">${docs.length} files, kept exactly as the folder came. Filed by discipline and issue date from the folder names; the newest drawing set of each discipline is the one the agent read. Nothing is moved or renamed.</p>
+    <p class="lead" style="margin-top:22px">${docs.length} files, kept exactly as the folder came. Filed by discipline and issue date. Nothing is moved or renamed.</p>
     ${renderExplorer(pr)}
     <h3 class="sec">Revision log</h3>
-    <p class="lead" style="margin:0">Every issue of every drawing set, newest first, with the reason the office wrote on the folder. The same file filed twice (discipline folder and the PM copy) is one line.</p>
+    <p class="lead" style="margin:0">Every issue of every drawing set, newest first, with the reason the office wrote on the folder.</p>
     ${renderRevisions(pr)}
     <h3 class="sec">What the folder is still missing</h3>
     ${renderAgentDocs(pr)}
-    <div class="drop small" id="dropPrj" style="margin-top:24px"><div><h2>Add to the folder</h2><p>Drop the project folder again, or upload a zip, with the new letters, certificates and drawing issues. Everything is re-filed; the current sets are read again.</p></div><input type="file" webkitdirectory multiple>${zipBtn("Zip")}</div>
+    <div class="drop small" id="dropPrj" style="margin-top:24px"><div><h2>Add to the folder</h2><p>Drop the folder again, or upload a zip. Everything is re-filed and the current sets are read again.</p></div><input type="file" webkitdirectory multiple>${zipBtn("Zip")}</div>
     <div class="status ${esc(state.run.kind)}" id="status"></div>`
-  : projectDrop("Add the project folder", "Upload one zip of the whole project folder: drawings, letters, forms, certificates. The app files it by discipline and date, keeps every issue on record and shows which occupancy documents are still missing.");
+  : projectDrop("Add the project folder", "Upload one zip of the whole project folder. It is filed by discipline and date, every issue is kept, and you see what is still missing.");
   wireDrop($("#dropPrj"), "drawings", slug); renderStatus();
   const ab = $("#askDocs"); if (ab) ab.onclick = askDocs;
   wireExplorer();
@@ -871,16 +887,15 @@ function renderAgentDocs(pr) {
   const rv = state.p.docs_review, blds = buildings(), dn = c => DISC_NAMES[c] || c, already = docsNeeded(pr).length;
   const groups = [{ key: "", name: "Whole site" }, ...blds.map(b => ({ key: b.name, name: b.name }))];
   const rows = g => (rv ? rv.missing : []).filter(m => (m.building || "") === g.key);
-  const price = rv && rv.usage ? ((rv.usage.inputTokens || 0) * PRICE.inputTokens + (rv.usage.outputTokens || 0) * PRICE.outputTokens) : 0;
   return `<div class="ask agentdocs">
-    <div class="head"><div><h2>${rv ? `${rv.missing.length} thing${rv.missing.length === 1 ? "" : "s"} to ask for, per the agent` : "Ask the agent what is missing"}</h2>
-      <p class="lead">${rv ? `Arranged as the site is built: the whole site first, then each of the ${blds.length} building${blds.length === 1 ? "" : "s"}. Every line was checked against the folder before it was kept; ${rv.rejections.length} claim${rv.rejections.length === 1 ? "" : "s"} that named something the folder does not have ${rv.rejections.length === 1 ? "was" : "were"} dropped.` : `One call. The agent reads the buildings, every current sheet, the ${(pr.documents || []).length} file names and the occupancy checklist, then lists what to ask the client, the architect or the trades for, on top of the ${already} line${already === 1 ? "" : "s"} the rules already show.`}</p></div>
-      ${state.docsAsking ? `<div class="thinking" style="margin:0"><span class="dot"></span><span>Reading the folder…</span></div>` : `<button class="btn ${rv ? "" : "primary"}" id="askDocs">${rv ? "Ask again" : "Ask the agent"}</button>`}</div>
+    <div class="head"><div><h2>${rv ? `${rv.missing.length} thing${rv.missing.length === 1 ? "" : "s"} to ask for` : "What the folder is still missing"}</h2>
+      <p class="lead">${rv ? `Whole site first, then each building. Every line points at something the folder does not have.` : `Closeout reads the drawings, the file names and the occupancy checklist, and lists what to ask for.`}</p></div>
+      ${state.docsAsking ? `<div class="thinking" style="margin:0"><span class="dot"></span><span>Reading the folder…</span></div>` : `<button class="btn ${rv ? "" : "primary"}" id="askDocs">${rv ? "Check again" : "Check the folder"}</button>`}</div>
     ${rv ? `${rv.summary ? `<p class="summary">${esc(rv.summary)}</p>` : ""}
       ${groups.map(g => { const list = rows(g); return list.length ? `<h4 class="grp">${esc(g.name)}<small>${list.length}</small></h4><ol>${list.map(m => `<li><i>${esc(m.discipline || "ALL")}</i><div><b>${esc(m.what)}</b><span>${esc(m.why)}</span>${m.checklist ? `<em>occupancy list · ${esc(m.checklist)}</em>` : ""}</div></li>`).join("")}</ol>` : ""; }).join("")}
-      ${(rv.questions || []).length ? `<h4 class="grp">The agent could not tell · you fill in<small>${rv.questions.length}</small></h4><ol class="qs">${rv.questions.map((q, i) => `<li><i>${esc(q.discipline || "ALL")}</i><div><b>${esc(q.question)}</b>${q.building ? `<em>${esc(q.building)}</em>` : ""}<div class="ans"><input data-q="${i}" value="${esc(q.answer || "")}" placeholder="Your answer, or leave it blank"><button class="btn" data-save="${i}" hidden>Save</button></div></div></li>`).join("")}</ol>` : ""}
+      ${(rv.questions || []).length ? `<h4 class="grp">Needs your answer<small>${rv.questions.length}</small></h4><ol class="qs">${rv.questions.map((q, i) => `<li><i>${esc(q.discipline || "ALL")}</i><div><b>${esc(q.question)}</b>${q.building ? `<em>${esc(q.building)}</em>` : ""}<div class="ans"><input data-q="${i}" value="${esc(q.answer || "")}" placeholder="Your answer, or leave it blank"><button class="btn" data-save="${i}" hidden>Save</button></div></div></li>`).join("")}</ol>` : ""}
       ${rv.on_file.length ? `<h4 class="grp">Confirmed on file<small>${rv.on_file.length}</small></h4><ol>${rv.on_file.map(o => `<li><i class="ok">✓</i><div><b>${esc(o.checklist)}</b><span>${esc(o.file)}</span></div></li>`).join("")}</ol>` : ""}
-      <p class="fine">${esc(when(rv.at))} · ${esc((rv.model_id || "").replace(/^us\./, ""))} · ≈ $${price.toFixed(2)} · written by the agent from the folder, not an engineering determination.</p>` : `<p class="fine">A few cents on the project's model. Nothing is sent to anyone; the list is for the office.</p>`}
+      <p class="fine">Checked ${esc(when(rv.at))}. Nothing here has been sent.</p>` : `<p class="fine">Nothing is sent to anyone. The list is for the office.</p>`}
   </div>`;
 }
 async function askDocs() {
@@ -890,7 +905,7 @@ async function askDocs() {
   const r = await fetch(pUrl(slug, "/documents/review"), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ already }) });
   const j = await r.json().catch(() => ({}));
   state.docsAsking = false;
-  if (!r.ok) { toast(j.detail || "The agent could not review the folder", true); return renderDocs(); }
+  if (!r.ok) { toast(j.detail || "Could not read the folder", true); return renderDocs(); }
   toast(`Folder reviewed · ${j.docs_review.missing.length} to ask for`);
   await load();
 }
@@ -936,7 +951,7 @@ function renderOccupancy(pr) {
   const hits = (state.p.occupancy_docs || []).map(([grp, name, re]) => { const rx = new RegExp(re, "i"); const files = [...new Set([...docs.filter(d => rx.test(baseName(d))).map(baseName), ...onFile.filter(o => o.checklist === name).map(o => o.file)])]; return { grp, name, files }; });
   const on = hits.filter(h => h.files.length).length, groups = [...new Set(hits.map(h => h.grp))];
   return `<div class="occ">
-    <div class="tally"><b>${on} of ${hits.length}</b><span>on file · matched by file name across the ${docs.length} files in the folder. Not an engineering determination: the engineer decides what counts.</span></div>
+    <div class="tally"><b>${on} of ${hits.length}</b><span>on file, matched by file name.</span></div>
     ${groups.map(g => { const rows = hits.filter(h => h.grp === g), got = rows.filter(h => h.files.length).length; return `<details class="grp ${got ? "some" : ""}" ${got ? "open" : ""}><summary><h4>${esc(g)}</h4><span class="n">${got} of ${rows.length}</span></summary>${rows.map(h => `<div class="it ${h.files.length ? "on" : ""}"><i></i><div><b>${esc(h.name)}</b><span>${h.files.length ? esc(h.files.join(", ")) : "not on file"}</span></div></div>`).join("")}</details>`; }).join("")}
   </div>`;
 }
@@ -947,13 +962,13 @@ function renderDrops() {
   $("#tab").innerHTML = `
     <div class="drop small" id="dropEv" style="margin-top:22px"><div><h2>Drop evidence</h2><p>Each folder the contractor sends is kept as its own drop. Files already on record are recognised and not re-read.</p></div><input type="file" webkitdirectory multiple></div>
     <div class="status ${esc(state.run.kind)}" id="status"></div>
-    ${rows.length ? `<table style="margin-top:22px"><thead><tr><th>Drop</th><th>When</th><th>Files</th><th>Run</th><th>Cost</th></tr></thead><tbody>
+    ${rows.length ? `<table style="margin-top:22px"><thead><tr><th>Drop</th><th>When</th><th>Files</th><th>Status</th></tr></thead><tbody>
       ${rows.map(b => { const r = b.runs[b.runs.length - 1]; return `<tr>
         <td><div class="what">${esc(b.label)}</div></td>
         <td class="num">${esc(when(b.created_at))}</td>
         <td class="num">${b.files}${b.duplicates ? ` <span style="color:var(--mute)">(${b.duplicates} already on record)</span>` : ""}</td>
-        <td>${r ? `<span class="pill ${r.status === "done" ? "ready" : r.status === "failed" ? "needs" : "unclear"}">${esc(r.status)}</span> ${r.status === "failed" ? `<button class="btn" data-retry="${r.id}">Try again</button>` : ""} <a href="/api/runs/${r.id}/packet.md" target="_blank" style="font-size:13px">packet</a>` : "—"}</td>
-        <td class="num">${r ? "$" + cost(r).toFixed(2) : ""}</td></tr>`; }).join("")}
+        <td>${r ? `<span class="pill ${r.status === "done" ? "ready" : r.status === "failed" ? "needs" : "unclear"}">${r.status === "done" ? "Filed" : r.status === "failed" ? "Needs another try" : "Filing…"}</span> ${r.status === "failed" ? `<button class="btn" data-retry="${r.id}">Try again</button>` : ""} <a href="/api/runs/${r.id}/packet.md" target="_blank" style="font-size:13px">Report</a>` : "—"}</td>
+</tr>`; }).join("")}
     </tbody></table>` : `<p class="empty">No evidence dropped yet.</p>`}`;
   $("#tab").querySelectorAll("[data-retry]").forEach(b => b.onclick = () => retry(b.dataset.retry));
   wireDrop($("#dropEv"), "batch", slug); renderStatus();
@@ -964,12 +979,12 @@ function renderMessages() {
   const about = m => {
     if (!m.review_id) return `To the contractor about <a href="${pHash(slug, "/item/" + encodeURIComponent(m.item_id))}">${esc(m.item_id)}</a>`;
     const r = p.reviews.find(x => x.id === m.review_id), disc = r && (disciplines().find(d => d.code === r.discipline) || {}).name;
-    return `To the contractor after <a href="${pHash(slug, "/field")}" data-rv="${esc(m.review_id)}">${esc(r ? r.title : "a field review")}${disc ? " (" + esc(disc) + ")" : ""}</a>${r && r.package ? ` · ${r.package.count} item${r.package.count === 1 ? "" : "s"}` : ""} · ${m.status === "edited" ? "edited by you" : "drafted by the agent"} · not sent yet`;
+    return `To the contractor after <a href="${pHash(slug, "/field")}" data-rv="${esc(m.review_id)}">${esc(r ? r.title : "a field review")}${disc ? " (" + esc(disc) + ")" : ""}</a>${r && r.package ? ` · ${r.package.count} item${r.package.count === 1 ? "" : "s"}` : ""} · ${m.status === "edited" ? "edited by you" : "drafted for you"} · not sent yet`;
   };
   $("#tab").innerHTML = p.messages.length ? p.messages.map(m => `
     <div class="msg"><div class="top"><span>${about(m)}</span><span>${esc(when(m.updated_at || m.created_at))}</span></div>
       <h4>${esc(m.subject)}</h4><pre>${esc(m.body)}</pre></div>`).join("")
-  : `<p class="empty" style="margin-top:22px">No messages yet. Finish a field review and the agent drafts the covering message to the contractor here; when evidence is missing or unclear it drafts the follow-up.</p>`;
+  : `<p class="empty" style="margin-top:22px">No messages yet. Finish a field review and the covering message to the contractor is drafted here.</p>`;
   $("#tab").querySelectorAll("a[data-rv]").forEach(a => a.onclick = () => { const r = p.reviews.find(x => x.id === a.dataset.rv); if (r) { state.fieldDisc = r.discipline; state.openReview = r.id; } });
 }
 
@@ -979,8 +994,8 @@ function renderStatus() {
   el.hidden = false;
   el.className = "status " + (r.kind === "run" ? "run" : r.kind === "ok" ? "ok" : r.kind === "bad" ? "bad" : "");
   let text = r.text;
-  if (r.kind === "idle") text = p && p.packet ? `Last run finished ${when(p.packet.run.finished_at || p.packet.run.started_at)}.` : "Waiting for a drop.";
-  const retryBtn = r.kind === "bad" && p && p.latest_run_id ? `<button id="retry">Try the failed parts again</button>` : "";
+  if (r.kind === "idle") text = p && p.packet ? `Last updated ${when(p.packet.run.finished_at || p.packet.run.started_at)}.` : "";
+  const retryBtn = r.kind === "bad" && p && p.latest_run_id ? `<button id="retry">Try again</button>` : "";
   el.innerHTML = `<span class="dot"></span><span class="fill">${esc(text)}</span>${r.total ? `<span class="mono">${r.done}/${r.total}</span>` : ""}${retryBtn}`;
   const b = $("#retry"); if (b) b.onclick = () => retry(p.latest_run_id);
 }
@@ -992,7 +1007,7 @@ async function retry(runId) {
 /* ---- item page ------------------------------------------------------- */
 function renderItem(id) {
   const slug = state.slug, i = items().find(x => x.item.item_id === id);
-  if (!i) { $("#main").innerHTML = `<a class="back" href="${pHash(slug)}">← Back</a><p class="empty">No item ${esc(id)}.</p>`; return; }
+  if (!i) { $("#main").innerHTML = `<a class="back" href="${pHash(slug)}">← Back</a><p class="empty">That deficiency is no longer on the list.</p>`; return; }
   const d = i.item, s = status(i);
   const filled = new Set(i.evidence.filter(f => f.slot_index >= 0 && (f.tier === "explicit" || f.tier === "strong")).map(f => f.slot_index));
   const weak = new Set(i.evidence.filter(f => f.slot_index >= 0 && f.tier === "weak").map(f => f.slot_index));
@@ -1056,7 +1071,7 @@ function sentCard(f, unresolved) {
   return `<div class="card"><div class="thumb">${isImg(f.filename) ? `<img src="${fileUrl(f.evidence_id)}" alt="">` : esc((f.filename || "").split(".").pop().toUpperCase())}</div>
     <div><div class="file">${esc(f.filename)}</div>
       <div class="how ${cls}"><b>${esc(how)}</b>${!unresolved && f.slot_index >= 0 ? ` · fills “${esc(slotName(f))}”` : ""}</div>
-      <p>${esc(f.rationale)}</p>${obs.length ? `<details class="obs"><summary>${obs.length} things the agent saw in the ${isImg(f.filename) ? "photo" : "file"}</summary><ul>${obs.map(o => `<li>${esc(o)}</li>`).join("")}</ul></details>` : ""}
+      <p>${esc(f.rationale)}</p>${obs.length ? `<details class="obs"><summary>${obs.length} things in the ${isImg(f.filename) ? "photo" : "file"}</summary><ul>${obs.map(o => `<li>${esc(o)}</li>`).join("")}</ul></details>` : ""}
       <div class="open">${src}</div></div></div>`;
 }
 function dedupe(hist) {
@@ -1083,13 +1098,13 @@ const findingsIn = reviewId => state.p.register.filter(d => d.review_id === revi
 
 function renderField() {
   const p = state.p, slug = state.slug, discs = disciplines();
-  if (!discs.length) { $("#tab").innerHTML = `<p class="empty" style="margin-top:22px">Drop the project drawings first. A field review walks the sheets of one discipline and pins each deficiency where you find it.</p>`; return; }
+  if (!discs.length) { $("#tab").innerHTML = `<p class="empty" style="margin-top:22px">Drop the project drawings first.</p>`; return; }
   if (!state.fieldDisc || !discs.some(d => d.code === state.fieldDisc)) { const live = discs.find(d => activeReview(d.code)); state.fieldDisc = (live || discs[0]).code; }
   const cur = discs.find(d => d.code === state.fieldDisc), rv = activeReview(cur.code);
   const done = p.reviews.filter(r => r.discipline === cur.code && r.status === "finished");
   const items = rv ? findingsIn(rv.id) : [], shot = state.shot;
   $("#tab").innerHTML = `
-    ${shot && shot.disc === cur.code ? renderWhere(cur, rv) : `<label class="capture"><input type="file" accept="image/*" capture="environment" id="shotIn"><span class="ico">📷</span><span><b>Take a photo of the problem</b><small>${esc(cur.name)} · then say which unit and level you are in. The agent finds the right sheet and writes it up; you tap the spot and save.</small></span></label>`}
+    ${shot && shot.disc === cur.code ? renderWhere(cur, rv) : `<label class="capture"><input type="file" accept="image/*" capture="environment" id="shotIn"><span class="ico">📷</span><span><b>Take a photo of the problem</b><small>${esc(cur.name)} · then say which unit and level you are in. Closeout finds the sheet and writes it up; you tap the spot and save.</small></span></label>`}
     <div class="discs">${discs.map(d => { const a = activeReview(d.code), n = p.register.filter(x => x.discipline === d.code && x.source === "field").length; return `
       <div class="disc ${d.code === cur.code ? "on" : ""}" data-code="${esc(d.code)}"><span class="code">${esc(d.code)}</span><h2>${esc(d.name)}</h2><span class="n">${d.sheets.length} sheet${d.sheets.length === 1 ? "" : "s"} · ${n} deficienc${n === 1 ? "y" : "ies"}</span>
         <div class="rv">${a ? `<span><i class="live"></i><b>${esc(a.title)}</b> in progress</span>` : `<span style="color:var(--mute)">${p.reviews.filter(r => r.discipline === d.code).length ? p.reviews.filter(r => r.discipline === d.code).length + " done" : "Not started"}</span>`}</div></div>`; }).join("")}</div>
@@ -1102,7 +1117,7 @@ function renderField() {
     ${renderGalleryGroups(cur)}
     ${items.length ? `<h3 class="sec">Recorded in ${esc(rv.title.toLowerCase())}</h3><table class="findings"><tbody>${items.map(d => `<tr class="row" data-id="${esc(d.item_id)}"><td class="id">${esc(d.item_id)}</td><td><div class="what">${esc(d.description)}</div><div class="where">${esc(d.location)} · sheet ${esc(d.sheet)}</div></td><td class="go">›</td></tr>`).join("")}</tbody></table>` : ""}
     ${done.length ? `<h3 class="sec">Earlier reviews</h3><table><tbody>${done.map(r => { const n = findingsIn(r.id).length, m = messageFor(r.id); return `<tr class="row" data-rv="${esc(r.id)}"><td class="id">${esc(r.title)}</td><td><div class="what">${esc(when(r.started_at))} → ${esc(when(r.finished_at))}</div><div class="where">${m ? "Message drafted for the contractor" : n ? "No message yet" : "Nothing recorded"}</div></td><td class="num">${n} item${n === 1 ? "" : "s"}</td><td class="go">›</td></tr>`; }).join("")}</tbody></table>` : ""}
-    <footer><span>Numbers are ${esc(cur.code)}-01, ${esc(cur.code)}-02 … and never reused.</span><span>The agent suggests the wording; you decide what is saved.</span></footer>`;
+    <footer><span>Numbers are ${esc(cur.code)}-01, ${esc(cur.code)}-02 … and never reused.</span><span>Closeout suggests the wording; you decide what is saved.</span></footer>`;
   $("#tab").querySelectorAll(".disc").forEach(d => d.onclick = () => { state.fieldDisc = d.dataset.code; renderField(); });
   $("#tab").querySelectorAll(".sheet").forEach(s => s.onclick = () => { if (shot && shot.disc === cur.code) { const sh = p.project.sheets.find(x => x.id === s.dataset.id), lv = shot.level; carryShot(s.dataset.id, sh && lv ? (sh.views || []).find(v => v.level === lv) || null : null); } else location.hash = pHash(slug, "/field/" + s.dataset.id); });
   const mb = $("#mapBtn"); if (mb) mb.onclick = () => mapFloors(JSON.parse(mb.dataset.list).map(id => p.project.sheets.find(x => x.id === id)));
@@ -1132,7 +1147,7 @@ function renderGalleryGroups(cur) {
   const todo = p.project.sheets.filter(sh => isPlanSheet(sh) && !(sh.views || []).length && blds.some(b => sheetMentions(sh, b)));
   const m = state.mapping;
   const bar = m ? `<div class="mapbar"><div class="thinking" style="margin:0"><span class="dot"></span><span>Boxing the floors on ${esc(m.cur.sheet_number || "a sheet")} · ${m.done} of ${m.n} done…</span></div></div>`
-    : todo.length ? `<div class="mapbar"><span>The floors are not boxed yet on ${todo.length} plan sheet${todo.length === 1 ? "" : "s"} (${esc(todo.map(t => t.sheet_number || "p." + t.page).join(", "))}), so a floor opens as the whole sheet.</span><button class="btn" id="mapBtn" data-list='${esc(JSON.stringify(todo.map(t => t.id)))}'>Find the floors · ${todo.length} agent call${todo.length === 1 ? "" : "s"}</button><small style="color:var(--mute)">A few cents. You check the result once.</small></div>` : "";
+    : todo.length ? `<div class="mapbar"><span>The floors are not boxed yet on ${todo.length} plan sheet${todo.length === 1 ? "" : "s"} (${esc(todo.map(t => t.sheet_number || "p." + t.page).join(", "))}), so a floor opens as the whole sheet.</span><button class="btn" id="mapBtn" data-list='${esc(JSON.stringify(todo.map(t => t.id)))}'>Find the floors</button><small style="color:var(--mute)">Takes a moment. Check the boxes once when it is done.</small></div>` : "";
   return groups.join("") + bar;
 }
 /* ---- finishing a review: the package for the contractor + the agent's covering message ---- */
@@ -1164,11 +1179,11 @@ function renderHandoff(r) {
     <div class="hd"><div><h3>${esc(r.title)} · ${esc(disc)} · finished</h3><p>${esc(when(r.finished_at || r.started_at))} · ${items.length} deficienc${items.length === 1 ? "y" : "ies"} · ${photos} photo${photos === 1 ? "" : "s"} · this is what the contractor gets</p></div><button class="x" data-close>close</button></div>
     ${items.length ? `<div class="pk">${items.map(i => `<div class="row" data-id="${esc(i.item_id)}"><span class="id">${esc(i.item_id)}</span><div>${esc(i.description)}<small>${esc(i.location)} · sheet ${esc(i.sheet || "?")} · send to close: ${esc(i.evidence_required)}</small></div></div>`).join("")}</div>` : `<div class="pk"><div class="row" style="grid-template-columns:1fr"><span>Nothing was recorded in this review, so there is nothing to send.</span></div></div>`}
     <div class="ms">
-      ${busy ? `<div class="thinking"><span class="dot"></span><span>The agent is writing the covering message from these ${items.length} item${items.length === 1 ? "" : "s"}…</span></div>`
-      : msg ? `<label>Message to the contractor · drafted by the agent, edit freely</label><input id="hoSubject" value="${esc(msg.subject)}"><textarea id="hoBody">${esc(msg.body)}</textarea>
+      ${busy ? `<div class="thinking"><span class="dot"></span><span>Writing the covering message from these ${items.length} item${items.length === 1 ? "" : "s"}…</span></div>`
+      : msg ? `<label>Message to the contractor · drafted for you, edit freely</label><input id="hoSubject" value="${esc(msg.subject)}"><textarea id="hoBody">${esc(msg.body)}</textarea>
         <div class="acts"><button class="btn primary" id="hoSave">Save wording</button><button class="btn" id="hoCopy">Copy</button><button class="btn" id="hoAgain">Draft again</button></div>
-        <p class="note">Nothing has been sent. Fill in the date, then copy it into your email or text for now; sending and follow-ups from here come next.</p>`
-      : items.length ? `<p class="why">No message yet for this review.</p><div class="acts"><button class="btn primary" id="hoAgain">Draft the message to the contractor</button></div><p class="note">One agent call. It lists every item above and asks for the evidence by a date you fill in.</p>` : ""}
+        <p class="note">Nothing has been sent. Fill in the date, then copy it into your email.</p>`
+      : items.length ? `<p class="why">No message yet for this review.</p><div class="acts"><button class="btn primary" id="hoAgain">Draft the message to the contractor</button></div><p class="note">It lists every item above and asks for the evidence by a date you fill in.</p>` : ""}
     </div></section>`;
 }
 function wireHandoff() {
@@ -1289,8 +1304,8 @@ function askGps(s) {
   navigator.geolocation.getCurrentPosition(pos => { const c = pos.coords; s.gps = `${c.latitude.toFixed(5)},${c.longitude.toFixed(5)} ±${Math.round(c.accuracy)}m`;
       const near = nearestRecorded(c.latitude, c.longitude);
       if (near && near.m <= Math.max(25, c.accuracy) && near.unit) { s.unit = near.unit; if (near.level) s.level = near.level; const u = $("#wUnit"), l = $("#wLevel"); if (u) u.value = s.unit; if (l && near.level) l.value = s.level;
-        s.gpsText = `Location recorded (about ${Math.round(c.accuracy)} m). You are ${near.m} m from where ${near.id} was recorded, so ${near.unit}${near.level ? " · " + near.level : ""} is pre-selected. Change it if you have moved.`; }
-      else s.gpsText = `Location recorded to about ${Math.round(c.accuracy)} m and kept with the item. Phones cannot tell the buildings or floors apart on their own, so confirm the unit and level below; from your next items the app learns which spot is which unit.`;
+        s.gpsText = `${near.m} m from ${near.id}, so ${near.unit}${near.level ? " · " + near.level : ""} is filled in. Change it if you have moved.`; }
+      else s.gpsText = `Location recorded (±${Math.round(c.accuracy)} m). Confirm the unit and floor below.`;
       show(); },
     err => { s.gpsText = "Phone location not available (" + err.message + "). Pick the unit and level below."; show(); }, { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 });
 }
@@ -1304,11 +1319,11 @@ function nearestRecorded(lat, lng) {
 function renderWhere(cur, rv) {
   const s = state.shot, blds = buildings();
   const opts = (list, val, none = "—") => `<option value="">${none}</option>` + list.map(x => `<option ${x === val ? "selected" : ""}>${esc(x)}</option>`).join("");
-  if (s.busy) return `<div class="where"><h3>Finding the sheet…</h3><div class="thinking"><span class="dot"></span><span>The agent is reading your photo, matching it to the ${esc(cur.name.toLowerCase())} sheets for ${esc(s.unit || "that unit")}${s.level ? ", " + esc(s.level) : ""}, and writing the deficiency in your words.</span></div></div>`;
+  if (s.busy) return `<div class="locate"><h3>Finding the sheet…</h3><div class="thinking"><span class="dot"></span><span>Matching your photo to the ${esc(cur.name.toLowerCase())} sheets…</span></div></div>`;
   const b = blds.find(x => x.key === s.bld) || null, units = b ? b.units.map(u => u.label) : unitLevelLists().units, floors = floorsFor(b, s.unit);
   const pick = planFor(cur.code, b, s.level), sh = pick && pick.sheet;
-  return `<div class="where">
-    <h3>Where are you?</h3><div class="sub">Photo kept. Building, unit, floor: the floor plan opens, you tap the spot, the agent writes it up.</div>
+  return `<div class="locate">
+    <h3>Where are you?</h3><div class="sub">Photo kept. Building, unit, floor: the floor plan opens, you tap the spot, and it is written up for you.</div>
     <div class="shot"><div class="take"><img src="${s.photoUrl}" alt=""><input type="file" accept="image/*" capture="environment" id="shotAgain"></div>
       <div class="note"><label style="margin-top:0">Your note (optional)</label><input id="wNote" placeholder="e.g. no GFCI, cover missing" value="${esc(s.note)}"></div></div>
     <div class="row three">
@@ -1318,7 +1333,7 @@ function renderWhere(cur, rv) {
     </div>
     ${sh ? `<div class="plan-pick"><div class="crop" style="${cropStyle(sh, pick.view)}"></div><div><b>${esc(sh.sheet_number || "p." + sh.page)} · ${esc(DISC_NAMES[sh.discipline] || sh.discipline)}${pick.standIn ? " · stands in" : ""}</b><h4>${esc(sh.title || "Sheet")}</h4><p class="${pick.warn ? "warn" : ""}">${esc(pick.note || "This floor plan opens; tap where the problem is.")}</p></div></div>` : ""}
     <div class="agentnote" id="gps">${esc(s.gpsText)}</div>
-    <div class="acts">${sh ? `<button class="btn primary hot" id="wOpen">${b && s.level ? `Open the ${esc(s.level.toLowerCase())} plan` : b ? "Open the plan" : "Open this sheet"}</button>` : ""}<button class="btn" id="wFind">Let the agent pick the sheet</button><button class="btn" id="wPick">${s.pick ? "Picking below ↓" : "I'll pick"}</button><button class="cancel" id="wCancel">Cancel</button></div>
+    <div class="acts">${sh ? `<button class="btn primary hot" id="wOpen">${b && s.level ? `Open the ${esc(s.level.toLowerCase())} plan` : b ? "Open the plan" : "Open this sheet"}</button>` : ""}<button class="btn" id="wFind">Pick the sheet for me</button><button class="btn" id="wPick">${s.pick ? "Picking below ↓" : "I'll pick"}</button><button class="cancel" id="wCancel">Cancel</button></div>
   </div>`;
 }
 function wireWhere(cur, rv) {
@@ -1342,10 +1357,10 @@ async function locateShot(code) {
   try {
     const r = await fetch(pUrl(slug, "/findings/locate"), { method: "POST", body: fd });
     const j = await r.json().catch(() => ({}));
-    if (!r.ok) { toast(j.detail || "The agent could not place it; pick the sheet yourself", true); s.busy = false; s.pick = true; renderField(); return; }
+    if (!r.ok) { toast(j.detail || "Could not place it. Pick the sheet yourself", true); s.busy = false; s.pick = true; renderField(); return; }
     const sug = j.suggestion, sh = state.p.project.sheets.find(x => x.id === sug.sheet_id);
     state.viewer = { sheetId: sug.sheet_id, scale: 0, draft: null, step: "form", photo: s.photo, photoUrl: s.photoUrl, note: s.note, sug, busy: false, gps: s.gps || "", disc: code, focus: (sh && sh.views || []).find(v => v.level === s.level) || null };
-    state.shot = null; toast(`The agent picked ${sh ? sh.sheet_number || "a sheet" : "a sheet"} · now tap the spot`);
+    state.shot = null; toast(`${sh ? sh.sheet_number || "Sheet" : "Sheet"} opened · now tap the spot`);
     location.hash = pHash(slug, "/field/" + sug.sheet_id);
   } catch (e) { toast("Lost the connection; pick the sheet yourself", true); s.busy = false; s.pick = true; renderField(); }
 }
@@ -1399,7 +1414,8 @@ function renderSheet(sheetId) {
   if (state.pinMode === "review" && !rv) state.pinMode = "open";
   const pins = state.pinMode === "review" ? inRv : state.pinMode === "open" ? open : allPins;
   const pinCls = d => (state.pinMode === "all" && rv && d.review_id !== rv.id ? "other" : "") + (closed.has(d.item_id) ? " closed" : "");
-  const pinf = allPins.length ? `<span class="pinf">${rv ? `<button data-pins="review" class="${state.pinMode === "review" ? "on" : ""}">This review ${inRv.length}</button>` : ""}<button data-pins="open" class="${state.pinMode === "open" ? "on" : ""}">Open ${open.length}</button><button data-pins="all" class="${state.pinMode === "all" ? "on" : ""}">All ${allPins.length}</button></span>` : "";
+  const cnt = n => n ? ` ${n}` : "";
+  const pinf = allPins.length > 1 ? `<span class="pinf">${rv ? `<button data-pins="review" class="${state.pinMode === "review" ? "on" : ""}">In this review${cnt(inRv.length)}</button>` : ""}<button data-pins="open" class="${state.pinMode === "open" ? "on" : ""}">Still open${cnt(open.length)}</button><button data-pins="all" class="${state.pinMode === "all" ? "on" : ""}">Everything${cnt(allPins.length)}</button></span>` : "";
   $("#main").innerHTML = `
     <div class="viewer">
       <div class="vbar">
@@ -1512,16 +1528,16 @@ function renderPanel(sh, rv) {
   const units = p.project.units.map(u => u.label || u.name || u), levels = [...new Set([...p.project.levels.map(l => l.name || l), ...p.project.units.flatMap(u => (u.levels || []).map(l => l.name || l))])];
   const opts = (list, cur) => `<option value="">—</option>` + list.map(x => `<option ${x === cur ? "selected" : ""}>${esc(x)}</option>`).join("");
   if (v.step === "shoot") el.innerHTML = `
-      <h3>New deficiency on ${esc(sh.sheet_number || "this sheet")}</h3><div class="sub">Take the photo, add a word if you like, and let the agent write it up with the location.</div>
+      <h3>New deficiency on ${esc(sh.sheet_number || "this sheet")}</h3><div class="sub">Take the photo, add a word if you like, and it will be written up with the location.</div>
       <div class="shot">
         <div class="take">${v.photoUrl ? `<img src="${v.photoUrl}" alt="">` : `<span><span class="ico">📷</span>Take photo</span>`}<input type="file" accept="image/*" capture="environment" id="photoIn"></div>
         <div class="note"><label style="margin-top:0">Your note (optional)</label><input id="noteIn" placeholder="e.g. no GFCI, cover missing" value="${esc(v.note)}"></div>
       </div>
-      <div class="acts"><button class="btn primary hot" id="ask">Ask the agent</button><button class="btn" id="manual">Write it myself</button><button class="cancel" id="cancel">Cancel</button></div>`;
-  else if (v.step === "thinking") el.innerHTML = `<h3>Reading the photo and the sheet…</h3><div class="thinking"><span class="dot"></span><span>The agent is working out the unit, level and room from where you tapped, and writing the deficiency in your words.</span></div>`;
+      <div class="acts"><button class="btn primary hot" id="ask">Write it up for me</button><button class="btn" id="manual">Type it myself</button><button class="cancel" id="cancel">Cancel</button></div>`;
+  else if (v.step === "thinking") el.innerHTML = `<h3>Reading the photo and the sheet…</h3><div class="thinking"><span class="dot"></span><span>Writing it up…</span></div>`;
   else el.innerHTML = `
       <h3>${v.sug ? "Check and save" : "Write the deficiency"}</h3>
-      <div class="sub">${v.sug && v.sug.sheet ? (v.draft ? "The agent picked this sheet from your photo and wrote it up. Edit anything, then save." : "The agent picked this sheet from your photo and where you are. <b>Tap the exact spot on the sheet</b>, check the words, save.") : v.sug ? `Suggested by the agent from your photo and the pin. Edit anything.` : "Fill it in and save."}${v.sug && v.sug.rejections && v.sug.rejections.length ? ` <span class="agentnote">(<b>${v.sug.rejections.length}</b> draft${v.sug.rejections.length === 1 ? "" : "s"} rejected by the rules before this one)</span>` : ""}</div>
+      <div class="sub">${v.sug && v.sug.sheet ? (v.draft ? "Picked from your photo and written up. Edit anything, then save." : "Picked from your photo and where you are. <b>Tap the exact spot on the sheet</b>, check the words, save.") : v.sug ? `Suggested from your photo and the pin. Edit anything.` : "Fill it in and save."}</div>
       ${v.photoUrl ? `<div class="shot"><div class="take"><img src="${v.photoUrl}" alt=""><input type="file" accept="image/*" capture="environment" id="photoIn"></div><div class="note"><label style="margin-top:0">Location a contractor can walk to</label><input id="fLoc" value="${esc(s.location || "")}" placeholder="Unit C, Upper Floor, Bath 2: wall behind toilet"></div></div>` : `<label>Location a contractor can walk to</label><input id="fLoc" value="${esc(s.location || "")}" placeholder="Unit C, Upper Floor, Bath 2: wall behind toilet">`}
       <div class="row">
         <div><label>Unit</label><select id="fUnit">${opts(units, s.unit || "")}</select></div>
@@ -1530,7 +1546,7 @@ function renderPanel(sh, rv) {
       </div>
       <label>What is wrong</label><textarea id="fDesc" placeholder="Receptacle beside the basin has no GFCI protection and the cover plate is missing.">${esc(s.description || "")}</textarea>
       <label>What the contractor must send to close it</label><input id="fEv" value="${esc(s.evidence_required || "photo: completed work")}" placeholder="photo: repaired; report: test sheet">
-      <div class="agentnote">photo, report, letter or document, separated by “;”</div>
+      <div class="agentnote">Separate several with “;”</div>
       <div class="acts"><button class="btn primary" id="save" ${v.draft ? "" : "disabled"}>Save as ${esc(rv ? rv.discipline : sh.discipline)}-${String(nextNumber(rv ? rv.discipline : sh.discipline)).padStart(2, "0")}</button>${!v.draft ? `<span class="agentnote">Tap the spot on the sheet first</span>` : !v.photoUrl ? `<span class="agentnote">No photo yet</span>` : ""}<button class="cancel" id="cancel">Cancel</button></div>`;
   const pin = $("#photoIn"); if (pin) pin.onchange = () => { const f = pin.files[0]; if (!f) return; v.photo = f; if (v.photoUrl) URL.revokeObjectURL(v.photoUrl); v.photoUrl = URL.createObjectURL(f); renderPanel(sh, rv); };
   const note = $("#noteIn"); if (note) note.oninput = () => v.note = note.value;
@@ -1548,7 +1564,7 @@ async function askAgent(sh, rv) {
   try {
     const r = await fetch(pUrl(state.slug, "/findings/suggest"), { method: "POST", body: fd });
     const j = await r.json().catch(() => ({}));
-    if (!r.ok) { toast(j.detail || "The agent could not answer; write it yourself", true); v.sug = null; }
+    if (!r.ok) { toast(j.detail || "Could not write it up. Write it yourself", true); v.sug = null; }
     else { v.sug = j.suggestion; toast("Suggestion ready"); }
   } catch (e) { toast("Lost the connection; write it yourself", true); v.sug = null; }
   v.busy = false; v.step = "form"; renderPanel(sh, rv);
@@ -1581,7 +1597,7 @@ function follow(runId, onDone) {
       case "ingested": state.run.text = `${d.new} new files, ${d.existing} already on record.`; break;
       case "project_scanned": state.run.text = `Found ${d.documents} documents. Rendering the current sheets…`; break;
       case "sheet_rendered": state.run.text = `Rendering ${d.discipline} page ${d.page} of ${d.of}…`; break;
-      case "jobs_created": state.run.total = d.match_jobs || d.sheet_jobs || 0; state.run.done = 0; state.run.text = `Agent is reading ${state.run.total} ${d.sheet_jobs ? "sheets" : "files"}…`; break;
+      case "jobs_created": state.run.total = d.match_jobs || d.sheet_jobs || 0; state.run.done = 0; state.run.text = `Reading ${state.run.total} ${d.sheet_jobs ? "sheets" : "files"}…`; break;
       case "job_start": if (d.kind === "draft") state.run.text = `Drafting the message for ${d.item_id}…`; else if (d.kind === "project_summary") state.run.text = "Summarising the project…"; else state.run.text = `Reading ${d.label || d.filename}…`; break;
       case "job_done": if (d.kind !== "draft" && d.kind !== "project_summary") state.run.done++; break;
       case "job_failed": state.run.text = `Could not read ${d.label || d.filename || d.item_id}: ${d.error}`; break;
@@ -1589,7 +1605,7 @@ function follow(runId, onDone) {
       case "packet": case "project_ready": case "run_error":
         es.close(); state.es = null;
         const bad = e.event === "run_error" || d.failed_jobs > 0 || d.status === "failed";
-        state.run = { kind: bad ? "bad" : "ok", text: e.event === "run_error" ? `Run error: ${d.error}` : bad ? `Finished, but ${d.failed_jobs} part(s) failed.` : e.event === "project_ready" ? `Project read: ${d.name}.` : "Done. Every file has been filed.", done: 0, total: 0 };
+        state.run = { kind: bad ? "bad" : "ok", text: e.event === "run_error" ? "Something went wrong. Try again." : bad ? `Finished, but ${d.failed_jobs} file${d.failed_jobs === 1 ? "" : "s"} could not be read.` : e.event === "project_ready" ? `Project read: ${d.name}.` : "Done. Every file has been filed.", done: 0, total: 0 };
         if (onDone) onDone(e.event, d); else load();
         return;
     }
@@ -1597,7 +1613,7 @@ function follow(runId, onDone) {
     if (e.event === "completeness" || e.event === "job_done") load();
   };
   ["uploaded", "ingested", "project_scanned", "sheet_rendered", "sheets_ready", "jobs_created", "job_start", "job_done", "job_failed", "completeness", "packet", "project_ready", "run_error", "retry"].forEach(k => es.addEventListener(k, onAny));
-  es.onerror = () => { if (state.es === es) { es.close(); state.es = null; state.run = { kind: "bad", text: "Lost the connection to the run.", done: 0, total: 0 }; load(); } };
+  es.onerror = () => { if (state.es === es) { es.close(); state.es = null; state.run = { kind: "bad", text: "Lost the connection. Reload to see where it got to.", done: 0, total: 0 }; load(); } };
 }
 
 /* ---- folder drops ---------------------------------------------------- */
@@ -1627,7 +1643,7 @@ async function send(kind, slug, items, label) {
   if (kind === "batch" && label) fd.append("label", label);
   if (kind === "project" && label) fd.append("slug", label.toLowerCase().replace(/[^a-z0-9]+/g, "-"));
   const zip = items.length === 1 && /\.zip$/i.test(items[0].file.name);
-  toast(zip ? `Uploading ${items[0].file.name} (${Math.max(1, Math.round(items[0].file.size / 1048576))} MB)… it is unpacked on the server.` : `Uploading ${items.length} files…`);
+  toast(zip ? `Uploading ${items[0].file.name} (${Math.max(1, Math.round(items[0].file.size / 1048576))} MB)…` : `Uploading ${items.length} files…`);
   const url = kind === "project" ? "/api/projects" : pUrl(slug, { batch: "/batches", register: "/register", drawings: "/drawings" }[kind]);
   const r = await fetch(url, { method: "POST", body: fd });
   const j = await r.json().catch(() => ({}));
