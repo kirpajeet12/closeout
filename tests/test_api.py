@@ -198,3 +198,57 @@ def test_second_upload_while_running_is_refused(client, monkeypatch):
     assert client.post(f"/api/projects/{slug}/batches", files=files).status_code == 409
     gate.set()
     assert _events(client)[-1]["event"] == "packet"
+
+
+def _zip_project(tmp_path: Path) -> bytes:
+    """One zip of a whole project folder, the way a phone or Finder sends it: a wrapping folder, Finder's __MACOSX
+    copies, a dot-file and a member that tries to climb out of the folder."""
+    import io
+    import zipfile
+
+    from reportlab.pdfgen import canvas
+
+    ARCH = (2592, 1728)
+    pdf = tmp_path / "set.pdf"
+    c = canvas.Canvas(str(pdf), pagesize=ARCH)
+    c.drawString(40, 1600, "FLOOR PLAN")
+    c.showPage()
+    c.save()
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("Maple Court/", "")
+        zf.write(pdf, "Maple Court/AR/250301_issued/24-0001_AR_250301.pdf")
+        zf.write(pdf, "Maple Court/EL/250401_issued/24-0001_EL_250401.pdf")
+        zf.writestr("__MACOSX/Maple Court/AR/250301_issued/._24-0001_AR_250301.pdf", b"junk")
+        zf.writestr("Maple Court/.DS_Store", b"junk")
+        zf.writestr("../../escape.pdf", b"not a pdf")
+    return buf.getvalue()
+
+
+def test_project_from_one_zip(client, tmp_path):
+    """The phone cannot drop a folder: one zip must land in the same import as a dropped folder."""
+    r = client.post("/api/projects", files=[("files", ("Maple Court.zip", _zip_project(tmp_path)))],
+                    data={"read_with_model": "false"})
+    assert r.status_code == 200, r.text
+    assert r.json()["slug"] == "maple-court"
+    assert r.json()["files"] == 3          # two sheets plus the escaping member, now inside the folder; junk skipped
+    events = _events(client)
+    assert "run_error" not in [e["event"] for e in events], events
+    root = tmp_path / "data"
+    assert not (root.parent / "escape.pdf").exists() and not (root / "escape.pdf").exists()
+    assert next(root.rglob("escape.pdf")).is_relative_to(root / "uploads")
+    assert not list(root.rglob("*.zip")) and not list(root.rglob("__MACOSX"))
+    p = client.get("/api/projects/maple-court").json()
+    assert sorted(d["discipline"] for d in p["project"]["documents"]) == ["AR", "EL"]
+
+
+def test_empty_zip_is_refused(client):
+    import io
+    import zipfile
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        zf.writestr("__MACOSX/x", b"")
+    r = client.post("/api/projects", files=[("files", ("empty.zip", buf.getvalue()))], data={"read_with_model": "false"})
+    assert r.status_code == 400
+    assert client.get("/api/projects").json()["active_run_id"] is None

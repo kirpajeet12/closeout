@@ -53,6 +53,53 @@
   .newp .folder { position: relative; text-align: center; padding: 8px; border-radius: 10px; font-size: 13px; color: var(--ink-2); }
   .newp .folder input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
   .newp.over .folder, .newp .folder:hover { background: #fff; }
+  .newp .np-k { font-size: 11px; text-transform: uppercase; letter-spacing: .14em; color: var(--hot); font-weight: 700; }
+  .newp h2.np-t { font-size: 22px; letter-spacing: -.01em; line-height: 1.15; margin: 4px 0 0; }
+  .newp .np-zip { position: relative; display: flex; flex-direction: column; gap: 2px; padding: 16px 18px; border-radius: 14px; background: var(--ink); color: #fff; cursor: pointer; transition: background .15s; }
+  .newp .np-zip b { font-size: 15px; } .newp .np-zip span { font-size: 12px; color: rgba(255,255,255,.72); }
+  .newp .np-zip:hover { background: #2a2c30; }
+  .newp .np-zip input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .newp .np-steps { display: grid; gap: 8px; margin-top: 2px; }
+  .newp .np-steps div { display: grid; grid-template-columns: 18px 1fr; gap: 8px; align-items: baseline; font-size: 13px; color: var(--ink-2); line-height: 1.35; }
+  .newp .np-steps i { font: 700 11px var(--mono); color: var(--mute); font-style: normal; }
+  .zipbtn { position: relative; z-index: 1; display: inline-block; margin-top: 14px; border: 1px solid var(--ink); background: var(--ink); color: #fff; border-radius: 10px; padding: 9px 16px; font-weight: 600; font-size: 13px; cursor: pointer; }
+  .zipbtn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .drop.small .zipbtn { margin: 0 0 0 auto; flex: none; }
+  .lead { margin: 6px 0 0; color: var(--ink-2); max-width: 70ch; }
+  .files { display: grid; gap: 10px; margin-top: 14px; }
+  .files details { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 0 18px; }
+  .files summary { list-style: none; cursor: pointer; display: grid; grid-template-columns: 40px 1fr auto; gap: 14px; align-items: center; padding: 14px 0; }
+  .files summary::-webkit-details-marker { display: none; }
+  .files summary i { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 11px; background: var(--ink); color: #fff; font: 700 12px/1 var(--mono); font-style: normal; letter-spacing: .04em; }
+  .files summary i.soft { background: var(--none-bg); color: var(--ink-2); border: 1px solid var(--line-2); }
+  .files summary b { display: block; font-size: 16px; }
+  .files summary span { display: block; font-size: 13px; color: var(--mute); margin-top: 2px; }
+  .files summary em { font-style: normal; font-size: 12px; color: var(--mute); white-space: nowrap; }
+  .files .frows { border-top: 1px solid var(--line); padding: 6px 0 12px; }
+  .files .frow { display: grid; grid-template-columns: 96px 1fr auto; gap: 12px; padding: 8px 0; font-size: 13px; border-top: 1px solid var(--line); align-items: baseline; }
+  .files .frow:first-child { border-top: 0; }
+  .files .frow b { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--mute); font-weight: 600; }
+  .files .frow.cur b { color: var(--ready); }
+  .files .frow span { color: var(--ink-2); word-break: break-word; } .files .frow small { color: var(--mute); font-family: var(--mono); font-size: 11px; white-space: nowrap; }
+  .rev { display: grid; gap: 14px; margin-top: 14px; }
+  .rev .disc { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 18px 6px; }
+  .rev .disc h4 { margin: 0 0 6px; font-size: 15px; display: flex; gap: 10px; align-items: baseline; } .rev .disc h4 small { color: var(--mute); font-weight: 500; font-size: 12px; }
+  .rev .r { display: grid; grid-template-columns: 96px 1fr; gap: 14px; padding: 9px 0; border-top: 1px solid var(--line); font-size: 13px; position: relative; }
+  .rev .r time { font-family: var(--mono); font-size: 12px; color: var(--mute); padding-top: 2px; } .rev .r.cur time { color: var(--ready); font-weight: 700; }
+  .rev .r b { display: block; font-weight: 600; } .rev .r span { display: block; color: var(--mute); font-size: 12px; margin-top: 2px; word-break: break-word; }
+  .occ { margin-top: 14px; display: grid; gap: 12px; }
+  .occ .tally { display: flex; align-items: baseline; gap: 12px; } .occ .tally b { font-size: 34px; font-weight: 700; letter-spacing: -.03em; } .occ .tally span { color: var(--mute); font-size: 14px; }
+  .occ .grp { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px 18px 6px; }
+  .occ .grp summary { list-style: none; cursor: pointer; display: flex; align-items: baseline; gap: 12px; padding: 4px 0 6px; }
+  .occ .grp summary::-webkit-details-marker { display: none; }
+  .occ .grp h4 { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: .1em; color: var(--mute); font-weight: 600; }
+  .occ .grp summary .n { margin-left: auto; font-family: var(--mono); font-size: 12px; color: var(--mute); white-space: nowrap; } .occ .grp.some summary .n { color: var(--ready); }
+  .occ .grp summary::after { content: "+"; color: var(--mute); font-size: 16px; line-height: 1; margin-left: 10px; } .occ .grp[open] summary::after { content: "–"; }
+  .occ .it { display: grid; grid-template-columns: 14px 1fr; gap: 12px; align-items: baseline; padding: 8px 0; border-top: 1px solid var(--line); font-size: 14px; }
+  .occ .it i { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--line-2); display: inline-block; position: relative; top: 1px; } .occ .it.on i { background: var(--ready); border-color: var(--ready); }
+  .occ .it span { display: block; font-size: 12px; color: var(--mute); word-break: break-word; } .occ .it.on span { color: var(--ready); }
+  .occ .it:not(.on) b { font-weight: 500; }
+  @media (max-width: 760px) { .files .frow, .rev .r { grid-template-columns: 1fr; gap: 2px; } }
 
   /* project page */
   .phead { display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; padding: 30px 0 0; }
@@ -345,7 +392,7 @@ function route() {
   const h = location.hash.replace(/^#\/?/, "");
   let m = h.match(/^p\/([^/]+)\/item\/(.+)$/); if (m) return { page: "item", slug: m[1], id: decodeURIComponent(m[2]) };
   m = h.match(/^p\/([^/]+)\/field\/([^/]+)$/); if (m) return { page: "sheet", slug: m[1], sheetId: m[2] };
-  m = h.match(/^p\/([^/]+)\/?(drawings|field|evidence|messages)?$/); if (m) return { page: "project", slug: m[1], tab: m[2] || "list" };
+  m = h.match(/^p\/([^/]+)\/?(drawings|docs|field|evidence|messages)?$/); if (m) return { page: "project", slug: m[1], tab: m[2] || "list" };
   return { page: "home" };
 }
 const pUrl = (slug, tail) => `/api/projects/${encodeURIComponent(slug)}${tail || ""}`;
@@ -397,7 +444,7 @@ function render() {
 function renderHome() {
   const h = state.home, list = h.projects;
   $("#main").innerHTML = `
-    <div class="homehead"><div><h1>Projects</h1><p>${list.length ? "Open a project to review its deficiencies, drawings and the evidence contractors sent." : "Start with a project: give it a name, or drop the project folder with the drawings."}</p></div></div>
+    <div class="homehead"><div><h1>Projects</h1><p>${list.length ? "Open a project to review its deficiencies, drawings and the evidence contractors sent." : "Start with a project: upload one zip of its folder. The app files it, reads the current sheets and lists what is missing."}</p></div></div>
     <div class="status ${esc(state.run.kind)}" id="status" ${state.run.kind === "idle" ? "hidden" : ""}></div>
     <div class="cards" style="margin-top:18px">
       ${list.map(c => { const pct = k => c.items ? (c[k] / c.items * 100) + "%" : "0%"; return `
@@ -410,10 +457,12 @@ function renderHome() {
         <div class="meta"><span>${c.sheets} sheets</span><span>${c.items} deficiencies</span><span>${c.drops} evidence drop${c.drops === 1 ? "" : "s"}</span><span>${c.last_activity ? "updated " + esc(when(c.last_activity)) : ""}</span></div>
       </div>`; }).join("")}
       <div class="newp" id="newp">
-        <h2>New project</h2>
+        <div><span class="np-k">New project</span><h2 class="np-t">Send the whole folder once.</h2></div>
+        <div class="np-steps"><div><i>1</i>Zip the project folder as it is: every discipline, every issue, the letters too.</div><div><i>2</i>The app files it by discipline and date; the agent reads every current sheet.</div><div><i>3</i>You see what is still missing: drawings before the field review, documents before occupancy.</div></div>
+        <label class="np-zip"><b>Upload the project zip</b><span>From the phone or the computer · one .zip</span><input type="file" accept=".zip,application/zip,application/x-zip-compressed"></label>
+        <div class="folder">or drop the folder here from a computer<input type="file" webkitdirectory multiple></div>
+        <div class="or"><span>or start by name</span></div>
         <form id="newForm"><input type="text" id="newName" placeholder="Project name, e.g. Maple Court" autocomplete="off"><button type="submit">Create</button></form>
-        <div class="or"><span>or</span></div>
-        <div class="folder">Drop the project folder here<br><small style="color:var(--mute)">The agent reads every current sheet and names the project from the title block.</small><input type="file" webkitdirectory multiple></div>
       </div>
     </div>
     <footer><span>Nothing here is an engineering determination. The engineer decides.</span>${h.model_id ? `<span>Agents run on ${esc(h.model_id.replace(/^us\./, ""))}</span>` : ""}</footer>`;
@@ -433,8 +482,8 @@ function renderHome() {
 /* ---- project page ----------------------------------------------------- */
 function renderProject(tab) {
   const p = state.p, pr = p.project, c = p.card, slug = state.slug;
-  const T = { list: "Deficiencies", field: "Field review", drawings: "Drawings", evidence: "Evidence drops", messages: "Messages" };
-  const counts = { list: c.items, field: p.reviews.filter(r => r.status === "active").length || p.reviews.length, drawings: c.sheets, evidence: c.drops, messages: p.messages.length };
+  const T = { list: "Deficiencies", field: "Field review", drawings: "Drawings", docs: "Documents", evidence: "Evidence drops", messages: "Messages" };
+  const counts = { list: c.items, field: p.reviews.filter(r => r.status === "active").length || p.reviews.length, drawings: c.sheets, docs: (pr.documents || []).length, evidence: c.drops, messages: p.messages.length };
   $("#main").innerHTML = `
     <div class="phead">
       <div><h1>${esc(pr.name)}</h1><div class="sub">${esc([pr.address, pr.city, pr.building_type].filter(Boolean).join(" · ") || "No drawings read yet")}</div></div>
@@ -442,7 +491,7 @@ function renderProject(tab) {
     </div>
     <div class="tabs">${Object.keys(T).map(k => `<a href="${pHash(slug, k === "list" ? "" : "/" + k)}" class="${tab === k ? "on" : ""}">${T[k]}<small>${counts[k]}</small></a>`).join("")}</div>
     <div id="tab"></div>`;
-  ({ list: renderList, field: renderField, drawings: renderDrawings, evidence: renderDrops, messages: renderMessages })[tab]();
+  ({ list: renderList, field: renderField, drawings: renderDrawings, docs: renderDocs, evidence: renderDrops, messages: renderMessages })[tab]();
 }
 
 function renderList() {
@@ -458,11 +507,11 @@ function renderList() {
         <div class="bar"><i class="ready" style="width:${pct("ready")}"></i><i class="needs" style="width:${pct("needs")}"></i><i class="unclear" style="width:${pct("unclear")}"></i></div>
         <div class="legend"><span><i style="background:var(--ready)"></i>${n.ready} ready</span><span><i style="background:var(--needs)"></i>${n.needs} need something</span><span><i style="background:var(--unclear)"></i>${n.unclear} unclear</span><span><i style="background:var(--none-bg);border:1px solid var(--line-2)"></i>${n.none} nothing yet</span></div>
       </div>
-      <div class="drop big" id="dropEv"><div class="arrow">↓</div><h2>Drop evidence</h2><p>${p.register.length ? "Drag the contractor's folder of photos, reports and letters here. The agent files each one against the list." : "Load the deficiency list first, then drop what the contractor sends."}</p><input type="file" webkitdirectory multiple></div>
+      <div class="drop big" id="dropEv"><div class="arrow">↓</div><h2>Drop evidence</h2><p>${p.register.length ? "Drag the contractor's folder of photos, reports and letters here, or upload it as one zip. The agent files each one against the list." : "Load the deficiency list first, then drop what the contractor sends."}</p><input type="file" webkitdirectory multiple>${zipBtn("Upload a zip")}</div>
     </div>
     <div class="drops">
-      <div class="drop small" id="dropReg"><div><h2>Deficiency list</h2><p>${p.register.length ? `${p.register.length} items loaded. Drop a folder with the CSV and photos to replace it.` : "Drop a folder with the register CSV and the field-review photos."}</p></div><input type="file" webkitdirectory multiple></div>
-      <div class="drop small" id="dropPrj"><div><h2>Project drawings</h2><p>${p.project.sheets.length ? `${p.project.sheets.length} sheets read. Drop a project folder to replace them.` : "Drop the project folder. Every current sheet is read so locations resolve to real rooms."}</p></div><input type="file" webkitdirectory multiple></div>
+      <div class="drop small" id="dropReg"><div><h2>Deficiency list</h2><p>${p.register.length ? `${p.register.length} items loaded. Drop a folder with the CSV and photos to replace it.` : "Drop a folder with the register CSV and the field-review photos."}</p></div><input type="file" webkitdirectory multiple>${zipBtn("Zip")}</div>
+      <div class="drop small" id="dropPrj"><div><h2>Project drawings</h2><p>${p.project.sheets.length ? `${p.project.sheets.length} sheets read. Drop a project folder to replace them.` : "Drop the project folder. Every current sheet is read so locations resolve to real rooms."}</p></div><input type="file" webkitdirectory multiple>${zipBtn("Zip")}</div>
     </div>
     <div class="status ${esc(state.run.kind)}" id="status"></div>
     <h3 class="sec">Deficiencies</h3>
@@ -502,13 +551,13 @@ function renderDrawings() {
       ${pr.units.length ? `<div class="fact"><b>Units</b><span>${esc(pr.units.map(u => (u.label || u.name || u)).join(", "))}</span></div>` : ""}
       ${pr.levels.length ? `<div class="fact"><b>Levels</b><span>${esc(pr.levels.map(l => l.name || l).join(", "))}</span></div>` : ""}
       <div class="fact"><b>Current sheets</b><span>${pr.sheets.length} across ${Object.keys(byDisc).length} discipline${Object.keys(byDisc).length === 1 ? "" : "s"}</span></div>
-      <div class="fact"><b>Documents in the folder</b><span>${pr.documents.length} (${pr.documents.filter(d => d.is_current).length} current)</span></div>
+      <div class="fact"><b>Files in the folder</b><span>${pr.documents.length} · <a href="${pHash(slug, "/docs")}">Documents</a></span></div>
     </div>
     ${renderAsk(pr)}
     ${Object.keys(byDisc).map(k => `<h3 class="sec">${esc(k)}</h3><div class="gallery">${byDisc[k].map(sh => `
       <div class="sheet" data-id="${sh.id}"><img src="${sh.thumb_url || sh.image_url}" alt="" loading="lazy"><div class="cap"><b>${esc(sh.sheet_number || "p." + sh.page)}</b><span>${esc(sh.title || "")}</span><small>${(sh.read && sh.read.spaces || []).length} spaces read</small></div></div>`).join("")}</div>`).join("")}
     <p class="empty" style="margin-top:22px">Tap a sheet to open it. To record a deficiency on it, start a field review first.</p>`
-  : `<div class="drop big" id="dropPrj" style="margin-top:24px"><div class="arrow">↓</div><h2>Drop the project folder</h2><p>The agent finds the current drawing sets, renders every sheet and reads rooms, units and levels off them.</p><input type="file" webkitdirectory multiple></div><div class="status ${esc(state.run.kind)}" id="status"></div>`;
+  : projectDrop("Add the project drawings", "Upload one zip of the project folder, or drop the folder here from a computer. The app files the drawing sets, the agent reads every current sheet, and the drawings still missing are listed here.");
   $("#tab").querySelectorAll(".sheet").forEach(s => s.onclick = () => location.hash = pHash(slug, "/field/" + s.dataset.id));
   const pb = $("#askPrint"); if (pb) pb.onclick = () => print();
   wireDrop($("#dropPrj"), "drawings", slug); renderStatus();
@@ -531,6 +580,29 @@ function docsNeeded(pr) {
       if (missing.length) out.push({ code: d.code, what: `${name} floor plan for ${missing.map(b => b.name).join(", ")}`, why: `The set has floor plans for the other building${blds.length - missing.length === 1 ? "" : "s"} but none that mentions ${missing.length === 1 ? "this one" : "these"}.` });
     }
   }
+  // Sheets every set of that discipline is expected to carry. A sheet counts when the agent read it as that kind or its
+  // title or summary says so; the line names the sheets looked at so the engineer can check the claim in a minute.
+  const text = sh => ((sh.title || "") + " " + ((sh.read || {}).summary || "")).toUpperCase();
+  const is = (kind, re) => sh => kindOf(sh) === kind || re.test(text(sh));
+  const site = is("site_plan", /SITE PLAN|SITE SERVIC/), notes = is("notes", /\bNOTES\b|SPECIFICATION/), sched = is("schedule", /SCHEDULE/);
+  const EXPECT = {
+    AR: [["Site plan", site], ["Elevations", is("elevation", /ELEVATION/)], ["Building sections", is("section", /\bSECTION/)]],
+    EL: [["Electrical site plan with the service entry", site], ["Single-line diagram", sh => /SINGLE.?LINE|\bSLD\b|RISER DIAGRAM/.test(text(sh))], ["Electrical notes and specifications", notes], ["Panel schedule", is("schedule", /PANEL SCHEDULE|SCHEDULE/)]],
+    PL: [["Plumbing site plan with the services", site], ["Plumbing notes and specifications", notes], ["Fixture schedule", sched]],
+    ME: [["Mechanical notes and specifications", notes], ["Equipment schedule", sched]],
+    ST: [["Structural general notes", notes], ["Structural details", is("details", /DETAIL/)]],
+    FP: [["Fire protection notes", notes]], SP: [["Sprinkler notes", notes]],
+    LA: [["Landscape plan", is("landscape", /LANDSCAPE/)]], CV: [["Site servicing plan", site]],
+  };
+  for (const d of discs) {
+    const shs = sheetsOf(d.code), name = DISC_NAMES[d.code] || d.name || d.code;
+    if (!shs.length) continue;
+    const looked = shs.map(sh => sh.sheet_number || "p." + sh.page).join(", ");
+    for (const [what, test] of EXPECT[d.code] || []) {
+      if (shs.some(test)) continue;
+      out.push({ code: d.code, what, why: `The current ${name.toLowerCase()} set has no sheet titled or read as ${what.toLowerCase()}. Looked at ${looked}.` });
+    }
+  }
   const dated = discs.filter(d => d.dated).sort((a, b) => a.dated < b.dated ? 1 : -1);
   if (dated.length > 1) {
     const newest = dated[0], old = dated.filter(d => d.dated < newest.dated);
@@ -545,12 +617,132 @@ function renderAsk(pr) {
   const blds = buildings().length, discs = (pr.disciplines || []).length;
   const lead = need.length
     ? `Read off the ${pr.sheets.length} current sheets across ${discs} discipline${discs === 1 ? "" : "s"} and ${blds} building${blds === 1 ? "" : "s"}. Each line is something the folder does not contain yet.`
-    : `Every discipline has a floor plan for every building and the sets are dated together. Nothing to ask for.`;
+    : `Every discipline has its floor plans, site plan, notes and schedules and the sets are dated together. Nothing to ask for.`;
   return `<div class="ask" id="ask">
     <div class="head"><div><h2>${need.length ? "Ask for these before the first field review" : "The folder is complete for a field review"}</h2><p class="lead">${esc(lead)}</p></div>
       ${need.length ? `<button class="btn" id="askPrint">Print this list</button>` : ""}</div>
     ${need.length ? `<ol>${need.map(n => `<li><i>${esc(n.code)}</i><div><b>${esc(n.what)}</b><span>${esc(n.why)}</span></div></li>`).join("")}</ol>` : ""}
     <p class="fine">${esc(pr.name)} · ${esc([pr.address, pr.city].filter(Boolean).join(", "))} · written by the app from the sheet readings, not an engineering determination.</p>
+  </div>`;
+}
+
+/* ---- Documents tab: the folder as the office keeps it, the revision log, and the occupancy list ------------------ */
+function projectDrop(title, text) {
+  return `<div class="drop big" id="dropPrj" style="margin-top:24px"><div class="arrow">↓</div><h2>${esc(title)}</h2><p>${esc(text)}</p><input type="file" webkitdirectory multiple>${zipBtn("Upload the project zip")}</div><div class="status ${esc(state.run.kind)}" id="status"></div>`;
+}
+const EXTRA_GROUPS = { SP: "Sprinkler", BCH: "BC Hydro", PM: "Project management", DC: "Contracts and invoices", OTHER: "Other files" };
+const groupName = code => DISC_NAMES[code] || EXTRA_GROUPS[code] || code;
+const baseName = d => d.rel_path.split("/").pop();
+/* The office writes the reason for an issue in the folder name: "260421_ADDED HOUSE PANEL", "250123_PL_Revised as per city comments". */
+function issueNote(d) {
+  const parts = d.rel_path.split("/").slice(0, -1);
+  for (const part of parts.slice().reverse()) {
+    const m = part.match(/^\d{6}[_\-\s]*(?:(?:AR|EL|PL|ME|ST|CV|LA|FP|SP)[_\-\s]+)?(.+)$/i);
+    if (m && m[1].trim()) { const t = m[1].replace(/_/g, " ").trim(); return t[0].toUpperCase() + t.slice(1).toLowerCase(); }
+  }
+  return "";
+}
+function renderDocs() {
+  const pr = state.p.project, slug = state.slug, docs = pr.documents || [];
+  $("#tab").innerHTML = docs.length ? `
+    <p class="lead" style="margin-top:22px">${docs.length} files, kept exactly as the folder came. Filed by discipline and issue date from the folder names; the newest drawing set of each discipline is the one the agent read. Nothing is moved or renamed.</p>
+    ${renderFiles(pr)}
+    <h3 class="sec">Revision log</h3>
+    <p class="lead" style="margin:0">Every issue of every drawing set, newest first, with the reason the office wrote on the folder. The same file filed twice (discipline folder and the PM copy) is one line.</p>
+    ${renderRevisions(pr)}
+    <h3 class="sec">Documents before occupancy</h3>
+    ${renderOccupancy(pr)}
+    <div class="drop small" id="dropPrj" style="margin-top:24px"><div><h2>Add to the folder</h2><p>Drop the project folder again, or upload a zip, with the new letters, certificates and drawing issues. Everything is re-filed; the current sets are read again.</p></div><input type="file" webkitdirectory multiple>${zipBtn("Zip")}</div>
+    <div class="status ${esc(state.run.kind)}" id="status"></div>`
+  : projectDrop("Add the project folder", "Upload one zip of the whole project folder: drawings, letters, forms, certificates. The app files it by discipline and date, keeps every issue on record and shows which occupancy documents are still missing.");
+  wireDrop($("#dropPrj"), "drawings", slug); renderStatus();
+}
+function renderFiles(pr) {
+  const docs = pr.documents || [], groups = {};
+  docs.forEach(d => (groups[d.discipline] = groups[d.discipline] || []).push(d));
+  const order = Object.keys(groups).sort((a, b) => (a in DISC_NAMES ? 0 : 1) - (b in DISC_NAMES ? 0 : 1) || a.localeCompare(b));
+  const row = (cls, label, main, side) => `<div class="frow ${cls}"><b>${esc(label)}</b><span>${main}</span><small>${esc(side || "")}</small></div>`;
+  return `<div class="files">${order.map(code => {
+    const list = groups[code], cur = list.filter(d => d.is_current), old = list.filter(d => d.kind === "drawing" && !d.is_current), forms = list.filter(d => d.kind === "document");
+    const read = pr.sheets.filter(sh => sh.discipline === code).length;
+    const sum = [cur.length ? `current set${read ? ` · ${read} sheet${read === 1 ? "" : "s"} read` : ""}` : "", old.length ? `${old.length} older issue${old.length === 1 ? "" : "s"}` : "", forms.length ? `${forms.length} letter${forms.length === 1 ? "" : "s"} or form${forms.length === 1 ? "" : "s"}` : ""].filter(Boolean).join(" · ");
+    return `<details${cur.length ? " open" : ""}><summary><i class="${code in DISC_NAMES ? "" : "soft"}">${esc(code)}</i><div><b>${esc(groupName(code))}</b><span>${esc(sum || `${list.length} file${list.length === 1 ? "" : "s"}`)}</span></div><em>${list.length}</em></summary>
+      <div class="frows">
+        ${cur.map(d => row("cur", "Current", esc(baseName(d)), [d.dated ? "issued " + d.dated : "", d.pages ? d.pages + " p." : ""].filter(Boolean).join(" · "))).join("")}
+        ${old.map(d => row("", "Older", esc(baseName(d)) + (issueNote(d) ? ` <em style="color:var(--mute)">· ${esc(issueNote(d))}</em>` : ""), d.dated || "")).join("")}
+        ${forms.map(d => row("", "Letter", esc(baseName(d)), d.dated || "")).join("")}
+        ${list.filter(d => d.kind !== "drawing" && d.kind !== "document").map(d => row("", "File", esc(baseName(d)), d.dated || "")).join("")}
+      </div></details>`; }).join("")}
+  </div>`;
+}
+function renderRevisions(pr) {
+  const drawings = (pr.documents || []).filter(d => d.kind === "drawing"), by = {};
+  for (const d of drawings) {
+    const key = d.discipline + "|" + (d.dated || "") + "|" + baseName(d).toLowerCase();
+    const e = by[key] = by[key] || { code: d.discipline, dated: d.dated, name: baseName(d), notes: [], current: false, copies: 0 };
+    e.copies++; e.current = e.current || !!d.is_current;
+    const n = issueNote(d); if (n && !e.notes.includes(n)) e.notes.push(n);
+  }
+  const discs = {};
+  Object.values(by).forEach(e => (discs[e.code] = discs[e.code] || []).push(e));
+  const codes = Object.keys(discs).sort((a, b) => (a in DISC_NAMES ? 0 : 1) - (b in DISC_NAMES ? 0 : 1) || a.localeCompare(b));
+  return `<div class="rev">${codes.map(code => { const rows = discs[code].sort((a, b) => (b.dated || "") < (a.dated || "") ? -1 : 1);
+    return `<div class="disc"><h4>${esc(groupName(code))}<small>${rows.length} issue${rows.length === 1 ? "" : "s"}</small></h4>
+      ${rows.map(e => `<div class="r ${e.current ? "cur" : ""}"><time>${esc(e.dated || "undated")}</time><div><b>${esc(e.notes.join(" · ") || (e.current ? "Current set" : "Issue"))}${e.current ? ` <em style="color:var(--ready);font-style:normal;font-size:12px">current</em>` : ""}</b><span>${esc(e.name)}${e.copies > 1 ? ` · filed ${e.copies} times` : ""}</span></div></div>`).join("")}
+    </div>`; }).join("")}</div>`;
+}
+/* The office's own list of what the coordinating professional collects before final occupancy (37 documents, from the QA
+   tracker). Matched by file name against the folder: plain code, and the engineer decides what counts. */
+const OCCUPANCY_DOCS = [
+  ["Builder's own items", "Occupancy permit application", "occupancy permit"],
+  ["Builder's own items", "Demonstration test protocol", "demonstration test"],
+  ["Builder's own items", "Fire safety plan", "fire safety plan"],
+  ["Builder's own items", "Non-encroachment survey", "encroachment"],
+  ["Builder's own items", "Confirmation of development permit compliance", "development permit compliance|dp compliance"],
+  ["Letters of assurance", "Schedule C-A and C-B, coordinating professional", "sched(ule)?[\\s_-]*c[\\s_-]*a\\b|\\bc-?a[\\s_-]+crp"],
+  ["Letters of assurance", "Schedule C-B, civil", "(sched(ule)?[\\s_-]*c[\\s_-]*b|\\bc-b\\b).*civil|civil.*\\bc[\\s_-]*b\\b"],
+  ["Letters of assurance", "Schedule C-B, geotechnical", "(sched(ule)?[\\s_-]*c[\\s_-]*b|\\bc-b\\b).*geotech|geotech.*\\bc[\\s_-]*b\\b"],
+  ["Letters of assurance", "Schedule C-B, structural", "(sched(ule)?[\\s_-]*c[\\s_-]*b|\\bc-b\\b).*struct|struct.*\\bc[\\s_-]*b\\b"],
+  ["Letters of assurance", "Schedule C-B, mechanical", "(sched(ule)?[\\s_-]*c[\\s_-]*b|\\bc-b\\b).*mech|mech.*\\bc[\\s_-]*b\\b"],
+  ["Letters of assurance", "Schedule C-B, electrical", "(sched(ule)?[\\s_-]*c[\\s_-]*b|\\bc-b\\b).*elec|elec.*\\bc[\\s_-]*b\\b"],
+  ["Letters of assurance", "Schedule C-B, plumbing", "(sched(ule)?[\\s_-]*c[\\s_-]*b|\\bc-b\\b).*plumb|plumb.*\\bc[\\s_-]*b\\b"],
+  ["Letters of assurance", "Schedule C-B, fire protection (sprinkler)", "(sched(ule)?[\\s_-]*c[\\s_-]*b|\\bc-b\\b).*(fire|sprink)|(fire|sprink).*\\bc[\\s_-]*b\\b"],
+  ["Schedule B, electrical", "Fire alarm verification certificate and report", "fire alarm verif|s537"],
+  ["Schedule B, electrical", "Appendix C of CAN/ULC-S537", "appendix c\\b|s537"],
+  ["Schedule B, electrical", "ULC certificate for the monitoring station, site specific", "monitoring station|ulc cert"],
+  ["Schedule B, electrical", "CAN/ULC-S1001 certificate", "s1001"],
+  ["Schedule B, electrical", "Bi-directional amplification, design and installation confirmation", "bi-?directional|\\bbda\\b"],
+  ["Schedule S-B, during construction", "Envelope", "s[\\s_-]*b\\b.*envelope|envelope.*s[\\s_-]*b\\b"],
+  ["Schedule S-B, during construction", "Windows", "s[\\s_-]*b\\b.*window|window.*s[\\s_-]*b\\b"],
+  ["Schedule S-B, during construction", "Guards", "s[\\s_-]*b\\b.*guard|guard.*s[\\s_-]*b\\b"],
+  ["Schedule S-B, during construction", "Mechanical seismic", "s[\\s_-]*b\\b.*mech.*seismic|mech.*seismic.*s[\\s_-]*b\\b"],
+  ["Schedule S-B, during construction", "Plumbing seismic", "s[\\s_-]*b\\b.*plumb.*seismic|plumb.*seismic.*s[\\s_-]*b\\b"],
+  ["Schedule S-B, during construction", "Electrical seismic", "s[\\s_-]*b\\b.*elec.*seismic|elec.*seismic.*s[\\s_-]*b\\b"],
+  ["Schedule S-B, during construction", "Fire sprinkler seismic", "s[\\s_-]*b\\b.*sprink.*seismic|sprink.*seismic.*s[\\s_-]*b\\b"],
+  ["Schedule S-C, at completion", "Envelope", "s[\\s_-]*c\\b.*envelope|envelope.*s[\\s_-]*c\\b"],
+  ["Schedule S-C, at completion", "Windows", "s[\\s_-]*c\\b.*window|window.*s[\\s_-]*c\\b"],
+  ["Schedule S-C, at completion", "Guards", "s[\\s_-]*c\\b.*guard|guard.*s[\\s_-]*c\\b"],
+  ["Schedule S-C, at completion", "Mechanical seismic", "s[\\s_-]*c\\b.*mech.*seismic|mech.*seismic.*s[\\s_-]*c\\b"],
+  ["Schedule S-C, at completion", "Plumbing seismic", "s[\\s_-]*c\\b.*plumb.*seismic|plumb.*seismic.*s[\\s_-]*c\\b"],
+  ["Schedule S-C, at completion", "Electrical seismic", "s[\\s_-]*c\\b.*elec.*seismic|elec.*seismic.*s[\\s_-]*c\\b"],
+  ["Schedule S-C, at completion", "Fire sprinkler seismic", "s[\\s_-]*c\\b.*sprink.*seismic|sprink.*seismic.*s[\\s_-]*c\\b"],
+  ["Trade certificates and reports", "Sprinkler material test certificate, underground piping", "sprink.*(material|test).*underground|underground.*sprink"],
+  ["Trade certificates and reports", "Sprinkler material test certificate, above-ground piping", "sprink.*(material|test).*above|above.?ground.*sprink"],
+  ["Trade certificates and reports", "Standpipe material test certificate, underground (NFPA 14)", "standpipe.*underground|underground.*standpipe"],
+  ["Trade certificates and reports", "Standpipe material test certificate, above ground (NFPA 14)", "standpipe.*above|above.?ground.*standpipe"],
+  ["Trade certificates and reports", "Backflow preventer test report", "backflow"],
+  ["Trade certificates and reports", "Chlorination certificate", "chlorinat|disinfect"],
+  ["Trade certificates and reports", "Heat trace confirmation letter", "heat.?trac"],
+  ["Trade certificates and reports", "Parkade CO detector calibration certificate", "\\bco\\b.*(detector|calibrat)|carbon monoxide"],
+  ["Trade certificates and reports", "HVAC balancing report, life-safety fans", "balanc"],
+];
+function renderOccupancy(pr) {
+  const docs = pr.documents || [];
+  const hits = OCCUPANCY_DOCS.map(([grp, name, re]) => { const rx = new RegExp(re, "i"); const f = docs.filter(d => rx.test(baseName(d))); return { grp, name, files: f }; });
+  const on = hits.filter(h => h.files.length).length, groups = [...new Set(hits.map(h => h.grp))];
+  return `<div class="occ">
+    <div class="tally"><b>${on} of ${hits.length}</b><span>on file · matched by file name across the ${docs.length} files in the folder. Not an engineering determination: the engineer decides what counts.</span></div>
+    ${groups.map(g => { const rows = hits.filter(h => h.grp === g), got = rows.filter(h => h.files.length).length; return `<details class="grp ${got ? "some" : ""}" ${got ? "open" : ""}><summary><h4>${esc(g)}</h4><span class="n">${got} of ${rows.length}</span></summary>${rows.map(h => `<div class="it ${h.files.length ? "on" : ""}"><i></i><div><b>${esc(h.name)}</b><span>${h.files.length ? esc(h.files.map(baseName).join(", ")) : "not on file"}</span></div></div>`).join("")}</details>`; }).join("")}
   </div>`;
 }
 
@@ -1206,8 +1398,9 @@ async function send(kind, slug, items, label) {
   const fd = new FormData();
   items.forEach(o => { fd.append("files", o.file, o.file.name); fd.append("paths", o.path); });
   if (kind === "batch" && label) fd.append("label", label);
-  if (kind === "project") fd.append("slug", (label || "project").toLowerCase().replace(/[^a-z0-9]+/g, "-"));
-  toast(`Uploading ${items.length} files…`);
+  if (kind === "project" && label) fd.append("slug", label.toLowerCase().replace(/[^a-z0-9]+/g, "-"));
+  const zip = items.length === 1 && /\.zip$/i.test(items[0].file.name);
+  toast(zip ? `Uploading ${items[0].file.name} (${Math.max(1, Math.round(items[0].file.size / 1048576))} MB)… it is unpacked on the server.` : `Uploading ${items.length} files…`);
   const url = kind === "project" ? "/api/projects" : pUrl(slug, { batch: "/batches", register: "/register", drawings: "/drawings" }[kind]);
   const r = await fetch(url, { method: "POST", body: fd });
   const j = await r.json().catch(() => ({}));
@@ -1218,12 +1411,18 @@ async function send(kind, slug, items, label) {
 }
 function wireDrop(el, kind, slug) {
   if (!el) return;
-  const input = $("input[type=file]", el), keepTop = kind === "project" || kind === "drawings";
+  const keepTop = kind === "project" || kind === "drawings";
   el.addEventListener("dragover", e => { e.preventDefault(); el.classList.add("over"); });
   el.addEventListener("dragleave", () => el.classList.remove("over"));
-  el.addEventListener("drop", async e => { e.preventDefault(); el.classList.remove("over"); const items = await filesFromDrop(e.dataTransfer, keepTop); const ent = e.dataTransfer.items[0] && e.dataTransfer.items[0].webkitGetAsEntry && e.dataTransfer.items[0].webkitGetAsEntry(); send(kind, slug, items, ent ? ent.name : null); });
-  input.addEventListener("change", () => { const items = filesFromInput(input, keepTop); const label = input.files[0] && input.files[0].webkitRelativePath ? input.files[0].webkitRelativePath.split("/")[0] : null; send(kind, slug, items, label); input.value = ""; });
+  el.addEventListener("drop", async e => { e.preventDefault(); el.classList.remove("over"); const items = await filesFromDrop(e.dataTransfer, keepTop); const ent = e.dataTransfer.items[0] && e.dataTransfer.items[0].webkitGetAsEntry && e.dataTransfer.items[0].webkitGetAsEntry(); send(kind, slug, items, ent && ent.isDirectory ? ent.name : null); });
+  el.querySelectorAll("input[type=file]").forEach(input => input.addEventListener("change", () => {
+    if (!input.files.length) return;
+    const items = filesFromInput(input, keepTop), first = input.files[0];
+    const label = first.webkitRelativePath ? first.webkitRelativePath.split("/")[0] : null;   // a zip names the project from the folder inside it
+    send(kind, slug, items, label); input.value = "";
+  }));
 }
+function zipBtn(text) { return `<label class="zipbtn">${esc(text)}<input type="file" accept=".zip,application/zip,application/x-zip-compressed"></label>`; }
 
 window.addEventListener("hashchange", () => { const r = route(); if (r.page === "home" && state.p) { state.p = null; } if (r.page !== "sheet") { resetDraft(); state.viewer = null; } if (!(r.page === "project" && r.tab === "field") && r.page !== "sheet" && state.shot) { URL.revokeObjectURL(state.shot.photoUrl); state.shot = null; } load(); });
 load();

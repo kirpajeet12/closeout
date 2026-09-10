@@ -451,6 +451,8 @@ def import_project(store: Store, root: Path, slug: str, settings: Settings = SET
                                          "name": "New project", "provenance": "document"})
     progress("sheets_ready", {"sheets": len(sheets), "drawing_index": index})
     if not read_with_model:
+        progress("project_ready", {"run_id": None, "project_id": project_id, "name": "New project", "failed_jobs": 0,
+                                   "usage": {}, "json": None})
         return {"project_id": project_id, "run_id": None, "sheets": len(sheets), "status": "scanned"}
 
     run_id = store.create_run(project_id, f"project:{project_id}", settings.model_id, kind="project")

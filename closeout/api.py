@@ -10,7 +10,9 @@ from __future__ import annotations
 import json
 import mimetypes
 import re
+import shutil
 import threading
+import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterator
@@ -121,6 +123,57 @@ def _safe_relpath(name: str) -> Path:
     return Path(*parts)
 
 
+ZIP_MAX_MEMBERS = 20_000
+ZIP_MAX_BYTES = 6 * 1024 ** 3        # unpacked; a whole project folder with photos fits, a zip bomb does not
+
+
+def _zip_member_name(info: zipfile.ZipInfo) -> str:
+    """Windows zips store names in cp437 unless the UTF-8 flag is set; fix the mojibake when it decodes cleanly."""
+    if info.flag_bits & 0x800:
+        return info.filename
+    try:
+        return info.filename.encode("cp437").decode("utf-8")
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        return info.filename
+
+
+def _unpack_zips(root: Path, rel: list[str]) -> list[str]:
+    """Any .zip in the upload is unpacked where it sits and removed; its members take its place in the path list.
+
+    Members are written only under the zip's own folder (no absolute paths, no '..'), Finder's __MACOSX copies and
+    dot-files are skipped, and the unpacked size is capped."""
+    out: list[str] = []
+    for name in rel:
+        path = root / _safe_relpath(name)
+        if not name.lower().endswith(".zip") or not zipfile.is_zipfile(path):
+            out.append(name)
+            continue
+        base = path.parent
+        prefix = str(path.parent.relative_to(root)).replace("\\", "/")
+        prefix = "" if prefix == "." else prefix + "/"
+        total = 0
+        with zipfile.ZipFile(path) as zf:
+            infos = zf.infolist()
+            if len(infos) > ZIP_MAX_MEMBERS:
+                raise HTTPException(400, f"{Path(name).name} holds more than {ZIP_MAX_MEMBERS} files")
+            for info in infos:
+                if info.is_dir():
+                    continue
+                parts = [p for p in re.split(r"[\\/]+", _zip_member_name(info)) if p not in ("", ".", "..")]
+                if not parts or parts[0] == "__MACOSX" or any(p.startswith(".") for p in parts):
+                    continue
+                total += info.file_size
+                if total > ZIP_MAX_BYTES:
+                    raise HTTPException(400, f"{Path(name).name} unpacks to more than {ZIP_MAX_BYTES // 1024 ** 3} GB")
+                dest = base.joinpath(*parts)
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                with zf.open(info) as src, dest.open("wb") as dst:
+                    shutil.copyfileobj(src, dst, 1024 * 1024)
+                out.append(prefix + "/".join(parts))
+        path.unlink()
+    return out
+
+
 def _slug(s: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", (s or "project").lower()).strip("-") or "project"
 
@@ -215,14 +268,17 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         threading.Thread(target=body, name="closeout-run", daemon=True).start()
 
     async def _save_upload(files: list[UploadFile], paths: list[str] | None, folder: str) -> tuple[Path, list[str]]:
+        """Write the upload to disk as sent, streamed (a whole project zip must not sit in memory), then unpack any zip in place."""
         root = settings.data_dir / "uploads" / folder
         root.mkdir(parents=True, exist_ok=True)
         rel = paths if paths and len(paths) == len(files) else [f.filename or "file" for f in files]
         for f, name in zip(files, rel):
             dest = root / _safe_relpath(name)
             dest.parent.mkdir(parents=True, exist_ok=True)
-            dest.write_bytes(await f.read())
-        return root, rel
+            await f.seek(0)
+            with dest.open("wb") as out:
+                shutil.copyfileobj(f.file, out, 1024 * 1024)
+        return root, _unpack_zips(root, rel)
 
     # --- projects -------------------------------------------------------
     @app.get("/api/projects")
@@ -250,12 +306,15 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         """A project folder is dropped as-is: the drawing sets, letters and forms in their sub-folders."""
         feed = _reserve()
         try:
+            zips = [Path(f.filename or "").stem for f in files if (f.filename or "").lower().endswith(".zip")]
             root, rel = await _save_upload(files, paths, f"project-{_stamp()}")
+            if not rel:
+                raise HTTPException(400, "the upload held no files (an empty zip?)")
             top = {_safe_relpath(n).parts[0] for n in rel}
-            # the browser sends "<dropped folder>/<sub path>"; the dropped folder itself is the project root
+            # the browser sends "<dropped folder>/<sub path>" and a zip usually wraps one folder: that folder is the project root
             if len(top) == 1 and (root / next(iter(top))).is_dir():
                 root = root / next(iter(top))
-            slug_v = _slug(slug or (next(iter(top)) if len(top) == 1 else "project"))
+            slug_v = _slug(slug or (next(iter(top)) if len(top) == 1 else (zips[0] if len(zips) == 1 else "project")))
         except Exception:
             _release(feed)
             raise
@@ -263,9 +322,9 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         def target(progress):
             project_mod.import_project(store(), root, slug_v, settings, progress=progress, read_with_model=read_with_model)
 
-        feed.push("uploaded", {"label": f"project {slug_v}", "files": len(files), "folder": str(root), "slug": slug_v})
+        feed.push("uploaded", {"label": f"project {slug_v}", "files": len(rel), "folder": str(root), "slug": slug_v})
         _launch(target, feed)
-        return {"slug": slug_v, "files": len(files), "feed": "/api/runs/pending/events"}
+        return {"slug": slug_v, "files": len(rel), "feed": "/api/runs/pending/events"}
 
     @app.post("/api/projects")
     async def upload_project(files: list[UploadFile] = File(...), paths: list[str] | None = Form(None),
