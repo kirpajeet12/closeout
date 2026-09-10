@@ -173,10 +173,6 @@
   .sheet .cap b { display: block; font-family: var(--mono); font-size: 12px; }
   .sheet .cap span { display: block; font-size: 13px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .sheet .cap small { color: var(--mute); font-size: 12px; }
-  .facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-top: 22px; }
-  .fact { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
-  .fact b { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: .1em; color: var(--mute); font-weight: 600; margin-bottom: 4px; }
-  .fact span { font-size: 15px; }
 
   /* messages tab */
   .msg { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px 22px; margin-top: 12px; }
@@ -320,11 +316,20 @@
   h4.grp { margin: 26px 0 0; font-size: 15px; letter-spacing: -.01em; display: flex; gap: 10px; align-items: baseline; } h4.grp small { color: var(--mute); font-weight: 500; font-size: 13px; }
   h4.grp + .gallery { margin-top: 12px; }
   .sheet .cap i { display: inline-block; font-style: normal; font-size: 11px; color: var(--hot); font-weight: 700; margin-left: 6px; letter-spacing: .06em; }
-  .ask { margin-top: 26px; padding: 20px 22px; border-radius: 18px; background: var(--card); border: 1px solid var(--line-2); box-shadow: 0 10px 30px rgba(18,19,20,.06); }
-  .ask .head { display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
-  .ask .head div { flex: 1; min-width: 220px; }
-  .ask h2 { margin: 0; font-size: 20px; letter-spacing: -.01em; }
-  .ask p.lead { margin: 6px 0 0; color: var(--ink-2); max-width: 66ch; }
+  .strip { margin: 14px 0 0; color: var(--ink-2); font-size: 14px; display: flex; flex-wrap: wrap; align-items: center; }
+  .strip i { font-style: normal; color: var(--mute); margin: 0 9px; }
+  .strip a { color: var(--ink); text-decoration: underline; text-decoration-color: var(--line-2); text-underline-offset: 3px; }
+  .ask { margin-top: 28px; padding: 0; border-radius: 16px; background: var(--card); border: 1px solid var(--line-2); overflow: hidden; }
+  .ask summary { list-style: none; cursor: pointer; display: grid; grid-template-columns: 1fr auto; column-gap: 14px; align-items: center; padding: 14px 18px; }
+  .ask summary::-webkit-details-marker { display: none; }
+  .ask summary b { font-weight: 600; font-size: 15px; letter-spacing: -.005em; }
+  .ask summary span { grid-column: 1; display: block; color: var(--mute); font-size: 13px; margin-top: 2px; }
+  .ask summary i { grid-column: 2; grid-row: 1 / span 2; font-style: normal; font-size: 22px; line-height: 1; color: var(--mute); transition: transform .18s ease; }
+  .ask[open] summary { border-bottom: 1px solid var(--line); }
+  .ask[open] summary i { transform: rotate(90deg); }
+  .ask > :not(summary) { margin-left: 18px; margin-right: 18px; }
+  .ask .head { display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin-top: 16px; }
+  .ask p.lead { flex: 1; min-width: 220px; margin: 0; color: var(--ink-2); max-width: 66ch; }
   .ask .btn { min-height: 40px; align-self: center; }
   .ask ol { list-style: none; margin: 18px 0 0; padding: 0; display: grid; gap: 10px; }
   .ask li { display: grid; grid-template-columns: 34px 1fr; gap: 14px; align-items: start; padding: 12px 14px; border-radius: 12px; background: var(--paper); border: 1px solid var(--line); }
@@ -332,8 +337,8 @@
   .ask li i.ok { background: var(--ready-bg); color: var(--ready); }
   .ask li b { display: block; font-weight: 600; }
   .ask li span { display: block; color: var(--mute); font-size: 13px; margin-top: 3px; }
-  .ask .fine { margin: 14px 0 0; font-size: 12px; color: var(--mute); }
-  @media (max-width: 760px) { .ask { padding: 16px 16px; border-radius: 14px; } .ask h2 { font-size: 18px; } .ask ol { gap: 8px; } .ask li { grid-template-columns: 26px 1fr; gap: 10px; padding: 10px 12px; } .ask li i { width: 26px; height: 26px; border-radius: 8px; font-size: 10px; } .ask li b { font-size: 14px; } .ask li span { font-size: 12px; } }
+  .ask .fine { margin: 14px 18px 16px; font-size: 12px; color: var(--mute); }
+  @media (max-width: 760px) { .ask { border-radius: 14px; } .ask summary { padding: 12px 14px; } .ask > :not(summary) { margin-left: 14px; margin-right: 14px; } .ask .fine { margin: 12px 14px 14px; } .ask ol { gap: 8px; } .ask li { grid-template-columns: 26px 1fr; gap: 10px; padding: 10px 12px; } .ask li i { width: 26px; height: 26px; border-radius: 8px; font-size: 10px; } .ask li b { font-size: 14px; } .ask li span { font-size: 12px; } }
   .filt { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 0 0 14px; }
   .filt select { appearance: none; -webkit-appearance: none; border: 1px solid var(--line-2); background: var(--card) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23777' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 12px center; border-radius: 999px; padding: 8px 30px 8px 14px; font-size: 13px; color: var(--ink); font-family: inherit; max-width: 100%; }
   .filt select.on { border-color: var(--ink); background-color: var(--ink); color: #fff; }
@@ -391,7 +396,7 @@
   .agentdocs li em { display: block; font-style: normal; font-size: 12px; color: var(--ready); margin-top: 4px; }
   .agentdocs .qs li i { background: var(--paper); color: var(--ink); border: 1px solid var(--line-2); } .agentdocs .qs li em { color: var(--mute); }
   .agentdocs .ans { display: flex; gap: 8px; margin-top: 8px; } .agentdocs .ans input { flex: 1; min-width: 0; border: 1px solid var(--line-2); border-radius: 10px; padding: 8px 12px; font: inherit; font-size: 14px; background: var(--card); color: var(--ink); } .agentdocs .ans input:focus { outline: none; border-color: var(--ink); }
-  @media print { body * { visibility: hidden; } .ask, .ask * { visibility: visible; } .ask { position: absolute; left: 0; top: 0; width: 100%; box-shadow: none; border: 0; } .ask .btn { display: none; } }
+  @media print { body * { visibility: hidden; } .ask, .ask * { visibility: visible; } .ask { position: absolute; left: 0; top: 0; width: 100%; box-shadow: none; border: 0; } .ask .btn, .ask summary i { display: none; } }
   .mapbar { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; margin-top: 24px; padding: 14px 18px; border-radius: 14px; background: var(--card); border: 1px dashed var(--line-2); font-size: 14px; color: var(--ink-2); }
   .mapbar .btn { min-height: 40px; }
   .viewer .floors { display: flex; gap: 6px; padding: 8px 14px; background: #121314; border-bottom: 1px solid #2b2d31; overflow-x: auto; align-items: center; }
@@ -623,16 +628,10 @@ function renderDrawings() {
   const byDisc = {};
   pr.sheets.forEach(sh => (byDisc[sh.discipline_name || sh.discipline] = byDisc[sh.discipline_name || sh.discipline] || []).push(sh));
   $("#tab").innerHTML = pr.sheets.length ? `
-    ${pr.description ? `<p style="margin:22px 0 0;max-width:70ch;color:var(--ink-2)">${esc(pr.description)}</p>` : ""}
-    <div class="facts">
-      ${pr.units.length ? `<div class="fact"><b>Units</b><span>${esc(pr.units.map(u => (u.label || u.name || u)).join(", "))}</span></div>` : ""}
-      ${pr.levels.length ? `<div class="fact"><b>Levels</b><span>${esc(pr.levels.map(l => l.name || l).join(", "))}</span></div>` : ""}
-      <div class="fact"><b>Current sheets</b><span>${pr.sheets.length} across ${Object.keys(byDisc).length} discipline${Object.keys(byDisc).length === 1 ? "" : "s"}</span></div>
-      <div class="fact"><b>Files in the folder</b><span>${pr.documents.length} · <a href="${pHash(slug, "/docs")}">Documents</a></span></div>
-    </div>
-    ${renderAsk(pr)}
+    ${renderStrip(pr, byDisc)}
     ${renderHierarchy(pr)}
-    <p class="empty" style="margin-top:22px">Tap a sheet to open it. To record a deficiency on it, start a field review first.</p>`
+    <p class="empty" style="margin-top:18px">Tap a sheet to open it. To record a deficiency on it, start a field review first.</p>
+    ${renderAsk(pr)}`
   : projectDrop("Add the project drawings", "Upload one zip of the project folder, or drop the folder here from a computer. The app files the drawing sets, the agent reads every current sheet, and the drawings still missing are listed here.");
   $("#tab").querySelectorAll(".sheet").forEach(s => s.onclick = () => location.hash = pHash(slug, "/field/" + s.dataset.id));
   const pb = $("#askPrint"); if (pb) pb.onclick = () => print();
@@ -803,18 +802,31 @@ function docsNeeded(pr) {
   for (const d of noDate) out.push({ code: d.code, what: `Issue date and revision of the ${(DISC_NAMES[d.code] || d.name).toLowerCase()} set`, why: "No date could be read from the folder or the file name." });
   return out;
 }
+/* One quiet line above the drawings instead of a description and four cards: the drawings are the point of this tab. */
+function renderStrip(pr, byDisc) {
+  const blds = buildings().length, discs = Object.keys(byDisc).length;
+  const bits = [
+    pr.units.length ? `${pr.units.length} unit${pr.units.length === 1 ? "" : "s"}` : "",
+    blds ? `${blds} building${blds === 1 ? "" : "s"}` : "",
+    `${pr.sheets.length} current sheet${pr.sheets.length === 1 ? "" : "s"} across ${discs} discipline${discs === 1 ? "" : "s"}`,
+    `<a href="${pHash(state.slug, "/docs")}">${pr.documents.length} file${pr.documents.length === 1 ? "" : "s"} in the folder</a>`,
+  ].filter(Boolean);
+  return `<p class="strip">${bits.join('<i>·</i>')}</p>`;
+}
 function renderAsk(pr) {
   const need = docsNeeded(pr);
   const blds = buildings().length, discs = (pr.disciplines || []).length;
   const lead = need.length
     ? `Read off the ${pr.sheets.length} current sheets across ${discs} discipline${discs === 1 ? "" : "s"} and ${blds} building${blds === 1 ? "" : "s"}. Each line is something the folder does not contain yet.`
     : `Every discipline has its floor plans, site plan, notes and schedules and the sets are dated together. Nothing to ask for.`;
-  return `<div class="ask" id="ask">
-    <div class="head"><div><h2>${need.length ? "Ask for these before the first field review" : "The folder is complete for a field review"}</h2><p class="lead">${esc(lead)}</p></div>
+  const title = need.length ? `${need.length} thing${need.length === 1 ? "" : "s"} to ask for before the first field review` : "The folder is complete for a field review";
+  return `<details class="ask" id="ask">
+    <summary><b>${esc(title)}</b><span>${esc(need.length ? "what the folder does not contain yet, read off the sheets" : lead)}</span><i>›</i></summary>
+    <div class="head"><p class="lead">${esc(lead)}</p>
       ${need.length ? `<button class="btn" id="askPrint">Print this list</button>` : ""}</div>
     ${need.length ? `<ol>${need.map(n => `<li><i>${esc(n.code)}</i><div><b>${esc(n.what)}</b><span>${esc(n.why)}</span></div></li>`).join("")}</ol>` : ""}
     <p class="fine">${esc(pr.name)} · ${esc([pr.address, pr.city].filter(Boolean).join(", "))} · written by the app from the sheet readings, not an engineering determination.</p>
-  </div>`;
+  </details>`;
 }
 
 /* ---- Documents tab: the folder as the office keeps it, the revision log, and the occupancy list ------------------ */
