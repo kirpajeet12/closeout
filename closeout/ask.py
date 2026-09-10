@@ -391,5 +391,10 @@ def ask(store: Store, project_id: str, question: str, where: dict | None = None,
     blocks += [{"text": f"QUESTION: {q[:600]}"}, {"text": "Look up what you need, then call answer once."}]
     result = agent(blocks)
     if not ctx.recorded:
-        raise RuntimeError("no answer was recorded" + (f"; last rejection: {ctx.errors[-1]}" if ctx.errors else ""))
+        # Now and then the model replies in plain text instead of calling answer. Use that text rather than
+        # failing the question; it stays a read-only answer with no screen move.
+        plain = str(result).strip() if result is not None else ""
+        if not plain or len(plain) > 1200:
+            raise RuntimeError("no answer was recorded" + (f"; last rejection: {ctx.errors[-1]}" if ctx.errors else ""))
+        ctx.recorded = {"text": plain, "go": None}
     return {**ctx.recorded, "action": ctx.proposed, "usage": _usage(result), "rejections": ctx.errors}

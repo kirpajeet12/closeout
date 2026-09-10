@@ -37,7 +37,12 @@ class FakeAskAgent:
         class R:
             class metrics:
                 accumulated_usage = {"inputTokens": 500, "outputTokens": 60}
+
+            def __str__(self):
+                return FakeAskAgent.plain
         return R()
+
+    plain: str = ""
 
 
 @pytest.fixture
@@ -46,7 +51,22 @@ def asking(client, monkeypatch):  # noqa: F811
     monkeypatch.setattr(ask_mod, "Agent", FakeAskAgent)
     FakeAskAgent.answers, FakeAskAgent.calls, FakeAskAgent.lookups = [], [], []
     FakeAskAgent.proposals, FakeAskAgent.replies = [], []
+    FakeAskAgent.plain = ""
     return client
+
+
+def test_a_plain_text_reply_still_answers_the_question(asking, tmp_path):
+    """Now and then the model answers in text without calling the answer tool; the engineer still gets that text."""
+    slug, _, _ = _finished_review(asking, tmp_path)
+    FakeAskAgent.answers = []
+    FakeAskAgent.plain = "EL-01 is still open; nothing has been received for it.\n"
+    r = asking.post(f"/api/projects/{slug}/ask", json={"question": "what is open?", "where": {"tab": "overview"}})
+    assert r.status_code == 200, r.text
+    assert r.json()["answer"] == "EL-01 is still open; nothing has been received for it." and r.json()["go"] is None
+    # with no text at all the question fails cleanly, and the run says so
+    FakeAskAgent.plain = ""
+    r = asking.post(f"/api/projects/{slug}/ask", json={"question": "what is open?", "where": {"tab": "overview"}})
+    assert r.status_code == 502
 
 
 def test_answer_moves_the_screen_only_to_places_that_exist(asking, tmp_path):

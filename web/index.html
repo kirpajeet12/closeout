@@ -2012,10 +2012,15 @@ const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 function askSay(text) {
   try { window.speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(String(text)); u.lang = "en-CA"; u.rate = 1.02; window.speechSynthesis.speak(u); } catch (e) { /* no voice on this device */ }
 }
-if (SR) {
+const liveReady = () => live.rtcOk && window.RTCPeerConnection && navigator.mediaDevices;
+if (SR || (window.RTCPeerConnection && navigator.mediaDevices)) {
   const mic = $("#askmic"); mic.hidden = false;
   let rec = null;
   mic.onclick = () => {
+    /* The one button beside the box: when the spoken conversation is set up it opens that; otherwise it takes a
+       single spoken question through the phone's own recogniser. */
+    if (liveReady()) { liveStart(); return; }
+    if (!SR) { toast("This browser cannot listen; type the question instead", true); return; }
     if (rec) { rec.stop(); return; }
     try { window.speechSynthesis.cancel(); } catch (e) {}
     rec = new SR(); rec.lang = "en-CA"; rec.interimResults = true; rec.maxAlternatives = 1;
@@ -2255,6 +2260,9 @@ function liveEnd() {
   $("#askbar").classList.remove("live"); liveSet("tap", "Closeout is listening for a question");
 }
 if (SR || (window.RTCPeerConnection && navigator.mediaDevices)) {
+  /* The hands-free loop on the phone's own voice keeps its own button; once the spoken conversation is set up
+     the microphone button opens it, so that button is put away. */
+  voiceStatus().then(() => { $("#asklive").hidden = !!liveReady(); $("#askmic").setAttribute("aria-label", liveReady() ? "Talk with Closeout" : "Speak"); });
   $("#asklive").hidden = false;
   $("#asklive").onclick = liveStart;
   $("#liveend").onclick = liveEnd;
