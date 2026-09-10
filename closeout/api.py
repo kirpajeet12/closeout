@@ -17,7 +17,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterator
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, StreamingResponse
 from pydantic import BaseModel
 
@@ -209,12 +209,20 @@ def project_card(st: Store, prj: dict, active_run_id: str | None) -> dict:
     decisions = {d["item_id"]: d["decision"] for d in st.decisions(pid)}
     m = prj["model"]
     runs = st.runs(pid)
+    reviews, drafts, batches = st.reviews(pid), st.all_drafts(pid), st.batches(pid)
     return {
         "id": pid, "slug": prj["slug"], "name": prj["name"], "address": m.get("address", ""), "city": m.get("city", ""),
         "building_type": m.get("building_type", ""), "sheets": len(st.sheets(pid)), "documents": len(st.documents(pid)),
         "items": len(items), "ready": n["complete"], "needs": n["incomplete"], "unclear": n["needs_clarification"], "nothing": n["no_evidence"],
         "closed": sum(1 for v in decisions.values() if v == "accept"),
         "drops": len(st.batches(pid)), "last_activity": prj["updated_at"],
+        "units": len(m.get("units") or []), "disciplines": sorted({s["discipline"] for s in st.sheets(pid) if s.get("discipline")}),
+        "reviews_active": sum(1 for r in reviews if r["status"] == "active"),
+        "reviews_finished": sum(1 for r in reviews if r["status"] == "finished"),
+        "messages": len(drafts), "last_message_at": max((d["updated_at"] or d["created_at"] for d in drafts), default=None),
+        "links": sum(1 for sh in st.shares(pid) if not sh["revoked_at"]),
+        "last_drop_at": batches[-1]["created_at"] if batches else None,
+        "from_contractor": sum(1 for b in batches if b.get("via")),
         "latest_run": {k: latest[k] for k in ("id", "status", "started_at", "finished_at")} if latest else None,
         "active": bool(active_run_id) and any(r["id"] == active_run_id for r in runs),
         "created_at": prj["created_at"],
@@ -380,7 +388,8 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
                 "runs": runs, "latest_run_id": latest, "active_run_id": active if any(r["id"] == active for r in runs) else None,
                 "packet": build_packet(st, latest) if latest else None, "batches": batches,
                 "messages": st.all_drafts(pid), "decisions": st.decisions(pid), "model_id": settings.model_id,
-                "reviews": st.reviews(pid), "docs_review": prj.get("docs_review"), "docs_scope": prj.get("docs_scope") or [],
+                "reviews": st.reviews(pid), "shares": st.shares(pid), "office": settings.office,
+                "docs_review": prj.get("docs_review"), "docs_scope": prj.get("docs_scope") or [],
                 "occupancy_docs": [list(row) for row in documents_mod.OCCUPANCY_DOCS]}
 
     @app.get("/api/sheets/{sheet_id}/image")
@@ -618,6 +627,110 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         st.set_review_package(review_id, pkg)
         message, error = (st.draft_for_review(review_id), None) if st.draft_for_review(review_id) else _draft_review_message(st, prj, review_id)
         return {"review": st.review(review_id), "package": pkg, "message": message, "error": error}
+
+    LINK_LINE = "Send your photos and documents through this link: "
+
+    def _share_url(request: Request, token: str) -> str:
+        base = str(request.base_url).rstrip("/")
+        return f"{base}/c/{token}"
+
+    @app.post("/api/projects/{slug}/reviews/{review_id}/share")
+    def share_review(slug: str, review_id: str, request: Request) -> dict:
+        """The contractor's link for one finished review: they open it, see the items, and send evidence back through it.
+        The covering message gets the link added so the engineer can copy it as is. Nothing is sent by the app."""
+        st = store()
+        prj = _project(st, slug)
+        r = st.review(review_id)
+        if not r or r["project_id"] != prj["id"]:
+            raise HTTPException(404, "no such review")
+        if r["status"] != "finished":
+            raise HTTPException(409, "finish the field review first")
+        share = st.share_for_review(review_id) or st.create_share(prj["id"], review_id)
+        url = _share_url(request, share["id"])
+        msg = st.draft_for_review(review_id)
+        if msg and "/c/" not in msg["body"]:
+            st.update_draft(msg["id"], body=msg["body"].rstrip() + "\n\n" + LINK_LINE + url)
+        st.touch_project(prj["id"])
+        return {"share": share, "url": url, "message": st.draft_for_review(review_id)}
+
+    @app.delete("/api/projects/{slug}/shares/{token}")
+    def revoke_share(slug: str, token: str) -> dict:
+        st = store()
+        prj = _project(st, slug)
+        sh = st.share(token)
+        if not sh or sh["project_id"] != prj["id"]:
+            raise HTTPException(404, "no such link")
+        st.revoke_share(token)
+        return {"share": st.share(token)}
+
+    def _contractor_share(st: Store, token: str) -> tuple[dict, dict]:
+        sh = st.share(token)
+        if not sh:
+            raise HTTPException(404, "this link is not known")
+        prj = st.project(sh["project_id"])
+        if not prj:
+            raise HTTPException(404, "this link is not known")
+        return sh, prj
+
+    @app.get("/api/c/{token}")
+    def contractor_view(token: str) -> dict:
+        """What the contractor sees: the review's items with where each stands, and what they have sent so far.
+        No decisions, no other reviews, no drafts: only their own package."""
+        st = store()
+        sh, prj = _contractor_share(st, token)
+        pid = prj["id"]
+        rv = st.review(sh["review_id"]) or {}
+        pkg = rv.get("package") or {}
+        if sh["revoked_at"]:
+            return {"active": False, "project": {"name": prj["name"]}, "office": settings.office, "review": None, "items": [], "drops": []}
+        batch_runs = st.runs(pid, kind="batch")
+        latest = batch_runs[-1] if batch_runs else None
+        status = st.item_status_for_run(latest["id"]) if latest else {}
+        decisions = {d["item_id"]: d["decision"] for d in st.decisions(pid)}
+        items = []
+        for it in pkg.get("items", []):
+            stt = status.get(it["item_id"]) or {}
+            items.append({"item": {k: it.get(k, "") for k in ("item_id", "location", "description", "evidence_required", "sheet", "unit", "level", "space")},
+                          "completeness": "complete" if decisions.get(it["item_id"]) == "accept" else stt.get("completeness", "no_evidence"),
+                          "missing_slots": stt.get("missing_slots", it.get("slots") or []), "closed": decisions.get(it["item_id"]) == "accept"})
+        runs = st.runs(pid)
+        drops = []
+        for b in st.batches(pid):
+            if b.get("via") != token:
+                continue
+            last = [r for r in runs if r["batch_id"] == b["id"]]
+            drops.append({"label": b["label"], "created_at": b["created_at"], "files": len(st.batch_files(b["id"])),
+                          "status": last[-1]["status"] if last else "queued"})
+        return {"active": True, "project": {"name": prj["name"]}, "office": settings.office,
+                "review": {"title": rv.get("title", ""), "discipline_name": pkg.get("discipline_name", ""), "finished_at": rv.get("finished_at"), "count": len(items)},
+                "items": items, "drops": drops, "busy": bool(state["active"]) or bool(pending)}
+
+    @app.post("/api/c/{token}/batches")
+    async def contractor_upload(token: str, files: list[UploadFile] = File(...), paths: list[str] | None = Form(None)) -> dict:
+        """The contractor sends photos and documents back through their link; they are filed like any other drop."""
+        st = store()
+        sh, prj = _contractor_share(st, token)
+        if sh["revoked_at"]:
+            raise HTTPException(410, "this link is no longer active")
+        feed = _reserve()
+        try:
+            label = f"from-contractor-{_stamp()}"
+            root, _ = await _save_upload(files, paths, label)
+            file_list = _sorted_files(root)
+        except Exception:
+            _release(feed)
+            raise
+
+        def target(progress):
+            def tagged(event, data):
+                if event == "ingested" and data.get("batch_id"):
+                    store().set_batch_via(data["batch_id"], token)
+                progress(event, data)
+            pipeline.process_batch(store(), prj["id"], file_list, label, settings, progress=tagged, root=root)
+
+        feed.push("uploaded", {"label": label, "files": len(file_list), "folder": str(root)})
+        _launch(target, feed)
+        return {"label": label, "files": len(file_list), "feed": "/api/runs/pending/events"}
 
     @app.post("/api/projects/{slug}/reviews/{review_id}/message")
     def redraft_review_message(slug: str, review_id: str) -> dict:
@@ -902,6 +1015,10 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         return {"decision_id": st.add_decision(pid, item_id, body.decision, body.note)}
 
     # --- UI -------------------------------------------------------------
+    @app.get("/c/{token}", include_in_schema=False)
+    def contractor_page(token: str):
+        return index()
+
     @app.get("/", include_in_schema=False)
     def index():
         page = WEB_DIR / "index.html"

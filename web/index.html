@@ -37,6 +37,50 @@
   .pcard .big { font-size: 40px; font-weight: 700; letter-spacing: -.03em; line-height: 1; margin-top: auto; }
   .pcard .big small { font-size: 14px; font-weight: 500; letter-spacing: 0; color: var(--ink-2); margin-left: 8px; }
   .pcard .meta { display: flex; gap: 14px; flex-wrap: wrap; color: var(--mute); font-size: 12px; margin-top: 4px; }
+  .pcard .facts { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 6px; font-size: 12px; color: var(--mute); }
+  .pcard .facts b { display: block; font-size: 16px; color: var(--ink); letter-spacing: -.01em; line-height: 1.1; }
+  /* overview */
+  .ov { padding-top: 26px; }
+  .ov-hero { display: grid; grid-template-columns: 1.1fr 1fr; gap: 28px; align-items: stretch; }
+  .ov-hero .bar { height: 10px; margin-top: 26px; }
+  .ov-next { background: var(--ink); color: #fff; border-radius: 18px; padding: 24px 26px; display: flex; flex-direction: column; justify-content: space-between; gap: 16px; min-height: 190px; }
+  .ov-next .k { font-size: 11px; text-transform: uppercase; letter-spacing: .14em; color: rgba(255,255,255,.55); font-weight: 700; }
+  .ov-next h2 { margin: 8px 0 0; font-size: 26px; letter-spacing: -.02em; line-height: 1.15; }
+  .ov-next p { margin: 10px 0 0; color: rgba(255,255,255,.72); font-size: 14px; max-width: 42ch; line-height: 1.45; }
+  .ov-next a { color: #fff; font-weight: 600; font-size: 14px; align-self: flex-start; border-bottom: 1px solid rgba(255,255,255,.4); }
+  .ov-next a:hover { text-decoration: none; border-bottom-color: #fff; } .ov-next a::after { content: " →"; }
+  .ov-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-top: 22px; }
+  .ov-card { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 20px 22px 18px; display: flex; flex-direction: column; }
+  .ov-card h3 { margin: 0 0 10px; font-size: 11px; text-transform: uppercase; letter-spacing: .14em; color: var(--mute); font-weight: 700; }
+  .ov-card .line { display: flex; justify-content: space-between; gap: 14px; padding: 9px 0; border-top: 1px solid var(--line); font-size: 14px; }
+  .ov-card .line:first-of-type { border-top: 0; padding-top: 2px; }
+  .ov-card .line b { font-weight: 600; } .ov-card .line > span { color: var(--ink-2); text-align: right; flex: none; max-width: 55%; }
+  .ov-card .line small { display: block; color: var(--mute); font-weight: 400; font-size: 12px; margin-top: 2px; }
+  .ov-card .empty { padding: 2px 0 8px; font-size: 14px; }
+  .ov-card .more { display: block; margin-top: auto; padding-top: 12px; font-size: 13px; font-weight: 600; }
+  /* deficiencies: where evidence comes from now */
+  .inbox { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 22px 24px; display: flex; flex-direction: column; gap: 6px; }
+  .inbox .k { font-size: 11px; text-transform: uppercase; letter-spacing: .14em; color: var(--hot); font-weight: 700; }
+  .inbox h2 { margin: 2px 0 0; font-size: 22px; letter-spacing: -.01em; } .inbox p { margin: 0; color: var(--mute); font-size: 14px; max-width: 40ch; line-height: 1.45; }
+  .inbox a { margin-top: auto; padding-top: 10px; font-weight: 600; font-size: 14px; } .inbox a::after { content: " →"; }
+  /* messages: the contractor link */
+  .msg .link { margin-top: 14px; padding: 14px 16px; border-radius: 12px; background: var(--paper); border: 1px solid var(--line); display: flex; justify-content: space-between; gap: 14px; align-items: center; flex-wrap: wrap; }
+  .msg .link.on { border-color: var(--ready); background: var(--ready-bg); }
+  .msg .link > div:first-child { flex: 1; min-width: 240px; } .msg .link b { display: block; font-size: 14px; }
+  .msg .link small { display: block; color: var(--mute); font-size: 12px; margin-top: 4px; max-width: 60ch; }
+  .msg .link input { width: 100%; margin-top: 6px; font: inherit; font-size: 13px; font-family: var(--mono); border: 1px solid var(--line-2); border-radius: 8px; padding: 7px 10px; background: #fff; color: var(--ink); }
+  .msg .link .acts { display: flex; gap: 8px; flex-wrap: wrap; } .msg .link .btn.quiet { color: var(--mute); border-color: transparent; }
+  .btn.primary { background: var(--ink); color: #fff; border-color: var(--ink); }
+  /* the contractor's page */
+  body.contractor .wordmark a { pointer-events: none; }
+  .ct { max-width: 760px; }
+  .ct .ct-lead { color: var(--ink-2); font-size: 16px; line-height: 1.5; margin: 14px 0 20px; max-width: 60ch; }
+  .ct .drop.big { min-height: 150px; }
+  .ct .ct-pk { margin-top: 22px; border-top: 1px solid var(--line); }
+  .ct .ct-pk .row { display: grid; grid-template-columns: 58px 1fr auto; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--line); font-size: 15px; align-items: start; }
+  .ct .ct-pk .row .id { font-family: var(--mono); font-weight: 700; color: var(--hot); }
+  .ct .ct-pk .row small { display: block; color: var(--mute); margin-top: 3px; font-size: 13px; }
+  @media (max-width: 760px) { .ov-hero { grid-template-columns: 1fr; } .ct .ct-pk .row { grid-template-columns: 52px 1fr; } .ct .ct-pk .row .pill { grid-column: 2; justify-self: start; } }
   .pcard .live { position: absolute; top: 18px; right: 18px; width: 10px; height: 10px; border-radius: 50%; background: var(--hot); animation: pulse 1s infinite alternate; }
   .bar { display: flex; height: 8px; border-radius: 6px; overflow: hidden; background: var(--none-bg); }
   .bar i { display: block; height: 100%; }
@@ -130,6 +174,7 @@
   .drop.small h2 { font-size: 15px; margin: 0; } .drop.small p { font-size: 13px; max-width: none; }
   .drops { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }
 
+  .status[hidden] { display: none; }
   .status { display: flex; align-items: center; gap: 12px; padding: 14px 18px; margin: 14px 0 0; border-radius: 12px; background: var(--card); border: 1px solid var(--line); font-size: 14px; }
   .status .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--none); flex: none; }
   .status.run .dot { background: var(--hot); animation: pulse 1s infinite alternate; }
@@ -469,10 +514,11 @@ const state = { home: null, p: null, slug: null, es: null, run: { kind: "idle", 
 
 function toast(msg, err) { const t = $("#toast"); t.textContent = msg; t.className = "toast show" + (err ? " err" : ""); setTimeout(() => t.className = "toast", 3200); }
 function route() {
+  const c = location.pathname.match(/^\/c\/([^/]+)/); if (c) return { page: "contractor", token: decodeURIComponent(c[1]) };
   const h = location.hash.replace(/^#\/?/, "");
   let m = h.match(/^p\/([^/]+)\/item\/(.+)$/); if (m) return { page: "item", slug: m[1], id: decodeURIComponent(m[2]) };
   m = h.match(/^p\/([^/]+)\/field\/([^/]+)$/); if (m) return { page: "sheet", slug: m[1], sheetId: m[2] };
-  m = h.match(/^p\/([^/]+)\/?(drawings|docs|field|evidence|messages)?$/); if (m) return { page: "project", slug: m[1], tab: m[2] || "list" };
+  m = h.match(/^p\/([^/]+)\/?(deficiencies|drawings|docs|field|evidence|messages)?$/); if (m) return { page: "project", slug: m[1], tab: m[2] === "evidence" ? "messages" : m[2] === "deficiencies" ? "list" : m[2] || "overview" };
   return { page: "home" };
 }
 const pUrl = (slug, tail) => `/api/projects/${encodeURIComponent(slug)}${tail || ""}`;
@@ -497,6 +543,11 @@ function items() {
 /* ---- data ----------------------------------------------------------- */
 async function load() {
   const r = route();
+  if (r.page === "contractor") {
+    const res = await fetch(`/api/c/${encodeURIComponent(r.token)}`);
+    state.p = res.ok ? await res.json() : null; state.slug = r.token;
+    render(); return;
+  }
   if (r.page === "home") {
     state.home = await (await fetch("/api/projects")).json();
     if (state.home.active_run_id && !state.es) follow(state.home.active_run_id);
@@ -513,6 +564,7 @@ function render() {
   const inP = r.page !== "home" && p;
   document.body.classList.toggle("viewing", r.page === "sheet" && !!p);
   $("#crumbs").innerHTML = inP ? `<a href="#/">Projects</a><span>›</span><b>${esc(p.project.name)}</b>${r.page === "item" ? `<span>›</span><span>${esc(r.id)}</span>` : ""}` : `<span>${state.home ? `${state.home.projects.length} project${state.home.projects.length === 1 ? "" : "s"}` : ""}</span>`;
+  if (r.page === "contractor") { document.body.classList.add("contractor"); $("#crumbs").innerHTML = p ? `<span>${esc(p.project.name)}</span>` : ""; renderContractor(); return; }
   if (r.page === "home") renderHome();
   else if (!p) $("#main").innerHTML = `<a class="back" href="#/">← Projects</a><p class="empty">That project is not here.</p>`;
   else if (r.page === "item") renderItem(r.id);
@@ -521,6 +573,16 @@ function render() {
 }
 
 /* ---- projects home --------------------------------------------------- */
+function cardLast(c) {
+  const bits = [];
+  if (c.reviews_active) bits.push(`${c.reviews_active} review${c.reviews_active === 1 ? "" : "s"} in progress`);
+  if (c.links) bits.push(`${c.links} contractor link${c.links === 1 ? "" : "s"} active`);
+  const lastD = c.last_drop_at || "", lastM = c.last_message_at || "";
+  if (lastD && lastD >= lastM) bits.push(`evidence in ${esc(when(lastD))}`);
+  else if (lastM) bits.push(`message drafted ${esc(when(lastM))}`);
+  else if (c.last_activity) bits.push(`updated ${esc(when(c.last_activity))}`);
+  return bits.map(b => `<span>${b}</span>`).join("");
+}
 function renderHome() {
   const h = state.home, list = h.projects;
   $("#main").innerHTML = `
@@ -531,10 +593,11 @@ function renderHome() {
       <div class="pcard" data-slug="${esc(c.slug)}">
         ${c.active ? `<span class="live" title="Working"></span>` : ""}
         <h2>${esc(c.name)}</h2>
-        <div class="addr">${esc([c.address, c.city].filter(Boolean).join(", ") || (c.sheets ? "" : "No drawings yet"))}</div>
+        <div class="addr">${esc([[c.address, c.city].filter(Boolean).join(", "), c.building_type].filter(Boolean).join(" · ") || (c.sheets ? "" : "No drawings yet"))}</div>
         <div class="big">${c.ready}<small>of ${c.items} ready to close</small></div>
         <div class="bar"><i class="ready" style="width:${pct("ready")}"></i><i class="needs" style="width:${pct("needs")}"></i><i class="unclear" style="width:${pct("unclear")}"></i></div>
-        <div class="meta"><span>${c.sheets} sheets</span><span>${c.items} deficiencies</span><span>${c.drops} evidence drop${c.drops === 1 ? "" : "s"}</span><span>${c.last_activity ? "updated " + esc(when(c.last_activity)) : ""}</span></div>
+        <div class="facts"><span><b>${c.units}</b>unit${c.units === 1 ? "" : "s"}</span><span><b>${c.sheets}</b>sheet${c.sheets === 1 ? "" : "s"}</span><span><b>${c.reviews_active + c.reviews_finished}</b>field review${c.reviews_active + c.reviews_finished === 1 ? "" : "s"}</span><span><b>${c.drops}</b>drop${c.drops === 1 ? "" : "s"}</span></div>
+        <div class="meta">${cardLast(c)}</div>
       </div>`; }).join("")}
       <div class="newp" id="newp">
         <div><span class="np-k">New project</span><h2 class="np-t">Send the whole folder once.</h2></div>
@@ -562,16 +625,69 @@ function renderHome() {
 /* ---- project page ----------------------------------------------------- */
 function renderProject(tab) {
   const p = state.p, pr = p.project, c = p.card, slug = state.slug;
-  const T = { list: "Deficiencies", field: "Field review", drawings: "Drawings", docs: "Documents", evidence: "Evidence drops", messages: "Messages" };
-  const counts = { list: c.items, field: p.reviews.filter(r => r.status === "active").length || p.reviews.length, drawings: c.sheets, docs: (pr.documents || []).length, evidence: c.drops, messages: p.messages.length };
+  const T = { overview: "Overview", list: "Deficiencies", field: "Field review", drawings: "Drawings", docs: "Documents", messages: "Messages" };
+  const counts = { overview: null, list: c.items, field: p.reviews.filter(r => r.status === "active").length || p.reviews.length, drawings: c.sheets, docs: (pr.documents || []).length, messages: p.messages.length + c.drops };
   $("#main").innerHTML = `
     <div class="phead">
       <div><h1>${esc(pr.name)}</h1><div class="sub">${esc([pr.address, pr.city, pr.building_type].filter(Boolean).join(" · ") || "No drawings read yet")}</div></div>
       ${p.latest_run_id ? `<a class="btn" href="/api/runs/${p.latest_run_id}/packet.md" target="_blank">Review report</a>` : ""}
     </div>
-    <div class="tabs">${Object.keys(T).map(k => `<a href="${pHash(slug, k === "list" ? "" : "/" + k)}" class="${tab === k ? "on" : ""}">${T[k]}<small>${counts[k]}</small></a>`).join("")}</div>
+    <div class="tabs">${Object.keys(T).map(k => `<a href="${pHash(slug, k === "overview" ? "" : k === "list" ? "/deficiencies" : "/" + k)}" class="${tab === k ? "on" : ""}">${T[k]}${counts[k] == null ? "" : `<small>${counts[k]}</small>`}</a>`).join("")}</div>
     <div id="tab"></div>`;
-  ({ list: renderList, field: renderField, drawings: renderDrawings, docs: renderDocs, evidence: renderDrops, messages: renderMessages })[tab]();
+  ({ overview: renderOverview, list: renderList, field: renderField, drawings: renderDrawings, docs: renderDocs, messages: renderMessages })[tab]();
+}
+
+function renderOverview() {
+  const p = state.p, pr = p.project, c = p.card, slug = state.slug, all = items(), blds = buildings();
+  const n = { ready: 0, needs: 0, unclear: 0, none: 0 }; all.forEach(i => n[status(i).k]++);
+  const pct = k => all.length ? (n[k] / all.length * 100) + "%" : "0%";
+  const plural = (k, one, many) => `${k} ${k === 1 ? one : many || one + "s"}`;
+  const active = p.reviews.filter(r => r.status === "active"), done = p.reviews.filter(r => r.status === "finished");
+  const linkFor = r => p.shares.find(x => x.review_id === r.id && !x.revoked_at);
+  const drops = p.batches, fromC = drops.filter(b => b.via).length, lastDrop = drops[drops.length - 1];
+  const msgs = [...p.messages].sort((a, b) => (b.updated_at || b.created_at).localeCompare(a.updated_at || a.created_at)), lastMsg = msgs[0];
+  const discs = disciplines();
+  let next;
+  if (!pr.sheets.length) next = { t: "Add the project drawings", s: "Upload the project folder or its zip on Drawings. The current sheets are read, and the units and floors come from them.", h: "/drawings", a: "Drawings" };
+  else if (!p.register.length) next = { t: "Start the first field review", s: "Walk the site with the phone: photo, pin, note. Every item is numbered on its sheet.", h: "/field", a: "Field review" };
+  else if (active.length) next = { t: `Finish ${active[0].title}`, s: "Finishing freezes the list for the contractor and drafts the covering message.", h: "/field", a: "Field review" };
+  else if (done.some(r => r.package && r.package.count && !linkFor(r))) next = { t: "Send the review to the contractor", s: "Create the contractor's link on Messages, then copy the message into your email. What they send comes back through the link.", h: "/messages", a: "Messages" };
+  else if (n.ready) next = { t: `Decide on ${plural(n.ready, "ready item")}`, s: "Open each one, check what came back, and mark it ready to close or not accepted.", h: "/deficiencies", a: "Deficiencies" };
+  else if (all.length) next = { t: "Waiting on the contractor", s: `${plural(all.length - n.ready, "item")} still need evidence. It arrives through the contractor's link and is filed to the item it belongs to.`, h: "/messages", a: "Messages" };
+  else next = { t: "Start a field review", s: "Walk the site with the phone: photo, pin, note.", h: "/field", a: "Field review" };
+  const unitsOf = b => b.units.map(u => u.label.replace(/^unit\s+/i, "").replace(/\s*\(.*\)\s*$/, "")).join(", ");
+  $("#tab").innerHTML = `
+    <div class="ov">
+      <div class="ov-hero">
+        <div>
+          <p class="count">${n.ready} of ${all.length}<small>ready to close</small></p>
+          <div class="bar"><i class="ready" style="width:${pct("ready")}"></i><i class="needs" style="width:${pct("needs")}"></i><i class="unclear" style="width:${pct("unclear")}"></i></div>
+          <div class="legend"><span><i style="background:var(--ready)"></i>${n.ready} ready</span><span><i style="background:var(--needs)"></i>${n.needs} need something</span><span><i style="background:var(--unclear)"></i>${n.unclear} unclear</span><span><i style="background:var(--none-bg);border:1px solid var(--line-2)"></i>${n.none} nothing yet</span></div>
+        </div>
+        <div class="ov-next"><div><span class="k">Next</span><h2>${esc(next.t)}</h2><p>${esc(next.s)}</p></div><a href="${pHash(slug, next.h)}">${esc(next.a)}</a></div>
+      </div>
+      <div class="ov-grid">
+        <div class="ov-card"><h3>The site</h3>
+          ${pr.address || pr.city || pr.building_type ? `<div class="line"><b>${esc([pr.address, pr.city].filter(Boolean).join(", ") || "Address not read yet")}</b><span>${esc(pr.building_type || "")}</span></div>` : ""}
+          ${blds.length ? blds.map(b => `<div class="line"><b>${esc(b.name)}${b.fromDrawings ? "<small>named only on the drawings</small>" : ""}</b><span>${b.units.length ? `Unit${b.units.length === 1 ? "" : "s"} ${esc(unitsOf(b))}` : ""}${b.levels.length ? `<small>${esc(b.levels.join(" · "))}</small>` : ""}</span></div>`).join("")
+          : `<p class="empty">${pr.sheets.length ? "No units or buildings were read from the sheets." : "Nothing read yet. Add the drawings and the buildings, units and floors appear here."}</p>`}
+          ${discs.length ? `<div class="line"><b>Drawings</b><span>${discs.map(d => `${esc(d.name)} ${d.sheets.length}`).join(" · ")}</span></div>` : ""}
+          <a class="more" href="${pHash(slug, "/drawings")}">Drawings ›</a>
+        </div>
+        <div class="ov-card"><h3>Field reviews</h3>
+          ${p.reviews.length ? [...p.reviews].reverse().map(r => { const disc = (discs.find(d => d.code === r.discipline) || {}).name || r.discipline, k = findingsIn(r.id).length; return `<div class="line"><b>${esc(r.title)}<small>${esc(disc)} · ${plural(k, "item")}</small></b><span>${r.status === "active" ? "In progress" : "Finished"}<small>${esc(when(r.finished_at || r.started_at))}</small></span></div>`; }).join("")
+          : `<p class="empty">None yet. The first walk starts on the Field review tab.</p>`}
+          <a class="more" href="${pHash(slug, "/field")}">Field review ›</a>
+        </div>
+        <div class="ov-card"><h3>With the contractor</h3>
+          <div class="line"><b>Messages</b><span>${msgs.length ? `${plural(msgs.length, "draft")}<small>last ${esc(when(lastMsg.updated_at || lastMsg.created_at))}</small>` : "None drafted yet"}</span></div>
+          <div class="line"><b>Contractor links</b><span>${c.links ? `${plural(c.links, "link")} active` : "None yet"}</span></div>
+          <div class="line"><b>Evidence received</b><span>${drops.length ? `${plural(drops.length, "drop")}${fromC ? `, ${fromC} through the link` : ""}<small>last ${esc(when(lastDrop.created_at))}</small>` : "Nothing yet"}</span></div>
+          <div class="line"><b>Closed</b><span>${c.closed ? `${plural(c.closed, "item")} accepted` : "None yet"}</span></div>
+          <a class="more" href="${pHash(slug, "/messages")}">Messages ›</a>
+        </div>
+      </div>
+    </div>`;
 }
 
 function itemBuilding(d, blds) {
@@ -599,11 +715,15 @@ function renderList() {
         <div class="bar"><i class="ready" style="width:${pct("ready")}"></i><i class="needs" style="width:${pct("needs")}"></i><i class="unclear" style="width:${pct("unclear")}"></i></div>
         <div class="legend"><span><i style="background:var(--ready)"></i>${n.ready} ready</span><span><i style="background:var(--needs)"></i>${n.needs} need something</span><span><i style="background:var(--unclear)"></i>${n.unclear} unclear</span><span><i style="background:var(--none-bg);border:1px solid var(--line-2)"></i>${n.none} nothing yet</span></div>
       </div>
-      <div class="drop big" id="dropEv"><div class="arrow">↓</div><h2>Drop evidence</h2><p>${p.register.length ? "Drag the contractor's folder of photos, reports and letters here, or upload it as one zip. Each file is matched to the item it belongs to." : "Load the deficiency list first, then drop what the contractor sends."}</p><input type="file" webkitdirectory multiple>${zipBtn("Upload a zip")}</div>
+      <div class="inbox">
+        <span class="k">Evidence</span>
+        <h2>${p.batches.length ? `${p.batches.length} drop${p.batches.length === 1 ? "" : "s"} filed` : "Nothing back yet"}</h2>
+        <p>${p.batches.length ? `Last ${esc(when(p.batches[p.batches.length - 1].created_at))}${p.batches[p.batches.length - 1].via ? ", through the contractor's link" : ""}. Each file is filed to the item it belongs to.` : p.register.length ? "Finish a field review, share the contractor's link, and what they send lands here filed to the right item." : "Load the deficiency list, or start a field review, to have something to close."}</p>
+        <a href="${pHash(slug, "/messages")}">Messages and evidence</a>
+      </div>
     </div>
     <div class="drops">
-      <div class="drop small" id="dropReg"><div><h2>Deficiency list</h2><p>${p.register.length ? `${p.register.length} items loaded. Drop a folder with the CSV and photos to replace it.` : "Drop a folder with the register CSV and the field-review photos."}</p></div><input type="file" webkitdirectory multiple>${zipBtn("Zip")}</div>
-      <div class="drop small" id="dropPrj"><div><h2>Project drawings</h2><p>${p.project.sheets.length ? `${p.project.sheets.length} sheets read. Drop a project folder to replace them.` : "Drop the project folder. Every current sheet is read so locations resolve to real rooms."}</p></div><input type="file" webkitdirectory multiple>${zipBtn("Zip")}</div>
+      <div class="drop small" id="dropReg"><div><h2>Deficiency list from a file</h2><p>${p.register.length ? `${p.register.length} items on the list. Drop a folder with the CSV and photos to replace it.` : "Have a register already? Drop a folder with the CSV and the field-review photos, or upload it as a zip."}</p></div><input type="file" webkitdirectory multiple>${zipBtn("Zip")}</div>
     </div>
     <div class="status ${esc(state.run.kind)}" id="status"></div>
     <h3 class="sec">Deficiencies</h3>
@@ -630,7 +750,7 @@ function renderList() {
   $("#tab").querySelectorAll("tr.row").forEach(r => r.onclick = () => location.hash = pHash(slug, "/item/" + encodeURIComponent(r.dataset.id)));
   [["fBld", "bld"], ["fDisc", "disc"], ["fRv", "rv"]].forEach(([id, k]) => { const el = $("#" + id); if (el) el.onchange = () => { state.filters[k] = el.value; renderList(); }; });
   const fc = $("#fClear"); if (fc) fc.onclick = () => { state.filters = { bld: "", disc: "", rv: "" }; renderList(); };
-  wireDrop($("#dropEv"), "batch", slug); wireDrop($("#dropReg"), "register", slug); wireDrop($("#dropPrj"), "drawings", slug);
+  wireDrop($("#dropReg"), "register", slug);
   renderStatus();
 }
 function leftover(u) {
@@ -956,36 +1076,79 @@ function renderOccupancy(pr) {
   </div>`;
 }
 
-function renderDrops() {
-  const p = state.p, slug = state.slug;
-  const rows = [...p.batches].reverse();
-  $("#tab").innerHTML = `
-    <div class="drop small" id="dropEv" style="margin-top:22px"><div><h2>Drop evidence</h2><p>Each folder the contractor sends is kept as its own drop. Files already on record are recognised and not re-read.</p></div><input type="file" webkitdirectory multiple></div>
-    <div class="status ${esc(state.run.kind)}" id="status"></div>
-    ${rows.length ? `<table style="margin-top:22px"><thead><tr><th>Drop</th><th>When</th><th>Files</th><th>Status</th></tr></thead><tbody>
-      ${rows.map(b => { const r = b.runs[b.runs.length - 1]; return `<tr>
-        <td><div class="what">${esc(b.label)}</div></td>
-        <td class="num">${esc(when(b.created_at))}</td>
-        <td class="num">${b.files}${b.duplicates ? ` <span style="color:var(--mute)">(${b.duplicates} already on record)</span>` : ""}</td>
-        <td>${r ? `<span class="pill ${r.status === "done" ? "ready" : r.status === "failed" ? "needs" : "unclear"}">${r.status === "done" ? "Filed" : r.status === "failed" ? "Needs another try" : "Filing…"}</span> ${r.status === "failed" ? `<button class="btn" data-retry="${r.id}">Try again</button>` : ""} <a href="/api/runs/${r.id}/packet.md" target="_blank" style="font-size:13px">Report</a>` : "—"}</td>
-</tr>`; }).join("")}
-    </tbody></table>` : `<p class="empty">No evidence dropped yet.</p>`}`;
-  $("#tab").querySelectorAll("[data-retry]").forEach(b => b.onclick = () => retry(b.dataset.retry));
-  wireDrop($("#dropEv"), "batch", slug); renderStatus();
-}
-
 function renderMessages() {
   const p = state.p, slug = state.slug;
+  const linkFor = rid => p.shares.find(x => x.review_id === rid && !x.revoked_at);
+  const latestFor = {}; p.messages.forEach(m => { if (m.review_id && (!latestFor[m.review_id] || (m.updated_at || m.created_at) > (latestFor[m.review_id].updated_at || latestFor[m.review_id].created_at))) latestFor[m.review_id] = m; });
   const about = m => {
     if (!m.review_id) return `To the contractor about <a href="${pHash(slug, "/item/" + encodeURIComponent(m.item_id))}">${esc(m.item_id)}</a>`;
     const r = p.reviews.find(x => x.id === m.review_id), disc = r && (disciplines().find(d => d.code === r.discipline) || {}).name;
-    return `To the contractor after <a href="${pHash(slug, "/field")}" data-rv="${esc(m.review_id)}">${esc(r ? r.title : "a field review")}${disc ? " (" + esc(disc) + ")" : ""}</a>${r && r.package ? ` · ${r.package.count} item${r.package.count === 1 ? "" : "s"}` : ""} · ${m.status === "edited" ? "edited by you" : "drafted for you"} · not sent yet`;
+    return `To the contractor after <a href="${pHash(slug, "/field")}" data-rv="${esc(m.review_id)}">${esc(r ? r.title : "a field review")}${disc ? " (" + esc(disc) + ")" : ""}</a>${r && r.package ? ` · ${r.package.count} item${r.package.count === 1 ? "" : "s"}` : ""}`;
   };
-  $("#tab").innerHTML = p.messages.length ? p.messages.map(m => `
+  const linkBlock = m => {
+    if (!m.review_id || latestFor[m.review_id] !== m) return "";
+    const r = p.reviews.find(x => x.id === m.review_id); if (!r || r.status !== "finished") return "";
+    const sh = linkFor(m.review_id);
+    if (!sh) return `<div class="link"><div><b>Contractor link</b><small>They open it, see these items, and send photos and documents back through it. The link is added to the message above for you to copy.</small></div><button class="btn primary" data-share="${esc(r.id)}">Create the link</button></div>`;
+    const url = location.origin + "/c/" + sh.id, ds = p.batches.filter(b => b.via === sh.id);
+    return `<div class="link on"><div><b>Contractor link · active</b><input readonly value="${esc(url)}" onclick="this.select()"><small>${ds.length ? `${ds.length} drop${ds.length === 1 ? "" : "s"} came back through it, last ${esc(when(ds[ds.length - 1].created_at))}.` : "Nothing has come back through it yet."}</small></div>
+      <div class="acts"><button class="btn" data-copy="${esc(url)}">Copy link</button><a class="btn" href="${esc(url)}" target="_blank" rel="noopener">Open as the contractor</a><button class="btn quiet" data-revoke="${esc(sh.id)}">Turn off</button></div></div>`;
+  };
+  const rows = [...p.batches].reverse();
+  $("#tab").innerHTML = `
+    ${p.messages.length ? p.messages.map(m => `
     <div class="msg"><div class="top"><span>${about(m)}</span><span>${esc(when(m.updated_at || m.created_at))}</span></div>
-      <h4>${esc(m.subject)}</h4><pre>${esc(m.body)}</pre></div>`).join("")
-  : `<p class="empty" style="margin-top:22px">No messages yet. Finish a field review and the covering message to the contractor is drafted here.</p>`;
+      <h4>${esc(m.subject)}</h4><pre>${esc(m.body)}</pre>${linkBlock(m)}</div>`).join("")
+    : `<p class="empty" style="margin-top:22px">No messages yet. Finish a field review and the covering message to the contractor is drafted here, with a link they use to send evidence back.</p>`}
+    <h3 class="sec">Evidence received</h3>
+    <div class="drop small" id="dropEv"><div><h2>File evidence you received another way</h2><p>${p.register.length ? "Photos, reports and letters that came by email or on a drive: drop the folder here or upload it as a zip. Each file is filed to the item it belongs to." : "Once there is a deficiency list, evidence from the contractor is filed here."}</p></div><input type="file" webkitdirectory multiple>${zipBtn("Zip")}</div>
+    <div class="status ${esc(state.run.kind)}" id="status"></div>
+    ${rows.length ? `<table style="margin-top:22px"><thead><tr><th>Drop</th><th>From</th><th>When</th><th>Files</th><th>Status</th></tr></thead><tbody>
+      ${rows.map(b => { const r = b.runs[b.runs.length - 1]; return `<tr>
+        <td><div class="what">${esc(b.label)}</div></td>
+        <td>${b.via ? "Contractor link" : "Filed by the office"}</td>
+        <td class="num">${esc(when(b.created_at))}</td>
+        <td class="num">${b.files}${b.duplicates ? ` <span style="color:var(--mute)">(${b.duplicates} already on record)</span>` : ""}</td>
+        <td>${r ? `<span class="pill ${r.status === "done" ? "ready" : r.status === "failed" ? "needs" : "unclear"}">${r.status === "done" ? "Filed" : r.status === "failed" ? "Needs another try" : "Filing…"}</span> ${r.status === "failed" ? `<button class="btn" data-retry="${esc(r.id)}">Try again</button>` : ""} ${r.status === "done" ? `<a href="/api/runs/${r.id}/packet.md" target="_blank" style="margin-left:8px">Report</a>` : ""}` : ""}</td>
+</tr>`; }).join("")}
+    </tbody></table>` : `<p class="empty">Nothing received yet.</p>`}`;
   $("#tab").querySelectorAll("a[data-rv]").forEach(a => a.onclick = () => { const r = p.reviews.find(x => x.id === a.dataset.rv); if (r) { state.fieldDisc = r.discipline; state.openReview = r.id; } });
+  $("#tab").querySelectorAll("[data-retry]").forEach(b => b.onclick = () => retry(b.dataset.retry));
+  $("#tab").querySelectorAll("[data-share]").forEach(b => b.onclick = async () => {
+    b.disabled = true;
+    const r = await fetch(pUrl(slug, `/reviews/${encodeURIComponent(b.dataset.share)}/share`), { method: "POST" });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { b.disabled = false; return toast(j.detail || "Could not create the link", true); }
+    toast("Link created and added to the message"); load();
+  });
+  $("#tab").querySelectorAll("[data-copy]").forEach(b => b.onclick = () => navigator.clipboard.writeText(b.dataset.copy).then(() => toast("Link copied"), () => toast("Could not copy", true)));
+  $("#tab").querySelectorAll("[data-revoke]").forEach(b => b.onclick = async () => {
+    const r = await fetch(pUrl(slug, `/shares/${encodeURIComponent(b.dataset.revoke)}`), { method: "DELETE" });
+    toast(r.ok ? "Link turned off. Create a new one any time." : "Could not turn the link off", !r.ok); if (r.ok) load();
+  });
+  wireDrop($("#dropEv"), "batch", slug); renderStatus();
+}
+
+/* ---- the contractor's page: their items, a place to send evidence, what they sent ---- */
+function renderContractor() {
+  const p = state.p, tok = state.slug;
+  const office = p ? p.office : "the engineer's office", Office = office.charAt(0).toUpperCase() + office.slice(1);
+  if (!p) { $("#main").innerHTML = `<div class="ct"><h1>This link is not known</h1><p class="ct-lead">Check the link in the message you received, or ask ${esc(office)} for a new one.</p></div>`; return; }
+  if (!p.active) { $("#main").innerHTML = `<div class="ct"><h1>${esc(p.project.name)}</h1><p class="ct-lead">This link is no longer active. Ask ${esc(office)} for a new one.</p></div>`; return; }
+  const CT = { ready: "Received ✓", needs: "Still needed", unclear: "Being checked", none: "Nothing received yet" };
+  const st = i => { const s = status(i); if (i.closed) return { k: "ready", t: "Closed ✓" }; return { k: s.k, t: s.k === "needs" ? "Still needed: " + [...new Set(i.missing_slots.map(m => m.type))].join(" + ") : CT[s.k] }; };
+  const open = p.items.filter(i => st(i).k !== "ready").length;
+  $("#main").innerHTML = `
+    <div class="ct">
+      <div class="phead"><div><h1>${esc(p.project.name)}</h1><div class="sub">${esc(p.review.title)} · ${esc(p.review.discipline_name)} · from ${esc(office)}</div></div></div>
+      <p class="ct-lead">${p.items.length} item${p.items.length === 1 ? "" : "s"} to close${open ? `, ${open} still waiting on you` : ", all received"}. Send a photo or document for each one and it is filed to the item it belongs to. ${esc(Office)} decides what closes.</p>
+      <div class="drop big" id="dropEv"><div class="arrow">↑</div><h2>Send photos and documents</h2><p>Drop them here or choose them from the phone. Put the item number in the photo or its name when you can, e.g. ${esc((p.items[0] || {item: {item_id: "EL-01"}}).item.item_id)}.</p><input type="file" multiple accept="image/*,.pdf,.heic,.heif"></div>
+      <div class="status ${esc(state.run.kind)}" id="status"></div>
+      <div class="ct-pk">${p.items.map(i => { const x = st(i); return `<div class="row"><span class="id">${esc(i.item.item_id)}</span><div>${esc(i.item.description)}<small>${esc(i.item.location)}${i.item.sheet ? ` · sheet ${esc(i.item.sheet)}` : ""}</small><small>Send to close: ${esc(i.item.evidence_required)}</small></div><span class="pill ${x.k}">${esc(x.t)}</span></div>`; }).join("")}</div>
+      ${p.drops.length ? `<h3 class="sec">What you have sent</h3><table><thead><tr><th>When</th><th>Files</th><th>Status</th></tr></thead><tbody>${[...p.drops].reverse().map(d => `<tr><td>${esc(when(d.created_at))}</td><td class="num">${d.files}</td><td><span class="pill ${d.status === "done" ? "ready" : d.status === "failed" ? "needs" : "unclear"}">${d.status === "done" ? "Filed" : d.status === "failed" ? "Could not be read; send it again" : "Filing…"}</span></td></tr>`).join("")}</tbody></table>` : ""}
+      <footer><span>Closeout files what you send. ${esc(Office)} decides.</span></footer>
+    </div>`;
+  wireDrop($("#dropEv"), "contractor", tok); renderStatus();
 }
 
 function renderStatus() {
@@ -995,6 +1158,7 @@ function renderStatus() {
   el.className = "status " + (r.kind === "run" ? "run" : r.kind === "ok" ? "ok" : r.kind === "bad" ? "bad" : "");
   let text = r.text;
   if (r.kind === "idle") text = p && p.packet ? `Last updated ${when(p.packet.run.finished_at || p.packet.run.started_at)}.` : "";
+  if (!text && !r.total) { el.hidden = true; return; }
   const retryBtn = r.kind === "bad" && p && p.latest_run_id ? `<button id="retry">Try again</button>` : "";
   el.innerHTML = `<span class="dot"></span><span class="fill">${esc(text)}</span>${r.total ? `<span class="mono">${r.done}/${r.total}</span>` : ""}${retryBtn}`;
   const b = $("#retry"); if (b) b.onclick = () => retry(p.latest_run_id);
@@ -1007,7 +1171,7 @@ async function retry(runId) {
 /* ---- item page ------------------------------------------------------- */
 function renderItem(id) {
   const slug = state.slug, i = items().find(x => x.item.item_id === id);
-  if (!i) { $("#main").innerHTML = `<a class="back" href="${pHash(slug)}">← Back</a><p class="empty">That deficiency is no longer on the list.</p>`; return; }
+  if (!i) { $("#main").innerHTML = `<a class="back" href="${pHash(slug, "/deficiencies")}">← Back</a><p class="empty">That deficiency is no longer on the list.</p>`; return; }
   const d = i.item, s = status(i);
   const filled = new Set(i.evidence.filter(f => f.slot_index >= 0 && (f.tier === "explicit" || f.tier === "strong")).map(f => f.slot_index));
   const weak = new Set(i.evidence.filter(f => f.slot_index >= 0 && f.tier === "weak").map(f => f.slot_index));
@@ -1015,7 +1179,7 @@ function renderItem(id) {
   const hasPin = sheet && d.pin_x != null && d.pin_y != null;
   const draft = i.followup_draft;
   $("#main").innerHTML = `
-    <a class="back" href="${pHash(slug)}">← All deficiencies</a>
+    <a class="back" href="${pHash(slug, "/deficiencies")}">← All deficiencies</a>
     <div class="item-head">
       <div><div class="idm">${esc(d.item_id)} · ${esc(d.discipline || "")}${d.review_date ? ` · reviewed ${esc(d.review_date)}` : ""}${d.source === "field" ? " · recorded on site" : ""}</div><h1>${esc(d.description)}</h1><div class="where">${esc(d.location)}${d.sheet ? ` · sheet ${esc(d.sheet)}` : ""}${d.note ? ` · note: “${esc(d.note)}”` : ""}</div></div>
       <span class="pill lg ${s.k}">${esc(s.t)}</span>
@@ -1182,7 +1346,7 @@ function renderHandoff(r) {
       ${busy ? `<div class="thinking"><span class="dot"></span><span>Writing the covering message from these ${items.length} item${items.length === 1 ? "" : "s"}…</span></div>`
       : msg ? `<label>Message to the contractor · drafted for you, edit freely</label><input id="hoSubject" value="${esc(msg.subject)}"><textarea id="hoBody">${esc(msg.body)}</textarea>
         <div class="acts"><button class="btn primary" id="hoSave">Save wording</button><button class="btn" id="hoCopy">Copy</button><button class="btn" id="hoAgain">Draft again</button></div>
-        <p class="note">Nothing has been sent. Fill in the date, then copy it into your email.</p>`
+        <p class="note">Nothing has been sent. Fill in the date, create the contractor's link on Messages, then copy it into your email.</p>`
       : items.length ? `<p class="why">No message yet for this review.</p><div class="acts"><button class="btn primary" id="hoAgain">Draft the message to the contractor</button></div><p class="note">It lists every item above and asks for the evidence by a date you fill in.</p>` : ""}
     </div></section>`;
 }
@@ -1644,10 +1808,10 @@ async function send(kind, slug, items, label) {
   if (kind === "project" && label) fd.append("slug", label.toLowerCase().replace(/[^a-z0-9]+/g, "-"));
   const zip = items.length === 1 && /\.zip$/i.test(items[0].file.name);
   toast(zip ? `Uploading ${items[0].file.name} (${Math.max(1, Math.round(items[0].file.size / 1048576))} MB)…` : `Uploading ${items.length} files…`);
-  const url = kind === "project" ? "/api/projects" : pUrl(slug, { batch: "/batches", register: "/register", drawings: "/drawings" }[kind]);
+  const url = kind === "project" ? "/api/projects" : kind === "contractor" ? `/api/c/${encodeURIComponent(slug)}/batches` : pUrl(slug, { batch: "/batches", register: "/register", drawings: "/drawings" }[kind]);
   const r = await fetch(url, { method: "POST", body: fd });
   const j = await r.json().catch(() => ({}));
-  if (!r.ok) return toast(j.detail || `Upload failed (${r.status})`, true);
+  if (!r.ok) return toast(r.status === 409 && kind === "contractor" ? "Something is being filed right now. Try again in a minute." : j.detail || `Upload failed (${r.status})`, true);
   if (kind === "register") { toast(`Deficiency list loaded: ${j.imported} items`); load(); }
   else if (kind === "project") { load(); follow("pending", () => { location.hash = pHash(j.slug); load(); }); }
   else follow("pending");

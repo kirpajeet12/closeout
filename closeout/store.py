@@ -42,7 +42,15 @@ CREATE TABLE IF NOT EXISTS batches (
   id TEXT PRIMARY KEY,
   project_id TEXT NOT NULL DEFAULT '',
   label TEXT NOT NULL,
-  created_at TEXT NOT NULL
+  created_at TEXT NOT NULL,
+  via TEXT NOT NULL DEFAULT ''    -- share token when the contractor sent it through their link
+);
+CREATE TABLE IF NOT EXISTS shares (
+  id TEXT PRIMARY KEY,            -- the token in the contractor's link
+  project_id TEXT NOT NULL,
+  review_id TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  revoked_at TEXT
 );
 CREATE TABLE IF NOT EXISTS batch_files (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -254,7 +262,8 @@ class Store:
                                 ("drafts", "review_id", "TEXT NOT NULL DEFAULT ''"),
                                 ("sheets", "views_json", "TEXT NOT NULL DEFAULT '[]'"),
                                 ("projects", "docs_review_json", "TEXT"),
-                                ("projects", "docs_scope_json", "TEXT")):
+                                ("projects", "docs_scope_json", "TEXT"),
+                                ("batches", "via", "TEXT NOT NULL DEFAULT ''")):
             if col not in self._cols(table):
                 self.conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {ddl}")
         if "project_id" not in self._cols("deficiencies"):
@@ -470,6 +479,34 @@ class Store:
             """SELECT e.* FROM evidence e JOIN batch_files bf ON bf.evidence_id = e.id
                WHERE bf.batch_id=? AND bf.duplicate_of_name IS NULL ORDER BY bf.id""", (batch_id,)).fetchall()
         return [self._ev(r) for r in rows]
+
+    def set_batch_via(self, batch_id: str, via: str) -> None:
+        self.conn.execute("UPDATE batches SET via=? WHERE id=?", (via, batch_id))
+        self.conn.commit()
+
+    # --- contractor links -----------------------------------------------
+    def create_share(self, project_id: str, review_id: str) -> dict:
+        """One link per finished review: the contractor opens it, sees the items and sends evidence back through it."""
+        import secrets
+        token = secrets.token_urlsafe(24)
+        self.conn.execute("INSERT INTO shares(id, project_id, review_id, created_at) VALUES(?,?,?,?)", (token, project_id, review_id, now()))
+        self.conn.commit()
+        return self.share(token)
+
+    def share(self, token: str) -> dict | None:
+        r = self.conn.execute("SELECT * FROM shares WHERE id=?", (token,)).fetchone()
+        return dict(r) if r else None
+
+    def shares(self, project_id: str) -> list[dict]:
+        return [dict(r) for r in self.conn.execute("SELECT * FROM shares WHERE project_id=? ORDER BY created_at", (project_id,))]
+
+    def share_for_review(self, review_id: str) -> dict | None:
+        r = self.conn.execute("SELECT * FROM shares WHERE review_id=? AND revoked_at IS NULL ORDER BY created_at DESC", (review_id,)).fetchone()
+        return dict(r) if r else None
+
+    def revoke_share(self, token: str) -> None:
+        self.conn.execute("UPDATE shares SET revoked_at=? WHERE id=? AND revoked_at IS NULL", (now(), token))
+        self.conn.commit()
 
     # --- runs and jobs --------------------------------------------------
     def create_run(self, project_id: str, batch_id: str, model_id: str, kind: str = "batch") -> str:
