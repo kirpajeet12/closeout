@@ -273,6 +273,20 @@
   h4.grp { margin: 26px 0 0; font-size: 15px; letter-spacing: -.01em; display: flex; gap: 10px; align-items: baseline; } h4.grp small { color: var(--mute); font-weight: 500; font-size: 13px; }
   h4.grp + .gallery { margin-top: 12px; }
   .sheet .cap i { display: inline-block; font-style: normal; font-size: 11px; color: var(--hot); font-weight: 700; margin-left: 6px; letter-spacing: .06em; }
+  .ask { margin-top: 26px; padding: 20px 22px; border-radius: 18px; background: var(--card); border: 1px solid var(--line-2); box-shadow: 0 10px 30px rgba(18,19,20,.06); }
+  .ask .head { display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+  .ask .head div { flex: 1; min-width: 220px; }
+  .ask h2 { margin: 0; font-size: 20px; letter-spacing: -.01em; }
+  .ask p.lead { margin: 6px 0 0; color: var(--ink-2); max-width: 66ch; }
+  .ask .btn { min-height: 40px; align-self: center; }
+  .ask ol { list-style: none; margin: 18px 0 0; padding: 0; display: grid; gap: 10px; }
+  .ask li { display: grid; grid-template-columns: 34px 1fr; gap: 14px; align-items: start; padding: 12px 14px; border-radius: 12px; background: var(--paper); border: 1px solid var(--line); }
+  .ask li i { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: var(--ink); color: #fff; font: 700 11px/1 var(--mono); letter-spacing: .04em; }
+  .ask li i.ok { background: var(--ready-bg); color: var(--ready); }
+  .ask li b { display: block; font-weight: 600; }
+  .ask li span { display: block; color: var(--mute); font-size: 13px; margin-top: 3px; }
+  .ask .fine { margin: 14px 0 0; font-size: 12px; color: var(--mute); }
+  @media print { body * { visibility: hidden; } .ask, .ask * { visibility: visible; } .ask { position: absolute; left: 0; top: 0; width: 100%; box-shadow: none; border: 0; } .ask .btn { display: none; } }
   .mapbar { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; margin-top: 24px; padding: 14px 18px; border-radius: 14px; background: var(--card); border: 1px dashed var(--line-2); font-size: 14px; color: var(--ink-2); }
   .mapbar .btn { min-height: 40px; }
   .viewer .floors { display: flex; gap: 6px; padding: 8px 14px; background: #121314; border-bottom: 1px solid #2b2d31; overflow-x: auto; align-items: center; }
@@ -288,6 +302,7 @@
   .viewer .related .rel small { display: block; padding: 0 6px 5px; font-size: 10px; color: #b9bcc2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .viewer .hint.up { bottom: 122px; }
   .viewer .floors button.fix { background: transparent; border: 1px solid #3a3d42; color: #b9bcc2; margin-left: auto; }
+  .dimmask { position: absolute; box-shadow: 0 0 0 9999px rgba(247,244,237,.62); pointer-events: none; }
   .fixbox { position: absolute; border: 2px solid var(--hot); background: rgba(255,90,31,.08); box-shadow: 0 0 0 9999px rgba(18,19,20,.35); cursor: move; touch-action: none; }
   .fixbox i { position: absolute; width: 30px; height: 30px; margin: -15px; background: #fff; border: 3px solid var(--hot); border-radius: 50%; touch-action: none; }
   .fixbox i.nw { left: 0; top: 0; cursor: nwse-resize; } .fixbox i.ne { right: -0px; top: 0; margin-right: -15px; cursor: nesw-resize; }
@@ -489,12 +504,54 @@ function renderDrawings() {
       <div class="fact"><b>Current sheets</b><span>${pr.sheets.length} across ${Object.keys(byDisc).length} discipline${Object.keys(byDisc).length === 1 ? "" : "s"}</span></div>
       <div class="fact"><b>Documents in the folder</b><span>${pr.documents.length} (${pr.documents.filter(d => d.is_current).length} current)</span></div>
     </div>
+    ${renderAsk(pr)}
     ${Object.keys(byDisc).map(k => `<h3 class="sec">${esc(k)}</h3><div class="gallery">${byDisc[k].map(sh => `
       <div class="sheet" data-id="${sh.id}"><img src="${sh.thumb_url || sh.image_url}" alt="" loading="lazy"><div class="cap"><b>${esc(sh.sheet_number || "p." + sh.page)}</b><span>${esc(sh.title || "")}</span><small>${(sh.read && sh.read.spaces || []).length} spaces read</small></div></div>`).join("")}</div>`).join("")}
     <p class="empty" style="margin-top:22px">Tap a sheet to open it. To record a deficiency on it, start a field review first.</p>`
   : `<div class="drop big" id="dropPrj" style="margin-top:24px"><div class="arrow">↓</div><h2>Drop the project folder</h2><p>The agent finds the current drawing sets, renders every sheet and reads rooms, units and levels off them.</p><input type="file" webkitdirectory multiple></div><div class="status ${esc(state.run.kind)}" id="status"></div>`;
   $("#tab").querySelectorAll(".sheet").forEach(s => s.onclick = () => location.hash = pHash(slug, "/field/" + s.dataset.id));
+  const pb = $("#askPrint"); if (pb) pb.onclick = () => print();
   wireDrop($("#dropPrj"), "drawings", slug); renderStatus();
+}
+
+/* What to ask the client or the architect for before the first field review. Plain code over the sheet readings; no agent call,
+   nothing invented: every line points at something the folder does or does not contain. */
+function docsNeeded(pr) {
+  const out = [], discs = pr.disciplines || [], blds = buildings();
+  const sheetsOf = code => pr.sheets.filter(sh => sh.discipline === code);
+  const kindOf = sh => (sh.read || {}).sheet_kind || "";
+  for (const d of discs) {
+    const shs = sheetsOf(d.code), plans = shs.filter(isPlanSheet), name = DISC_NAMES[d.code] || d.name || d.code;
+    if (!shs.length) { out.push({ code: d.code, what: `${name} drawings`, why: `The folder has a ${name.toLowerCase()} set but none of its sheets could be read.` }); continue; }
+    if (!plans.length) {
+      const has = [...new Set(shs.map(kindOf).filter(Boolean))].map(k => k.replace(/_/g, " ")).join(", ");
+      out.push({ code: d.code, what: `${name} floor plans, one per building`, why: `The current ${name.toLowerCase()} set (${shs.length} sheet${shs.length === 1 ? "" : "s"}: ${has}) has no floor plans. On site the architectural plans stand in.` });
+    } else {
+      const missing = blds.filter(b => !plans.some(sh => sheetMentions(sh, b)));
+      if (missing.length) out.push({ code: d.code, what: `${name} floor plan for ${missing.map(b => b.name).join(", ")}`, why: `The set has floor plans for the other building${blds.length - missing.length === 1 ? "" : "s"} but none that mentions ${missing.length === 1 ? "this one" : "these"}.` });
+    }
+  }
+  const dated = discs.filter(d => d.dated).sort((a, b) => a.dated < b.dated ? 1 : -1);
+  if (dated.length > 1) {
+    const newest = dated[0], old = dated.filter(d => d.dated < newest.dated);
+    for (const d of old) out.push({ code: d.code, what: `Confirm the ${(DISC_NAMES[d.code] || d.name || d.code).toLowerCase()} set is the latest issued`, why: `Its folder is dated ${d.dated}; the ${(DISC_NAMES[newest.code] || newest.name).toLowerCase()} set is dated ${newest.dated}. A field review against a superseded set is wasted.` });
+  }
+  const noDate = discs.filter(d => !d.dated);
+  for (const d of noDate) out.push({ code: d.code, what: `Issue date and revision of the ${(DISC_NAMES[d.code] || d.name).toLowerCase()} set`, why: "No date could be read from the folder or the file name." });
+  return out;
+}
+function renderAsk(pr) {
+  const need = docsNeeded(pr);
+  const blds = buildings().length, discs = (pr.disciplines || []).length;
+  const lead = need.length
+    ? `Read off the ${pr.sheets.length} current sheets across ${discs} discipline${discs === 1 ? "" : "s"} and ${blds} building${blds === 1 ? "" : "s"}. Each line is something the folder does not contain yet.`
+    : `Every discipline has a floor plan for every building and the sets are dated together. Nothing to ask for.`;
+  return `<div class="ask" id="ask">
+    <div class="head"><div><h2>${need.length ? "Ask for these before the first field review" : "The folder is complete for a field review"}</h2><p class="lead">${esc(lead)}</p></div>
+      ${need.length ? `<button class="btn" id="askPrint">Print this list</button>` : ""}</div>
+    ${need.length ? `<ol>${need.map(n => `<li><i>${esc(n.code)}</i><div><b>${esc(n.what)}</b><span>${esc(n.why)}</span></div></li>`).join("")}</ol>` : ""}
+    <p class="fine">${esc(pr.name)} · ${esc([pr.address, pr.city].filter(Boolean).join(", "))} · written by the app from the sheet readings, not an engineering determination.</p>
+  </div>`;
 }
 
 function renderDrops() {
@@ -945,10 +1002,12 @@ function renderSheet(sheetId) {
     </div>`;
   const canvas = $("#canvas"), stage = $("#stage"), img = $("#sheetImg");
   const padT = () => parseFloat(getComputedStyle(canvas).paddingTop) || 0; /* the bars overlay the top of the canvas on wide screens */
-  const fit = () => { v.focus = null; const w = canvas.clientWidth - 40, h = canvas.clientHeight - padT() - 40; v.scale = innerWidth < 900 ? w / img.naturalWidth : Math.min(w / img.naturalWidth, h / img.naturalHeight); stage.style.marginLeft = ""; apply(); markFloor(); };
+  const fit = () => { v.focus = null; dim(null); const w = canvas.clientWidth - 40, h = canvas.clientHeight - padT() - 40; v.scale = innerWidth < 900 ? w / img.naturalWidth : Math.min(w / img.naturalWidth, h / img.naturalHeight); stage.style.marginLeft = ""; apply(); markFloor(); };
   const apply = () => { img.style.width = Math.round(img.naturalWidth * v.scale) + "px"; img.style.height = "auto"; };
   /* zoom so the floor's box fills the screen; when the sheet is narrower than the screen, shift it so the box sits in the middle */
-  const focusTo = f => { v.focus = f; const pt = padT(), w = canvas.clientWidth - 40, h = canvas.clientHeight - pt - 40;
+  const dim = f => { let m = stage.querySelector(".dimmask"); if (!f) { if (m) m.remove(); return; } if (!m) { m = document.createElement("div"); m.className = "dimmask"; stage.insertBefore(m, img.nextSibling); }
+    m.style.left = f.x * 100 + "%"; m.style.top = f.y * 100 + "%"; m.style.width = f.w * 100 + "%"; m.style.height = f.h * 100 + "%"; };
+  const focusTo = f => { v.focus = f; dim(f); const pt = padT(), w = canvas.clientWidth - 40, h = canvas.clientHeight - pt - 40;
     v.scale = Math.min(6, Math.min(w / (f.w * img.naturalWidth), h / (f.h * img.naturalHeight))); apply();
     const bw = f.w * img.naturalWidth * v.scale, bh = f.h * img.naturalHeight * v.scale;
     stage.style.marginLeft = Math.max(20, (canvas.clientWidth - bw) / 2 - f.x * img.naturalWidth * v.scale) + "px";
@@ -958,11 +1017,11 @@ function renderSheet(sheetId) {
   $("#main").querySelectorAll(".floors button[data-view]").forEach(b => b.onclick = () => { if (v.fix) return; b.dataset.view === "all" ? fit() : focusTo(views[+b.dataset.view]); });
   /* fix a floor box by hand: the box is drawn on the sheet, corners drag, Save stores every box on this sheet with this one marked as his */
   const fixBtn = $("#fixBtn");
-  const endFix = () => { v.fix = null; $("#main").querySelectorAll(".fixbox, .fixbar").forEach(el => el.remove()); const h = $("#main").querySelector(".hint"); if (h) h.hidden = false; if (fixBtn) fixBtn.hidden = !v.focus; };
+  const endFix = () => { v.fix = null; if (v.focus) dim(v.focus); $("#main").querySelectorAll(".fixbox, .fixbar").forEach(el => el.remove()); const h = $("#main").querySelector(".hint"); if (h) h.hidden = false; if (fixBtn) fixBtn.hidden = !v.focus; };
   const startFix = () => {
     const i = views.findIndex(x => v.focus && x.level === v.focus.level && x.x === v.focus.x); if (i < 0) return;
     const f = v.fix = { i, x: views[i].x, y: views[i].y, w: views[i].w, h: views[i].h };
-    fixBtn.hidden = true; const h = $("#main").querySelector(".hint"); if (h) h.hidden = true;
+    fixBtn.hidden = true; const h = $("#main").querySelector(".hint"); if (h) h.hidden = true; dim(null);
     const box = document.createElement("div"); box.className = "fixbox"; box.innerHTML = `<i class="nw"></i><i class="ne"></i><i class="sw"></i><i class="se"></i>`; stage.appendChild(box);
     const bar = document.createElement("div"); bar.className = "fixbar" + (rel.list.length ? " up" : ""); bar.innerHTML = `<span>Drag the corners around the ${esc(views[i].level)} plan</span><button id="fixNo">Cancel</button><button id="fixOk" class="go">Save</button>`; canvas.parentElement.appendChild(bar);
     const draw = () => { box.style.left = f.x * 100 + "%"; box.style.top = f.y * 100 + "%"; box.style.width = f.w * 100 + "%"; box.style.height = f.h * 100 + "%"; };
