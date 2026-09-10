@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import logging
 import mimetypes
 import re
 import shutil
@@ -29,6 +30,8 @@ from .config import SETTINGS, Settings
 from .ingest import _exif, _heic_to_jpeg
 from .packet import build_packet, packet_markdown
 from .store import Store
+
+log = logging.getLogger("closeout.api")
 
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 TERMINAL_EVENTS = {"packet", "project_ready", "run_error"}
@@ -116,6 +119,10 @@ class AskBody(BaseModel):
 
 class SpeakBody(BaseModel):
     text: str
+
+
+class LiveBody(BaseModel):
+    sdp: str   # the browser's WebRTC offer; the answer comes back the same way
 
 
 class DocsReviewIn(BaseModel):
@@ -684,8 +691,52 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
 
     @app.get("/api/voice")
     def voice_status() -> dict:
-        """Whether the natural voice is on. The key itself never leaves the server."""
-        return {"available": bool(settings.voice_key)}
+        """Whether the natural voice and the spoken conversation are on. The key itself never leaves the server."""
+        return {"available": bool(settings.voice_key), "live": bool(settings.voice_key)}
+
+    LIVE_INSTRUCTIONS = (
+        "You are Closeout, a calm colleague on a call with a field engineer who is walking a building site. "
+        "The project is \"{name}\". You know nothing about this project yourself: every fact comes from the office "
+        "records through the app. Whenever the engineer asks anything about the project (items, findings, floors, "
+        "plans, photos, drawings, the contractor, messages, what was done, what is left, or asks to change, add or "
+        "send something), delegate it to the client and wait for the result. Never guess and never invent an item, "
+        "a number, a date or a status; never answer a project question from memory. "
+        "When the result arrives, say it once, naturally, in one or two short sentences. Read item codes as letters "
+        "and digits (EL-01 is E L zero one). If the result asks the engineer to confirm a change, ask for a yes or a "
+        "no, and delegate that answer to the client too: the app carries the change out, you never confirm anything "
+        "yourself. Never judge whether the work is acceptable; that is the engineer's call. Keep small talk to a "
+        "sentence. Be brief; the engineer is working."
+    )
+
+    @app.post("/api/projects/{slug}/live/session", status_code=201)
+    def live_session(slug: str, body: LiveBody) -> dict:
+        """Open a spoken conversation for this project. The browser sends its WebRTC offer; the voice service
+        answers it. The voice only talks; every project answer is delegated back to the Closeout agent."""
+        project = _project(store(), slug)
+        sdp = str(body.sdp or "")
+        if not settings.voice_key:
+            raise HTTPException(404, "the spoken conversation is not set up here")
+        if not sdp.strip().startswith("v=0"):
+            raise HTTPException(400, "no connection offer")
+        payload = {
+            "session": {
+                "model": settings.live_model,
+                "instructions": LIVE_INSTRUCTIONS.format(name=project["name"]),
+                "delegation": {"type": "client"},
+                "audio": {"output": {"voice": settings.voice_name}},
+            },
+            "transport": {"type": "webrtc", "sdp": sdp},
+        }
+        try:
+            r = httpx.post("https://api.openai.com/v1/live/sessions", timeout=30,
+                           headers={"authorization": f"Bearer {settings.voice_key}"}, json=payload)
+        except httpx.HTTPError:
+            raise HTTPException(502, "the voice service did not answer")
+        if r.status_code not in (200, 201):
+            log.warning("live session refused: %s %s", r.status_code, r.text[:300])
+            raise HTTPException(502, "the voice service could not start the conversation")
+        j = r.json()
+        return {"session_id": (j.get("session") or {}).get("id", ""), "sdp": (j.get("transport") or {}).get("sdp", "")}
 
     @app.post("/api/projects/{slug}/speak")
     def speak(slug: str, body: SpeakBody):

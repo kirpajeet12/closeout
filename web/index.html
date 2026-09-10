@@ -2030,13 +2030,16 @@ if (SR) {
 }
 
 /* Live: a hands-free conversation. Closeout listens, answers out loud, and listens again. A prepared change is
-   confirmed by the engineer saying yes (or tapping Confirm); Closeout never confirms on its own. */
-const live = { on: false, rec: null, state: "tap", history: [], pending: null, misses: 0, speaking: null };
+   confirmed by the engineer saying yes (or tapping Confirm); Closeout never confirms on its own.
+   Two ways to hear and speak: the spoken conversation from the server (a real-time voice that hands every project
+   question back to Closeout), or, when that is not set up, the phone's own recogniser and voice. Either way the
+   answers come from the same Closeout agent through /ask. */
+const live = { on: false, rec: null, state: "tap", history: [], pending: null, misses: 0, speaking: null, mode: "phone" };
 const YES = /^(yes|yeah|yep|yup|confirm|go ahead|do it|ok|okay|sure)\b/i, NO = /^(no|nope|cancel|never mind|don'?t|stop)\b/i;
 function liveSet(state, words) {
   live.state = state;
   const bar = $("#livebar"); bar.dataset.state = state;
-  $("#livestate").textContent = { listening: "Listening", thinking: "Thinking", speaking: "Speaking", tap: "Tap to talk" }[state] || state;
+  $("#livestate").textContent = { listening: "Listening", thinking: "Thinking", speaking: "Speaking", tap: live.mode === "rtc" && live.on ? "Muted" : "Tap to talk" }[state] || state;
   if (words !== undefined) $("#livewords").textContent = words;
 }
 function liveVoice() {
@@ -2046,9 +2049,12 @@ function liveVoice() {
 /* The natural voice comes from the server when it is set up there; otherwise the phone reads the answer itself.
    One audio element is unlocked on the Talk tap so the phone lets later answers play on their own. */
 const SILENT = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=";
-live.natural = null; live.audio = null; live.audioUrl = null;
+live.natural = null; live.rtcOk = false; live.audio = null; live.audioUrl = null;
 async function voiceStatus() {
-  if (live.natural === null) { try { live.natural = !!(await (await fetch("/api/voice")).json()).available; } catch (e) { live.natural = false; } }
+  if (live.natural === null) {
+    try { const j = await (await fetch("/api/voice")).json(); live.natural = !!j.available; live.rtcOk = !!j.live; }
+    catch (e) { live.natural = false; live.rtcOk = false; }
+  }
   return live.natural;
 }
 function liveUnlockAudio() {
@@ -2087,7 +2093,7 @@ function liveHush() {
   try { if (live.audio) { live.audio.pause(); live.audio.onended = null; live.audio.onerror = null; live.audio.removeAttribute("src"); } } catch (e) {}
 }
 function liveListen() {
-  if (!live.on || live.rec) return;
+  if (!live.on || live.rec || live.mode !== "phone") return;
   liveHush();
   const rec = new SR(); rec.lang = "en-CA"; rec.interimResults = true; rec.maxAlternatives = 1;
   let heard = "", final = "";
@@ -2105,6 +2111,8 @@ function liveListen() {
   try { live.rec = rec; rec.start(); liveSet("listening", "…"); }
   catch (e) { live.rec = null; liveSet("tap", "Tap the circle to talk"); }
 }
+/* How an answer is said depends on the mode: the phone reads it, or it is handed to the spoken conversation. */
+function liveSay(text) { if (live.mode === "rtc") rtcSay(text); else liveSpeak(text, liveListen); }
 async function liveHeard(q) {
   if (live.pending) {
     const action = live.pending;
@@ -2113,13 +2121,14 @@ async function liveHeard(q) {
       if (!$("#askact")) askPanel(live.last.q, live.last.a, "", false, action);
       const ok = await askConfirm(action);
       const said = ok === true ? "Done. " + action.label : `That did not go through. ${ok}`;
-      liveHistory(q, said); liveSpeak(said, liveListen); return;
+      liveHistory(q, said); liveSay(said); return;
     }
-    if (NO.test(q)) { live.pending = null; $("#askpanel").hidden = true; liveHistory(q, "Left as it was."); liveSpeak("Okay, left as it was.", liveListen); return; }
+    if (NO.test(q)) { live.pending = null; $("#askpanel").hidden = true; liveHistory(q, "Left as it was."); liveSay("Okay, left as it was."); return; }
     live.pending = null; $("#askpanel").hidden = true;   // anything else is a new question; the change is dropped
   }
   liveSet("thinking", q);
   askPanel(q, "Looking through the records…", "", true);
+  if (live.mode === "rtc") rtcThink("Checking the office records for: " + q);
   let answer, action = null, went = "";
   try {
     const r = await fetch(pUrl(state.slug, "/ask"), { method: "POST", headers: { "content-type": "application/json" },
@@ -2134,29 +2143,121 @@ async function liveHeard(q) {
   live.last = { q, a: answer };
   liveHistory(q, answer);
   live.pending = action;
-  liveSpeak(answer + (action ? ` ${action.label}. Say yes to confirm, or no.` : ""), liveListen);
+  liveSay(answer + (action ? ` ${action.label}. Say yes to confirm, or no.` : ""));
 }
 function liveHistory(q, a) { live.history.push({ q, a }); if (live.history.length > 12) live.history.shift(); }
-function liveStart() {
-  if (!SR || live.on) return;
-  live.on = true; live.history = []; live.pending = null; live.misses = 0; live.denied = false;
+
+/* The spoken conversation: the browser opens a real-time voice call to the server's voice service. The voice hears
+   and speaks; every project question it receives is handed back here ("delegated"), answered by Closeout through
+   /ask, and the answer is passed to the voice to say. The key never reaches the phone; the server opens the call. */
+const rtc = { pc: null, dc: null, mic: null, out: null, heard: [], said: "", started: false, delegation: null, quiet: null, muted: false, seq: 0 };
+function rtcSend(ev) { try { if (rtc.dc && rtc.dc.readyState === "open") { ev.event_id = "co_" + (++rtc.seq); rtc.dc.send(JSON.stringify(ev)); } } catch (e) {} }
+function rtcThink(text) { rtcSend({ type: "session.thinking.append", delegation_id: rtc.delegation, content: String(text).slice(0, 1200) }); }
+function rtcSay(text) {
+  const t = String(text || "").trim(); if (!t) return;
+  for (let i = 0; i < t.length; i += 1200) rtcSend({ type: "session.commentary.append", delegation_id: rtc.delegation, content: t.slice(i, i + 1200) });
+}
+function rtcClose() {
+  try { rtcSend({ type: "session.close" }); } catch (e) {}
+  const { pc, dc, mic, out } = rtc;
+  setTimeout(() => { try { dc && dc.close(); } catch (e) {} try { pc && pc.close(); } catch (e) {} }, 400);
+  try { mic && mic.getTracks().forEach(t => t.stop()); } catch (e) {}
+  try { if (out) { out.pause(); out.srcObject = null; } } catch (e) {}
+  rtc.pc = null; rtc.dc = null; rtc.mic = null; rtc.started = false; rtc.delegation = null; rtc.heard = []; rtc.said = ""; rtc.muted = false;
+  if (rtc.quiet) { clearTimeout(rtc.quiet); rtc.quiet = null; }
+}
+async function rtcEvent(ev) {
+  if (!live.on || live.mode !== "rtc") return;
+  switch (ev.type) {
+    case "session.started":
+      rtc.started = true; liveSet("listening", "Ask about the project"); break;
+    case "session.input_transcript.delta":
+      if (rtc.said) { rtc.said = ""; rtc.heard = []; }   // the engineer speaks again: a new turn begins
+      rtc.heard.push({ t: String(ev.delta || ""), s: ev.start_ms || 0 });
+      if (live.state !== "thinking") liveSet("listening", rtc.heard.map(h => h.t).join("").trim());
+      break;
+    case "session.output_transcript.delta":
+      rtc.said += String(ev.delta || "");
+      liveSet("speaking", rtc.said.trim());
+      if (rtc.quiet) clearTimeout(rtc.quiet);
+      rtc.quiet = setTimeout(() => { if (live.on && live.mode === "rtc" && live.state === "speaking") liveSet(rtc.muted ? "tap" : "listening", rtc.muted ? "Tap the circle to unmute" : "Listening"); }, 1800);
+      break;
+    case "session.delegation.created": {
+      rtc.delegation = (ev.delegation && ev.delegation.id) || null;
+      await new Promise(r => setTimeout(r, 350));   // let the last words of the transcript arrive
+      const q = rtc.heard.map(h => h.t).join("").replace(/\s+/g, " ").trim(); rtc.heard = []; rtc.said = "";
+      if (!q) { rtcSay("I did not catch that. Could you say it again?"); break; }
+      liveHeard(q); break;
+    }
+    case "session.input_audio.muted": rtc.muted = true; liveSet("tap", "Tap the circle to unmute"); break;
+    case "session.input_audio.unmuted": rtc.muted = false; liveSet("listening", "Ask about the project"); break;
+    case "session.closed":
+      if (live.on) { const why = ev.reason === "expired" ? "The conversation timed out" : "The conversation ended"; liveEnd(); toast(why); }
+      break;
+    case "error":
+      console.warn("live voice", ev); break;
+  }
+}
+async function rtcStart() {
+  liveSet("thinking", "Connecting…");
+  let mic;
+  try { mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }); }
+  catch (e) { live.denied = true; toast("Allow the microphone in the browser to talk with Closeout", true); return false; }
+  const pc = new RTCPeerConnection();
+  rtc.pc = pc; rtc.mic = mic; rtc.heard = []; rtc.said = ""; rtc.started = false;
+  mic.getTracks().forEach(t => pc.addTrack(t, mic));
+  if (!rtc.out) { rtc.out = new Audio(); rtc.out.autoplay = true; rtc.out.setAttribute("playsinline", ""); }
+  pc.ontrack = ev => { rtc.out.srcObject = ev.streams[0]; rtc.out.play().catch(() => {}); };
+  const dc = pc.createDataChannel("oai-events"); rtc.dc = dc;
+  dc.onmessage = m => { try { rtcEvent(JSON.parse(m.data)); } catch (e) {} };
+  pc.onconnectionstatechange = () => { if (["failed", "closed", "disconnected"].includes(pc.connectionState) && live.on && live.mode === "rtc" && rtc.started) { liveEnd(); toast("The conversation dropped; tap Talk to start again", true); } };
+  try {
+    const offer = await pc.createOffer(); await pc.setLocalDescription(offer);
+    const r = await fetch(pUrl(state.slug, "/live/session"), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ sdp: offer.sdp }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.sdp) throw new Error(j.detail || "could not start");
+    await pc.setRemoteDescription({ type: "answer", sdp: j.sdp });
+    await new Promise((res, rej) => { const t = setTimeout(() => rej(new Error("slow")), 15000); const tick = () => { if (rtc.started) { clearTimeout(t); res(); } else if (!live.on) { clearTimeout(t); rej(new Error("ended")); } else setTimeout(tick, 100); }; tick(); });
+    return true;
+  } catch (e) { rtcClose(); return false; }
+}
+async function liveStart() {
+  if (live.on) return;
+  live.on = true; live.history = []; live.pending = null; live.misses = 0; live.denied = false; live.mode = "phone";
   $("#askbar").classList.add("live");
   try { window.speechSynthesis.getVoices(); } catch (e) {}
-  liveUnlockAudio(); voiceStatus();
+  liveUnlockAudio(); await voiceStatus();
+  if (!live.on) return;
+  if (live.rtcOk && window.RTCPeerConnection && navigator.mediaDevices) {
+    live.mode = "rtc";
+    if (await rtcStart()) return;
+    if (!live.on) return;
+    live.mode = "phone";
+    if (!live.denied && SR) toast("The spoken conversation did not connect; using the phone's own voice");
+  }
+  if (!SR || live.denied) { liveEnd(); if (!live.denied) toast("This browser cannot listen; type the question instead", true); return; }
   liveListen();
 }
 function liveEnd() {
+  const was = live.mode;
   live.on = false; live.pending = null;
   try { if (live.rec) live.rec.abort(); } catch (e) {} live.rec = null;
   liveHush();
+  if (was === "rtc") rtcClose();
+  live.mode = "phone";
   $("#askbar").classList.remove("live"); liveSet("tap", "Closeout is listening for a question");
 }
-if (SR) {
+if (SR || (window.RTCPeerConnection && navigator.mediaDevices)) {
   $("#asklive").hidden = false;
   $("#asklive").onclick = liveStart;
   $("#liveend").onclick = liveEnd;
   $("#liveorb").onclick = () => {
     if (!live.on) return;
+    if (live.mode === "rtc") {   // on a call the circle mutes and unmutes the microphone
+      if (!rtc.started) return;
+      rtcSend({ type: rtc.muted ? "session.input_audio.unmute" : "session.input_audio.mute" });
+      return;
+    }
     if (live.state === "listening") { try { live.rec && live.rec.stop(); } catch (e) {} return; }   // send what was heard
     if (live.state === "thinking") return;
     liveHush();   // interrupt the answer, or wake from "tap"

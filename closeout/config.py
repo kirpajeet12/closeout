@@ -26,6 +26,8 @@ class Settings:
     voice_key: str = os.environ.get("OPENAI_API_KEY", "")
     voice_model: str = os.environ.get("CLOSEOUT_VOICE_MODEL", "gpt-4o-mini-tts")
     voice_name: str = os.environ.get("CLOSEOUT_VOICE", "marin")
+    # the spoken conversation (ears and mouth); the same key turns it on. The Closeout agent stays the brain.
+    live_model: str = os.environ.get("CLOSEOUT_LIVE_MODEL", "gpt-live-1")
 
 
 SETTINGS = Settings()
