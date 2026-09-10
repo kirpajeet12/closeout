@@ -21,7 +21,7 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, StreamingResponse
 from pydantic import BaseModel
 
-from . import pipeline, plans as plans_mod, project as project_mod, review as review_mod
+from . import documents as documents_mod, pipeline, plans as plans_mod, project as project_mod, review as review_mod
 from .config import SETTINGS, Settings
 from .ingest import _exif, _heic_to_jpeg
 from .packet import build_packet, packet_markdown
@@ -102,6 +102,15 @@ class FindingPatch(BaseModel):
     note: str | None = None
     pin_x: float | None = None
     pin_y: float | None = None
+
+
+class DocsReviewIn(BaseModel):
+    already: list[str] = []
+
+
+class DocsAnswerIn(BaseModel):
+    index: int
+    answer: str = ""      # the gaps the web app's rules already show, so the agent does not repeat them
 
 
 class NewProject(BaseModel):
@@ -366,7 +375,8 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
                 "runs": runs, "latest_run_id": latest, "active_run_id": active if any(r["id"] == active for r in runs) else None,
                 "packet": build_packet(st, latest) if latest else None, "batches": batches,
                 "messages": st.all_drafts(pid), "decisions": st.decisions(pid), "model_id": settings.model_id,
-                "reviews": st.reviews(pid)}
+                "reviews": st.reviews(pid), "docs_review": prj.get("docs_review"),
+                "occupancy_docs": [list(row) for row in documents_mod.OCCUPANCY_DOCS]}
 
     @app.get("/api/sheets/{sheet_id}/image")
     def sheet_image(sheet_id: str):
@@ -445,6 +455,50 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
                 src.unlink(missing_ok=True)
                 dst.unlink(missing_ok=True)
         return raw, name
+
+    @app.post("/api/projects/{slug}/documents/review")
+    def review_documents(slug: str, body: DocsReviewIn = DocsReviewIn()) -> dict:
+        """One agent call over the folder: what is still missing, arranged by site, building and discipline. Every claim is
+        checked against the real disciplines, buildings, checklist rows and file names before it is kept."""
+        st = store()
+        prj = _project(st, slug)
+        view = project_mod.project_view(st, prj["id"])
+        if not view or not view["sheets"]:
+            raise HTTPException(400, "add the project drawings first")
+        run_id = st.create_run(prj["id"], batch_id="", model_id=settings.model_id, kind="documents")
+        try:
+            out = documents_mod.review_documents(st, prj["id"], view, already=body.already, settings=settings)
+        except ValueError as e:
+            st.finish_run(run_id, "failed", {"error": str(e)})
+            raise HTTPException(400, str(e))
+        except Exception as e:  # noqa: BLE001
+            st.finish_run(run_id, "failed", {"error": f"{type(e).__name__}: {e}"})
+            raise HTTPException(502, f"the agent could not review the folder ({type(e).__name__}); try again")
+        st.finish_run(run_id, "done", out["usage"])
+        review = {**out, "run_id": run_id, "model_id": settings.model_id, "at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+        st.set_docs_review(prj["id"], review)
+        return {"docs_review": review}
+
+    @app.post("/api/projects/{slug}/documents/answer")
+    def answer_document_question(slug: str, body: DocsAnswerIn) -> dict:
+        """The engineer fills in a blank the agent left. Stored on the review; no agent call."""
+        st = store()
+        prj = _project(st, slug)
+        review = prj.get("docs_review")
+        qs = (review or {}).get("questions") or []
+        if not review or not 0 <= body.index < len(qs):
+            raise HTTPException(404, "no such question")
+        qs[body.index]["answer"] = " ".join(body.answer.split())[:600]
+        st.set_docs_review(prj["id"], review)
+        return {"docs_review": review}
+
+    @app.get("/api/projects/{slug}/documents/tree")
+    def documents_tree(slug: str) -> dict:
+        """The folder arranged site → building → discipline → sheets, plain code over the readings."""
+        st = store()
+        prj = _project(st, slug)
+        view = project_mod.project_view(st, prj["id"]) or {}
+        return documents_mod.site_tree(view)
 
     @app.post("/api/projects/{slug}/reviews")
     def start_review(slug: str, body: NewReview) -> dict:

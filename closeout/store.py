@@ -252,7 +252,8 @@ class Store:
                                 ("decisions", "project_id", "TEXT NOT NULL DEFAULT ''"),
                                 ("reviews", "package_json", "TEXT"),
                                 ("drafts", "review_id", "TEXT NOT NULL DEFAULT ''"),
-                                ("sheets", "views_json", "TEXT NOT NULL DEFAULT '[]'")):
+                                ("sheets", "views_json", "TEXT NOT NULL DEFAULT '[]'"),
+                                ("projects", "docs_review_json", "TEXT")):
             if col not in self._cols(table):
                 self.conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {ddl}")
         if "project_id" not in self._cols("deficiencies"):
@@ -680,7 +681,14 @@ class Store:
     def _p(r) -> dict:
         d = dict(r)
         d["model"] = json.loads(d.pop("model_json") or "{}")
+        d["docs_review"] = json.loads(d.pop("docs_review_json", None) or "null")
         return d
+
+    def set_docs_review(self, project_id: str, review: dict | None) -> None:
+        """The agent's last answer on what the folder is missing; one per project, replaced on each call."""
+        self.conn.execute("UPDATE projects SET docs_review_json=?, updated_at=? WHERE id=?",
+                          (json.dumps(review) if review is not None else None, now(), project_id))
+        self.conn.commit()
 
     def replace_documents(self, project_id: str, docs: list[dict]) -> list[str]:
         self.conn.execute("DELETE FROM documents WHERE project_id=?", (project_id,))

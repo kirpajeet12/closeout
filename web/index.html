@@ -333,6 +333,32 @@
   .ask li b { display: block; font-weight: 600; }
   .ask li span { display: block; color: var(--mute); font-size: 13px; margin-top: 3px; }
   .ask .fine { margin: 14px 0 0; font-size: 12px; color: var(--mute); }
+  @media (max-width: 760px) { .ask { padding: 16px 16px; border-radius: 14px; } .ask h2 { font-size: 18px; } .ask ol { gap: 8px; } .ask li { grid-template-columns: 26px 1fr; gap: 10px; padding: 10px 12px; } .ask li i { width: 26px; height: 26px; border-radius: 8px; font-size: 10px; } .ask li b { font-size: 14px; } .ask li span { font-size: 12px; } }
+  .filt { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 0 0 14px; }
+  .filt select { appearance: none; -webkit-appearance: none; border: 1px solid var(--line-2); background: var(--card) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23777' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 12px center; border-radius: 999px; padding: 8px 30px 8px 14px; font-size: 13px; color: var(--ink); font-family: inherit; max-width: 100%; }
+  .filt select.on { border-color: var(--ink); background-color: var(--ink); color: #fff; }
+  .filt .n { margin-left: auto; font-family: var(--mono); font-size: 12px; color: var(--mute); white-space: nowrap; }
+  .tier { margin-top: 28px; padding: 20px 22px 22px; border-radius: 18px; background: var(--card); border: 1px solid var(--line-2); }
+  .tier.site { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .tier .th { display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: start; }
+  .tier .th .k { display: grid; place-items: center; min-width: 52px; height: 52px; padding: 0 10px; border-radius: 14px; background: var(--paper); color: var(--ink); font: 700 15px var(--mono); letter-spacing: .02em; }
+  .tier.site .th .k { background: #fff; color: var(--ink); }
+  .tier .th h2 { margin: 2px 0 0; font-size: 22px; letter-spacing: -.02em; } .tier .th p { margin: 4px 0 0; color: var(--ink-2); font-size: 14px; max-width: 70ch; } .tier.site .th p { color: #c9ccd2; }
+  .tier h4.grp { margin-top: 20px; } .tier.site h4.grp { color: #fff; } .tier.site h4.grp small { color: #9a9ea6; }
+  .tier .gallery { margin-top: 10px; } .tier .gallery.hero { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+  .tier.site .sheet { border-color: #33363b; } .tier.site .sheet .cap { background: #1b1d21; } .tier.site .sheet .cap b, .tier.site .sheet .cap span { color: #fff; } .tier.site .sheet .cap small { color: #9a9ea6; }
+  .tier .none { margin: 8px 0 0; font-size: 13px; color: var(--mute); }
+  .tier .gaps { list-style: none; margin: 16px 0 0; padding: 14px 0 0; border-top: 1px dashed var(--line-2); display: grid; gap: 8px; } .tier.site .gaps { border-top-color: #3a3d43; }
+  .tier .gaps li { display: grid; grid-template-columns: 30px 1fr; gap: 10px; align-items: start; font-size: 14px; } .tier .gaps li i { display: grid; place-items: center; height: 24px; border-radius: 7px; font: 700 10px var(--mono); background: var(--hot); color: #fff; }
+  .tier .gaps li b { display: block; font-weight: 600; } .tier .gaps li span { display: block; font-size: 12px; color: var(--mute); margin-top: 2px; } .tier.site .gaps li span { color: #9a9ea6; }
+  .tier .gaps .lbl { grid-column: 1 / -1; font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: var(--mute); font-weight: 600; }
+  .agentdocs .lead-row { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin-top: 14px; } .agentdocs .lead-row small { color: var(--mute); font-size: 12px; }
+  .agentdocs .summary { margin: 18px 0 0; padding: 14px 16px; border-radius: 12px; background: var(--paper); border: 1px solid var(--line); font-size: 15px; line-height: 1.5; }
+  .agentdocs h4.grp { margin-top: 22px; }
+  .agentdocs li em { display: block; font-style: normal; font-size: 12px; color: var(--ready); margin-top: 4px; }
+  .agentdocs .qs li i { background: var(--paper); color: var(--ink); border: 1px solid var(--line-2); } .agentdocs .qs li em { color: var(--mute); }
+  .agentdocs .ans { display: flex; gap: 8px; margin-top: 8px; } .agentdocs .ans input { flex: 1; min-width: 0; border: 1px solid var(--line-2); border-radius: 10px; padding: 8px 12px; font: inherit; font-size: 14px; background: var(--card); color: var(--ink); } .agentdocs .ans input:focus { outline: none; border-color: var(--ink); }
+  @media (max-width: 760px) { .tier { padding: 16px 14px 18px; border-radius: 14px; } .tier .th { gap: 12px; } .tier .th .k { min-width: 42px; height: 42px; font-size: 13px; } .tier .th h2 { font-size: 19px; } }
   @media print { body * { visibility: hidden; } .ask, .ask * { visibility: visible; } .ask { position: absolute; left: 0; top: 0; width: 100%; box-shadow: none; border: 0; } .ask .btn { display: none; } }
   .mapbar { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; margin-top: 24px; padding: 14px 18px; border-radius: 14px; background: var(--card); border: 1px dashed var(--line-2); font-size: 14px; color: var(--ink-2); }
   .mapbar .btn { min-height: 40px; }
@@ -378,14 +404,14 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const $ = (s, el = document) => el.querySelector(s);
+const $ = (s, el = document) => el.querySelector(s), $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const when = s => { const d = new Date(s); return isNaN(d) ? String(s ?? "") : d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }); };
 const fileUrl = (id, page) => `/api/evidence/${id}/file` + (page ? `#page=${page}` : "");
 const isImg = name => /\.(jpe?g|png|heic|heif|webp)$/i.test(name || "");
 const PRICE = { inputTokens: 3 / 1e6, outputTokens: 15 / 1e6 };
 const cost = r => { const u = JSON.parse((r && r.usage_json) || "{}"); return (u.inputTokens || 0) * PRICE.inputTokens + (u.outputTokens || 0) * PRICE.outputTokens; };
-const state = { home: null, p: null, slug: null, es: null, run: { kind: "idle", text: "", done: 0, total: 0 }, fieldDisc: null, viewer: null, shot: null, openReview: null, finishing: null, drafting: null, mapping: null };
+const state = { home: null, p: null, slug: null, es: null, run: { kind: "idle", text: "", done: 0, total: 0 }, fieldDisc: null, viewer: null, shot: null, openReview: null, finishing: null, drafting: null, mapping: null, docsAsking: false, filters: { bld: "", disc: "", rv: "" } };
 
 function toast(msg, err) { const t = $("#toast"); t.textContent = msg; t.className = "toast show" + (err ? " err" : ""); setTimeout(() => t.className = "toast", 3200); }
 function route() {
@@ -494,8 +520,20 @@ function renderProject(tab) {
   ({ list: renderList, field: renderField, drawings: renderDrawings, docs: renderDocs, evidence: renderDrops, messages: renderMessages })[tab]();
 }
 
+function itemBuilding(d, blds) {
+  const unit = (d.unit || "").trim().toLowerCase();
+  const byUnit = unit ? blds.find(b => b.units.some(u => u.label.replace(/\s*\(.*$/, "").trim().toLowerCase() === unit)) : null;
+  if (byUnit) return byUnit.key;
+  const m = buildingOf(d.location || "");
+  return m && blds.some(b => b.key === m.key) ? m.key : "";
+}
 function renderList() {
-  const p = state.p, slug = state.slug, list = items();
+  const p = state.p, slug = state.slug, all = items(), f = state.filters, blds = buildings();
+  const reg = new Map(p.register.map(d => [d.item_id, d]));
+  const row = i => reg.get(i.item.item_id) || i.item;
+  const list = all.filter(i => { const d = row(i); return (!f.bld || itemBuilding(d, blds) === f.bld) && (!f.disc || (d.discipline || "") === f.disc) && (!f.rv || (d.review_id || "") === f.rv); });
+  const codes = [...new Set([...disciplines().map(d => d.code), ...p.register.map(d => d.discipline).filter(Boolean)])];
+  const filtering = f.bld || f.disc || f.rv;
   const n = { ready: 0, needs: 0, unclear: 0, none: 0 };
   list.forEach(i => n[status(i).k]++);
   const pct = k => list.length ? (n[k] / list.length * 100) + "%" : "0%";
@@ -515,6 +553,11 @@ function renderList() {
     </div>
     <div class="status ${esc(state.run.kind)}" id="status"></div>
     <h3 class="sec">Deficiencies</h3>
+    ${all.length ? `<div class="filt">
+      <select id="fBld" class="${f.bld ? "on" : ""}"><option value="">Every building</option>${blds.map(b => `<option value="${esc(b.key)}" ${f.bld === b.key ? "selected" : ""}>${esc(b.name)}</option>`).join("")}</select>
+      <select id="fDisc" class="${f.disc ? "on" : ""}"><option value="">Every discipline</option>${codes.map(c => `<option value="${esc(c)}" ${f.disc === c ? "selected" : ""}>${esc(DISC_NAMES[c] || c)}</option>`).join("")}</select>
+      <select id="fRv" class="${f.rv ? "on" : ""}"><option value="">Every field review</option>${p.reviews.map(r => `<option value="${esc(r.id)}" ${f.rv === r.id ? "selected" : ""}>${esc(r.discipline)} · ${esc(r.title)}${r.status === "active" ? " · in progress" : ""}</option>`).join("")}</select>
+      ${filtering ? `<button class="btn" id="fClear">Clear</button>` : ""}<span class="n">${list.length} of ${all.length}</span></div>` : ""}
     ${list.length ? `<table><thead><tr><th>Item</th><th>What was asked</th><th>Status</th><th>Your call</th><th></th></tr></thead><tbody>
       ${list.map(i => { const s = status(i); return `<tr class="row" data-id="${esc(i.item.item_id)}">
         <td class="id">${esc(i.item.item_id)}</td>
@@ -522,7 +565,7 @@ function renderList() {
         <td class="st"><span class="pill ${s.k}">${esc(s.t)}</span></td>
         <td class="call">${i.decision ? esc(CALL[i.decision.decision] || i.decision.decision) : "—"}</td>
         <td class="go">›</td></tr>`; }).join("")}
-    </tbody></table>` : `<p class="empty">No deficiency list yet. Drop one above to start.</p>`}
+    </tbody></table>` : all.length ? `<p class="empty">Nothing matches these filters.</p>` : `<p class="empty">No deficiency list yet. Drop one above to start.</p>`}
     ${p.packet && p.packet.unmatched.length ? `<h3 class="sec">Files that did not fit any item</h3><div class="left">${p.packet.unmatched.map(u => `
       <div class="card"><div class="thumb">${isImg(u.filename) ? `<img src="${fileUrl(u.evidence_id)}" alt="">` : esc((u.filename || "").split(".").pop().toUpperCase())}</div>
       <div><div class="file">${esc(u.filename)}</div><p>${esc(leftover(u))}</p></div></div>`).join("")}</div>` : ""}
@@ -532,6 +575,8 @@ function renderList() {
       <span>Nothing here is an engineering determination. The engineer decides.</span>
     </footer>`;
   $("#tab").querySelectorAll("tr.row").forEach(r => r.onclick = () => location.hash = pHash(slug, "/item/" + encodeURIComponent(r.dataset.id)));
+  [["fBld", "bld"], ["fDisc", "disc"], ["fRv", "rv"]].forEach(([id, k]) => { const el = $("#" + id); if (el) el.onchange = () => { state.filters[k] = el.value; renderList(); }; });
+  const fc = $("#fClear"); if (fc) fc.onclick = () => { state.filters = { bld: "", disc: "", rv: "" }; renderList(); };
   wireDrop($("#dropEv"), "batch", slug); wireDrop($("#dropReg"), "register", slug); wireDrop($("#dropPrj"), "drawings", slug);
   renderStatus();
 }
@@ -554,13 +599,40 @@ function renderDrawings() {
       <div class="fact"><b>Files in the folder</b><span>${pr.documents.length} · <a href="${pHash(slug, "/docs")}">Documents</a></span></div>
     </div>
     ${renderAsk(pr)}
-    ${Object.keys(byDisc).map(k => `<h3 class="sec">${esc(k)}</h3><div class="gallery">${byDisc[k].map(sh => `
-      <div class="sheet" data-id="${sh.id}"><img src="${sh.thumb_url || sh.image_url}" alt="" loading="lazy"><div class="cap"><b>${esc(sh.sheet_number || "p." + sh.page)}</b><span>${esc(sh.title || "")}</span><small>${(sh.read && sh.read.spaces || []).length} spaces read</small></div></div>`).join("")}</div>`).join("")}
+    ${renderHierarchy(pr)}
     <p class="empty" style="margin-top:22px">Tap a sheet to open it. To record a deficiency on it, start a field review first.</p>`
   : projectDrop("Add the project drawings", "Upload one zip of the project folder, or drop the folder here from a computer. The app files the drawing sets, the agent reads every current sheet, and the drawings still missing are listed here.");
   $("#tab").querySelectorAll(".sheet").forEach(s => s.onclick = () => location.hash = pHash(slug, "/field/" + s.dataset.id));
   const pb = $("#askPrint"); if (pb) pb.onclick = () => print();
   wireDrop($("#dropPrj"), "drawings", slug); renderStatus();
+}
+
+/* The set as the site is built: the site first (the site plan is the anchor of every field review), then one card per
+   building with its units, floors and sheets per discipline. Plain code over the readings; the agent's gaps land in place. */
+function renderHierarchy(pr) {
+  const blds = buildings(), discs = pr.disciplines || [], dn = c => DISC_NAMES[c] || c, rv = state.p.docs_review;
+  const owner = new Map(pr.sheets.map(sh => [sh.id, sheetOwner(sh, blds)]));
+  const card = sh => `<div class="sheet" data-id="${sh.id}"><img src="${sh.thumb_url || sh.image_url}" alt="" loading="lazy"><div class="cap"><b>${esc(sh.sheet_number || "p." + sh.page)}</b><span>${esc(sh.title || "")}</span><small>${esc(dn(sh.discipline))} · ${esc(((sh.read || {}).sheet_kind || "sheet").replace(/_/g, " "))}</small></div></div>`;
+  const gaps = b => (rv ? rv.missing : []).filter(m => (m.building || "") === (b ? b.name : ""));
+  const gapList = (list, lbl) => list.length ? `<ul class="gaps"><li class="lbl">${esc(lbl)}</li>${list.map(m => `<li><i>${esc(m.discipline || "ALL")}</i><div><b>${esc(m.what)}</b><span>${esc(m.why)}</span></div></li>`).join("")}</ul>` : "";
+  const byDisc = list => discs.map(d => [d.code, list.filter(sh => sh.discipline === d.code)]).filter(([, l]) => l.length);
+  const site = pr.sheets.filter(sh => !owner.get(sh.id)), plans = site.filter(isSiteSheet), rest = site.filter(sh => !isSiteSheet(sh));
+  const addr = [pr.address, pr.city].filter(Boolean).join(", ");
+  let html = `<section class="tier site"><div class="th"><span class="k">SITE</span><div><h2>${esc(pr.name)}</h2><p>${esc(addr ? addr + " · " : "")}${blds.length} building${blds.length === 1 ? "" : "s"} · ${site.length} site-wide sheet${site.length === 1 ? "" : "s"}. The site plan is the anchor: it names every building, and every field review starts from it.</p></div></div>
+    ${plans.length ? `<h4 class="grp">Site plans<small>${[...new Set(plans.map(sh => dn(sh.discipline)))].join(", ")}</small></h4><div class="gallery hero">${plans.map(card).join("")}</div>` : `<p class="none">No sheet in the set is read as a site plan.</p>`}
+    ${byDisc(rest).map(([code, shs]) => `<h4 class="grp">${esc(dn(code))} · site-wide<small>${shs.length} sheet${shs.length === 1 ? "" : "s"}</small></h4><div class="gallery">${shs.map(card).join("")}</div>`).join("")}
+    ${gapList(gaps(null), "Still missing for the whole site, per the agent")}
+  </section>`;
+  for (const b of blds) {
+    const mine = pr.sheets.filter(sh => owner.get(sh.id) === b);
+    const units = b.units.map(u => u.label.replace(/\s*\(.*$/, "")).join(", ");
+    html += `<section class="tier bld"><div class="th"><span class="k">${esc(b.key)}</span><div><h2>${esc(b.name)}</h2><p>${units ? esc(units) : "No unit in the project model names this building; the drawings do"}${b.levels.length ? ` · floors: ${esc(b.levels.join(", "))}` : ""} · ${mine.length} sheet${mine.length === 1 ? "" : "s"} of its own</p></div></div>
+      ${discs.map(d => { const shs = mine.filter(sh => sh.discipline === d.code), pick = shs.length ? null : planFor(d.code, b, ""), stand = pick && pick.standIn && pick.sheet ? pick.sheet : null;
+        return `<h4 class="grp">${esc(dn(d.code))}<small>${shs.length ? `${shs.length} sheet${shs.length === 1 ? "" : "s"}` : stand ? `no sheet of its own · ${esc(dn(stand.discipline))} ${esc(stand.sheet_number || "p." + stand.page)} stands in` : "none in the set"}</small></h4>${shs.length ? `<div class="gallery">${shs.map(card).join("")}</div>` : ""}`; }).join("")}
+      ${gapList(gaps(b), "Still missing for this building, per the agent")}
+    </section>`;
+  }
+  return html;
 }
 
 /* What to ask the client or the architect for before the first field review. Plain code over the sheet readings; no agent call,
@@ -650,12 +722,47 @@ function renderDocs() {
     <h3 class="sec">Revision log</h3>
     <p class="lead" style="margin:0">Every issue of every drawing set, newest first, with the reason the office wrote on the folder. The same file filed twice (discipline folder and the PM copy) is one line.</p>
     ${renderRevisions(pr)}
+    <h3 class="sec">What the folder is still missing</h3>
+    ${renderAgentDocs(pr)}
     <h3 class="sec">Documents before occupancy</h3>
     ${renderOccupancy(pr)}
     <div class="drop small" id="dropPrj" style="margin-top:24px"><div><h2>Add to the folder</h2><p>Drop the project folder again, or upload a zip, with the new letters, certificates and drawing issues. Everything is re-filed; the current sets are read again.</p></div><input type="file" webkitdirectory multiple>${zipBtn("Zip")}</div>
     <div class="status ${esc(state.run.kind)}" id="status"></div>`
   : projectDrop("Add the project folder", "Upload one zip of the whole project folder: drawings, letters, forms, certificates. The app files it by discipline and date, keeps every issue on record and shows which occupancy documents are still missing.");
   wireDrop($("#dropPrj"), "drawings", slug); renderStatus();
+  const ab = $("#askDocs"); if (ab) ab.onclick = askDocs;
+  $$(".qs input").forEach(inp => { const b = inp.parentElement.querySelector("button"); inp.oninput = () => { b.hidden = inp.value === ((state.p.docs_review.questions[+inp.dataset.q] || {}).answer || ""); };
+    b.onclick = async () => { const r = await fetch(pUrl(slug, "/documents/answer"), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ index: +inp.dataset.q, answer: inp.value }) }); const j = await r.json().catch(() => ({}));
+      if (!r.ok) return toast(j.detail || "Could not save the answer", true); state.p.docs_review = j.docs_review; b.hidden = true; toast("Answer saved"); }; });
+}
+/* One agent call over the folder. It gets text only (buildings, sheets, file names, the checklist, the rule-listed gaps) and
+   answers through tools that reject any discipline, building, checklist row or file name the folder does not have. */
+function renderAgentDocs(pr) {
+  const rv = state.p.docs_review, blds = buildings(), dn = c => DISC_NAMES[c] || c, already = docsNeeded(pr).length;
+  const groups = [{ key: "", name: "Whole site" }, ...blds.map(b => ({ key: b.name, name: b.name }))];
+  const rows = g => (rv ? rv.missing : []).filter(m => (m.building || "") === g.key);
+  const price = rv && rv.usage ? ((rv.usage.inputTokens || 0) * PRICE.inputTokens + (rv.usage.outputTokens || 0) * PRICE.outputTokens) : 0;
+  return `<div class="ask agentdocs">
+    <div class="head"><div><h2>${rv ? `${rv.missing.length} thing${rv.missing.length === 1 ? "" : "s"} to ask for, per the agent` : "Ask the agent what is missing"}</h2>
+      <p class="lead">${rv ? `Arranged as the site is built: the whole site first, then each of the ${blds.length} building${blds.length === 1 ? "" : "s"}. Every line was checked against the folder before it was kept; ${rv.rejections.length} claim${rv.rejections.length === 1 ? "" : "s"} that named something the folder does not have ${rv.rejections.length === 1 ? "was" : "were"} dropped.` : `One call. The agent reads the buildings, every current sheet, the ${(pr.documents || []).length} file names and the occupancy checklist, then lists what to ask the client, the architect or the trades for, on top of the ${already} line${already === 1 ? "" : "s"} the rules already show.`}</p></div>
+      ${state.docsAsking ? `<div class="thinking" style="margin:0"><span class="dot"></span><span>Reading the folder…</span></div>` : `<button class="btn ${rv ? "" : "primary"}" id="askDocs">${rv ? "Ask again" : "Ask the agent"}</button>`}</div>
+    ${rv ? `${rv.summary ? `<p class="summary">${esc(rv.summary)}</p>` : ""}
+      ${groups.map(g => { const list = rows(g); return list.length ? `<h4 class="grp">${esc(g.name)}<small>${list.length}</small></h4><ol>${list.map(m => `<li><i>${esc(m.discipline || "ALL")}</i><div><b>${esc(m.what)}</b><span>${esc(m.why)}</span>${m.checklist ? `<em>occupancy list · ${esc(m.checklist)}</em>` : ""}</div></li>`).join("")}</ol>` : ""; }).join("")}
+      ${(rv.questions || []).length ? `<h4 class="grp">The agent could not tell · you fill in<small>${rv.questions.length}</small></h4><ol class="qs">${rv.questions.map((q, i) => `<li><i>${esc(q.discipline || "ALL")}</i><div><b>${esc(q.question)}</b>${q.building ? `<em>${esc(q.building)}</em>` : ""}<div class="ans"><input data-q="${i}" value="${esc(q.answer || "")}" placeholder="Your answer, or leave it blank"><button class="btn" data-save="${i}" hidden>Save</button></div></div></li>`).join("")}</ol>` : ""}
+      ${rv.on_file.length ? `<h4 class="grp">Confirmed on file<small>${rv.on_file.length}</small></h4><ol>${rv.on_file.map(o => `<li><i class="ok">✓</i><div><b>${esc(o.checklist)}</b><span>${esc(o.file)}</span></div></li>`).join("")}</ol>` : ""}
+      <p class="fine">${esc(when(rv.at))} · ${esc((rv.model_id || "").replace(/^us\./, ""))} · ≈ $${price.toFixed(2)} · written by the agent from the folder, not an engineering determination.</p>` : `<p class="fine">A few cents on the project's model. Nothing is sent to anyone; the list is for the office.</p>`}
+  </div>`;
+}
+async function askDocs() {
+  const slug = state.slug;
+  state.docsAsking = true; renderDocs();
+  const already = docsNeeded(state.p.project).map(n => n.what);
+  const r = await fetch(pUrl(slug, "/documents/review"), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ already }) });
+  const j = await r.json().catch(() => ({}));
+  state.docsAsking = false;
+  if (!r.ok) { toast(j.detail || "The agent could not review the folder", true); return renderDocs(); }
+  toast(`Folder reviewed · ${j.docs_review.missing.length} to ask for`);
+  await load();
 }
 function renderFiles(pr) {
   const docs = pr.documents || [], groups = {};
@@ -691,58 +798,16 @@ function renderRevisions(pr) {
       ${rows.map(e => `<div class="r ${e.current ? "cur" : ""}"><time>${esc(e.dated || "undated")}</time><div><b>${esc(e.notes.join(" · ") || (e.current ? "Current set" : "Issue"))}${e.current ? ` <em style="color:var(--ready);font-style:normal;font-size:12px">current</em>` : ""}</b><span>${esc(e.name)}${e.copies > 1 ? ` · filed ${e.copies} times` : ""}</span></div></div>`).join("")}
     </div>`; }).join("")}</div>`;
 }
-/* The office's own list of what the coordinating professional collects before final occupancy (37 documents, from the QA
-   tracker). Matched by file name against the folder: plain code, and the engineer decides what counts. */
-const OCCUPANCY_DOCS = [
-  ["Builder's own items", "Occupancy permit application", "occupancy permit"],
-  ["Builder's own items", "Demonstration test protocol", "demonstration test"],
-  ["Builder's own items", "Fire safety plan", "fire safety plan"],
-  ["Builder's own items", "Non-encroachment survey", "encroachment"],
-  ["Builder's own items", "Confirmation of development permit compliance", "development permit compliance|dp compliance"],
-  ["Letters of assurance", "Schedule C-A and C-B, coordinating professional", "sched(ule)?[\\s_-]*c[\\s_-]*a\\b|\\bc-?a[\\s_-]+crp"],
-  ["Letters of assurance", "Schedule C-B, civil", "(sched(ule)?[\\s_-]*c[\\s_-]*b|\\bc-b\\b).*civil|civil.*\\bc[\\s_-]*b\\b"],
-  ["Letters of assurance", "Schedule C-B, geotechnical", "(sched(ule)?[\\s_-]*c[\\s_-]*b|\\bc-b\\b).*geotech|geotech.*\\bc[\\s_-]*b\\b"],
-  ["Letters of assurance", "Schedule C-B, structural", "(sched(ule)?[\\s_-]*c[\\s_-]*b|\\bc-b\\b).*struct|struct.*\\bc[\\s_-]*b\\b"],
-  ["Letters of assurance", "Schedule C-B, mechanical", "(sched(ule)?[\\s_-]*c[\\s_-]*b|\\bc-b\\b).*mech|mech.*\\bc[\\s_-]*b\\b"],
-  ["Letters of assurance", "Schedule C-B, electrical", "(sched(ule)?[\\s_-]*c[\\s_-]*b|\\bc-b\\b).*elec|elec.*\\bc[\\s_-]*b\\b"],
-  ["Letters of assurance", "Schedule C-B, plumbing", "(sched(ule)?[\\s_-]*c[\\s_-]*b|\\bc-b\\b).*plumb|plumb.*\\bc[\\s_-]*b\\b"],
-  ["Letters of assurance", "Schedule C-B, fire protection (sprinkler)", "(sched(ule)?[\\s_-]*c[\\s_-]*b|\\bc-b\\b).*(fire|sprink)|(fire|sprink).*\\bc[\\s_-]*b\\b"],
-  ["Schedule B, electrical", "Fire alarm verification certificate and report", "fire alarm verif|s537"],
-  ["Schedule B, electrical", "Appendix C of CAN/ULC-S537", "appendix c\\b|s537"],
-  ["Schedule B, electrical", "ULC certificate for the monitoring station, site specific", "monitoring station|ulc cert"],
-  ["Schedule B, electrical", "CAN/ULC-S1001 certificate", "s1001"],
-  ["Schedule B, electrical", "Bi-directional amplification, design and installation confirmation", "bi-?directional|\\bbda\\b"],
-  ["Schedule S-B, during construction", "Envelope", "s[\\s_-]*b\\b.*envelope|envelope.*s[\\s_-]*b\\b"],
-  ["Schedule S-B, during construction", "Windows", "s[\\s_-]*b\\b.*window|window.*s[\\s_-]*b\\b"],
-  ["Schedule S-B, during construction", "Guards", "s[\\s_-]*b\\b.*guard|guard.*s[\\s_-]*b\\b"],
-  ["Schedule S-B, during construction", "Mechanical seismic", "s[\\s_-]*b\\b.*mech.*seismic|mech.*seismic.*s[\\s_-]*b\\b"],
-  ["Schedule S-B, during construction", "Plumbing seismic", "s[\\s_-]*b\\b.*plumb.*seismic|plumb.*seismic.*s[\\s_-]*b\\b"],
-  ["Schedule S-B, during construction", "Electrical seismic", "s[\\s_-]*b\\b.*elec.*seismic|elec.*seismic.*s[\\s_-]*b\\b"],
-  ["Schedule S-B, during construction", "Fire sprinkler seismic", "s[\\s_-]*b\\b.*sprink.*seismic|sprink.*seismic.*s[\\s_-]*b\\b"],
-  ["Schedule S-C, at completion", "Envelope", "s[\\s_-]*c\\b.*envelope|envelope.*s[\\s_-]*c\\b"],
-  ["Schedule S-C, at completion", "Windows", "s[\\s_-]*c\\b.*window|window.*s[\\s_-]*c\\b"],
-  ["Schedule S-C, at completion", "Guards", "s[\\s_-]*c\\b.*guard|guard.*s[\\s_-]*c\\b"],
-  ["Schedule S-C, at completion", "Mechanical seismic", "s[\\s_-]*c\\b.*mech.*seismic|mech.*seismic.*s[\\s_-]*c\\b"],
-  ["Schedule S-C, at completion", "Plumbing seismic", "s[\\s_-]*c\\b.*plumb.*seismic|plumb.*seismic.*s[\\s_-]*c\\b"],
-  ["Schedule S-C, at completion", "Electrical seismic", "s[\\s_-]*c\\b.*elec.*seismic|elec.*seismic.*s[\\s_-]*c\\b"],
-  ["Schedule S-C, at completion", "Fire sprinkler seismic", "s[\\s_-]*c\\b.*sprink.*seismic|sprink.*seismic.*s[\\s_-]*c\\b"],
-  ["Trade certificates and reports", "Sprinkler material test certificate, underground piping", "sprink.*(material|test).*underground|underground.*sprink"],
-  ["Trade certificates and reports", "Sprinkler material test certificate, above-ground piping", "sprink.*(material|test).*above|above.?ground.*sprink"],
-  ["Trade certificates and reports", "Standpipe material test certificate, underground (NFPA 14)", "standpipe.*underground|underground.*standpipe"],
-  ["Trade certificates and reports", "Standpipe material test certificate, above ground (NFPA 14)", "standpipe.*above|above.?ground.*standpipe"],
-  ["Trade certificates and reports", "Backflow preventer test report", "backflow"],
-  ["Trade certificates and reports", "Chlorination certificate", "chlorinat|disinfect"],
-  ["Trade certificates and reports", "Heat trace confirmation letter", "heat.?trac"],
-  ["Trade certificates and reports", "Parkade CO detector calibration certificate", "\\bco\\b.*(detector|calibrat)|carbon monoxide"],
-  ["Trade certificates and reports", "HVAC balancing report, life-safety fans", "balanc"],
-];
+/* The office's own list of what the coordinating professional collects before final occupancy (from the QA tracker), served
+   by the API so there is one copy. Matched by file name against the folder, plus the rows the agent confirmed by exact file
+   name; the engineer decides what counts. */
 function renderOccupancy(pr) {
-  const docs = pr.documents || [];
-  const hits = OCCUPANCY_DOCS.map(([grp, name, re]) => { const rx = new RegExp(re, "i"); const f = docs.filter(d => rx.test(baseName(d))); return { grp, name, files: f }; });
+  const docs = pr.documents || [], onFile = ((state.p.docs_review || {}).on_file || []);
+  const hits = (state.p.occupancy_docs || []).map(([grp, name, re]) => { const rx = new RegExp(re, "i"); const files = [...new Set([...docs.filter(d => rx.test(baseName(d))).map(baseName), ...onFile.filter(o => o.checklist === name).map(o => o.file)])]; return { grp, name, files }; });
   const on = hits.filter(h => h.files.length).length, groups = [...new Set(hits.map(h => h.grp))];
   return `<div class="occ">
     <div class="tally"><b>${on} of ${hits.length}</b><span>on file · matched by file name across the ${docs.length} files in the folder. Not an engineering determination: the engineer decides what counts.</span></div>
-    ${groups.map(g => { const rows = hits.filter(h => h.grp === g), got = rows.filter(h => h.files.length).length; return `<details class="grp ${got ? "some" : ""}" ${got ? "open" : ""}><summary><h4>${esc(g)}</h4><span class="n">${got} of ${rows.length}</span></summary>${rows.map(h => `<div class="it ${h.files.length ? "on" : ""}"><i></i><div><b>${esc(h.name)}</b><span>${h.files.length ? esc(h.files.map(baseName).join(", ")) : "not on file"}</span></div></div>`).join("")}</details>`; }).join("")}
+    ${groups.map(g => { const rows = hits.filter(h => h.grp === g), got = rows.filter(h => h.files.length).length; return `<details class="grp ${got ? "some" : ""}" ${got ? "open" : ""}><summary><h4>${esc(g)}</h4><span class="n">${got} of ${rows.length}</span></summary>${rows.map(h => `<div class="it ${h.files.length ? "on" : ""}"><i></i><div><b>${esc(h.name)}</b><span>${h.files.length ? esc(h.files.join(", ")) : "not on file"}</span></div></div>`).join("")}</details>`; }).join("")}
   </div>`;
 }
 
@@ -925,7 +990,7 @@ function renderGalleryGroups(cur) {
       <div class="sheet" data-id="${sh.id}"><img src="${sh.thumb_url || sh.image_url}" alt="" loading="lazy"><div class="cap"><b>${esc(sh.sheet_number || "p." + sh.page)}${n ? `<span class="pins">${n}</span>` : ""}${tag ? `<i>${esc(tag)}</i>` : ""}</b><span>${esc(sh.title || "")}</span><small>${v ? `${v} floor${v === 1 ? "" : "s"} boxed` : `${(sh.read && sh.read.spaces || []).length} spaces read`}</small></div></div>`; };
   const groups = [], used = new Set();
   for (const b of blds) {
-    const mine = cur.sheets.filter(sh => sheetMentions(sh, b) && blds.filter(o => sheetMentions(sh, o)).length === 1);   // sheets of several buildings stay under Site & general
+    const mine = cur.sheets.filter(sh => sheetOwner(sh, blds) === b);   // sheets of several buildings, and site-wide kinds, stay under Site & general
     mine.forEach(sh => used.add(sh.id));
     const pick = planFor(cur.code, b, ""), standIn = pick && pick.standIn && pick.sheet && !own.has(pick.sheet.id) ? pick.sheet : null;
     if (!mine.length && !standIn) continue;
@@ -1001,16 +1066,38 @@ function buildingOf(text) {
   if (!m) return null;
   return { key: m[1], name: (m[1] + " " + m[2]).replace(/[\s,]+$/, "") };
 }
+const BUILDING_KINDS = ["floor_plan", "plan", "elevation", "section", "roof_plan"];   // sheet kinds that belong to one building
 function buildings() {
-  const out = [];
+  const out = [], street = b => b.name.slice(b.key.length).trim().toLowerCase();
   for (const u of state.p.project.units) {
     const label = u.label || u.name || String(u), levels = (u.levels || []).map(l => l.name || l);
     const b = buildingOf(u.address || label) || { key: label, name: label };
     let g = out.find(x => x.key === b.key);
-    if (!g) { g = { ...b, units: [] }; out.push(g); }
+    if (!g) { g = { ...b, units: [], levels: [] }; out.push(g); }
     g.units.push({ label, levels });
+    levels.forEach(l => { if (!g.levels.includes(l)) g.levels.push(l); });
+  }
+  // A building the unit list does not name but a plan or elevation is titled with (same street): it gets a place with no units.
+  const streets = new Set(out.map(street).filter(Boolean));
+  for (const sh of state.p.project.sheets) {
+    const kind = (sh.read || {}).sheet_kind;
+    if (!BUILDING_KINDS.includes(kind)) continue;
+    const b = buildingOf(sh.title);
+    if (!b || !streets.has(street(b))) continue;
+    let g = out.find(x => x.key === b.key);
+    if (!g) { g = { ...b, units: [], levels: [], fromDrawings: true }; out.push(g); }
+    if (g.fromDrawings && (kind === "floor_plan" || kind === "plan")) ((sh.read || {}).levels || []).forEach(l => { if (l && !g.levels.includes(l)) g.levels.push(l); });   // floor names from a plan, not an elevation's datum labels
   }
   return out;
+}
+/* The one building a sheet belongs to: a plan, elevation or section that names exactly one. Site plans, notes, details and
+   anything naming several buildings stay with the site. */
+function sheetOwner(sh, blds) {
+  if (!BUILDING_KINDS.includes((sh.read || {}).sheet_kind)) return null;
+  blds = blds || buildings();
+  const byTitle = blds.filter(b => sheetMentions({ title: sh.title || "" }, b));   // the title decides; title blocks carry the civic address on every sheet
+  const hits = byTitle.length === 1 ? byTitle : blds.filter(b => sheetMentions(sh, b));
+  return hits.length === 1 ? hits[0] : null;
 }
 function sheetMentions(sh, b) {
   if (!b) return false;
@@ -1022,7 +1109,7 @@ function buildingOfSheet(sh) { return buildings().find(b => sheetMentions(sh, b)
 function floorsFor(b, unitLabel) {
   const u = b && b.units.find(x => x.label === unitLabel);
   if (u && u.levels.length) return u.levels;
-  const all = b ? [...new Set(b.units.flatMap(x => x.levels))] : [];
+  const all = b ? [...new Set([...b.units.flatMap(x => x.levels), ...(b.levels || [])])] : [];
   return all.length ? all : unitLevelLists().levels;
 }
 function isPlanSheet(sh) { const k = (sh.read || {}).sheet_kind || "", t = (sh.title || "").toUpperCase(); return k === "floor_plan" || k === "plan" || /FLOOR PLAN/.test(t); }
@@ -1031,9 +1118,10 @@ function planFor(code, b, level) {
   const sheets = state.p.project.sheets, dn = c => DISC_NAMES[c] || c;
   const scored = sheets.map((sh, i) => {
     const r = sh.read || {}, hit = sheetMentions(sh, b), plan = isPlanSheet(sh), site = isSiteSheet(sh);
+    const titled = b && sheetMentions({ title: sh.title || "" }, b);   // the title names this building outright (title blocks mention the civic address on every sheet)
     const view = level ? (sh.views || []).find(v => v.level === level) || null : null;
     let s = 0;
-    if (hit) s += 8; if (sh.discipline === code) s += 4; if (plan) s += 6; else if (site) s += 1;
+    if (hit) s += 8; if (titled) s += 3; if (sh.discipline === code) s += 4; if (plan) s += 6; else if (site) s += 1;
     if (view) s += 3; if (level && (r.levels || []).includes(level)) s += 2;
     if (["rendering", "notes", "details", "elevation", "section", "landscape"].includes(r.sheet_kind)) s -= 5;
     return { sh, s, i, hit, plan, site, view };
