@@ -2035,7 +2035,8 @@ if (SR) {
    question back to Closeout), or, when that is not set up, the phone's own recogniser and voice. Either way the
    answers come from the same Closeout agent through /ask. */
 const live = { on: false, rec: null, state: "tap", history: [], pending: null, misses: 0, speaking: null, mode: "phone" };
-const YES = /^(yes|yeah|yep|yup|confirm|go ahead|do it|ok|okay|sure)\b/i, NO = /^(no|nope|cancel|never mind|don'?t|stop)\b/i;
+/* A short "yes" confirms; a "no" anywhere declines; anything longer is a new question and the change is dropped. */
+const YES = /\b(yes|yeah|yep|yup|confirm|go ahead|do it|okay|ok|sure)\b/i, NO = /\b(no|nope|cancel|never mind|don'?t|stop|leave it)\b/i;
 function liveSet(state, words) {
   live.state = state;
   const bar = $("#livebar"); bar.dataset.state = state;
@@ -2116,14 +2117,15 @@ function liveSay(text) { if (live.mode === "rtc") rtcSay(text); else liveSpeak(t
 async function liveHeard(q) {
   if (live.pending) {
     const action = live.pending;
-    if (YES.test(q)) {
+    const short = q.trim().split(/\s+/).length <= 6;
+    if (NO.test(q)) { live.pending = null; $("#askpanel").hidden = true; liveHistory(q, "Left as it was."); liveSay("Okay, left as it was."); return; }
+    if (YES.test(q) && short) {
       live.pending = null; liveSet("thinking", q);
       if (!$("#askact")) askPanel(live.last.q, live.last.a, "", false, action);
       const ok = await askConfirm(action);
       const said = ok === true ? "Done. " + action.label : `That did not go through. ${ok}`;
       liveHistory(q, said); liveSay(said); return;
     }
-    if (NO.test(q)) { live.pending = null; $("#askpanel").hidden = true; liveHistory(q, "Left as it was."); liveSay("Okay, left as it was."); return; }
     live.pending = null; $("#askpanel").hidden = true;   // anything else is a new question; the change is dropped
   }
   liveSet("thinking", q);
@@ -2150,17 +2152,21 @@ function liveHistory(q, a) { live.history.push({ q, a }); if (live.history.lengt
 /* The spoken conversation: the browser opens a real-time voice call to the server's voice service. The voice hears
    and speaks; every project question it receives is handed back here ("delegated"), answered by Closeout through
    /ask, and the answer is passed to the voice to say. The key never reaches the phone; the server opens the call. */
-const rtc = { pc: null, dc: null, mic: null, out: null, heard: [], said: "", started: false, delegation: null, quiet: null, muted: false, seq: 0 };
+const rtc = { pc: null, dc: null, mic: null, out: null, heard: [], said: "", lastEnd: 0, started: false, delegation: null, quiet: null, muted: false, seq: 0 };
 function rtcSend(ev) { try { if (rtc.dc && rtc.dc.readyState === "open") { ev.event_id = "co_" + (++rtc.seq); rtc.dc.send(JSON.stringify(ev)); } } catch (e) {} }
 function rtcThink(text) { rtcSend({ type: "session.thinking.append", delegation_id: rtc.delegation, content: String(text).slice(0, 1200) }); }
 function rtcSay(text) {
   const t = String(text || "").trim(); if (!t) return;
   for (let i = 0; i < t.length; i += 1200) rtcSend({ type: "session.commentary.append", delegation_id: rtc.delegation, content: t.slice(i, i + 1200) });
 }
+function rtcHangUp(pc, dc) { try { dc && dc.close(); } catch (e) {} try { pc && pc.close(); } catch (e) {} }
 function rtcClose() {
-  try { rtcSend({ type: "session.close" }); } catch (e) {}
   const { pc, dc, mic, out } = rtc;
-  setTimeout(() => { try { dc && dc.close(); } catch (e) {} try { pc && pc.close(); } catch (e) {} }, 400);
+  try { rtcSend({ type: "session.close" }); } catch (e) {}
+  if (dc) {   // the call ends when the service says so, or after a moment either way
+    const t = setTimeout(() => rtcHangUp(pc, dc), 3000);
+    dc.onmessage = m => { try { if (JSON.parse(m.data).type === "session.closed") { clearTimeout(t); rtcHangUp(pc, dc); } } catch (e) {} };
+  } else rtcHangUp(pc, dc);
   try { mic && mic.getTracks().forEach(t => t.stop()); } catch (e) {}
   try { if (out) { out.pause(); out.srcObject = null; } } catch (e) {}
   rtc.pc = null; rtc.dc = null; rtc.mic = null; rtc.started = false; rtc.delegation = null; rtc.heard = []; rtc.said = ""; rtc.muted = false;
@@ -2172,7 +2178,8 @@ async function rtcEvent(ev) {
     case "session.started":
       rtc.started = true; liveSet("listening", "Ask about the project"); break;
     case "session.input_transcript.delta":
-      if (rtc.said) { rtc.said = ""; rtc.heard = []; }   // the engineer speaks again: a new turn begins
+      if (rtc.said || (ev.start_ms || 0) - rtc.lastEnd > 2500) { rtc.said = ""; rtc.heard = []; }   // a new utterance begins
+      rtc.lastEnd = ev.end_ms || ev.start_ms || 0;
       rtc.heard.push({ t: String(ev.delta || ""), s: ev.start_ms || 0 });
       if (live.state !== "thinking") liveSet("listening", rtc.heard.map(h => h.t).join("").trim());
       break;
@@ -2185,7 +2192,7 @@ async function rtcEvent(ev) {
     case "session.delegation.created": {
       rtc.delegation = (ev.delegation && ev.delegation.id) || null;
       await new Promise(r => setTimeout(r, 350));   // let the last words of the transcript arrive
-      const q = rtc.heard.map(h => h.t).join("").replace(/\s+/g, " ").trim(); rtc.heard = []; rtc.said = "";
+      const q = rtc.heard.map(h => h.t).join("").replace(/\s+/g, " ").trim(); rtc.heard = [];
       if (!q) { rtcSay("I did not catch that. Could you say it again?"); break; }
       liveHeard(q); break;
     }
