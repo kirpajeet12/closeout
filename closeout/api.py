@@ -21,7 +21,7 @@ from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, StreamingResponse
 from pydantic import BaseModel
 
-from . import documents as documents_mod, pipeline, plans as plans_mod, project as project_mod, review as review_mod
+from . import ask as ask_mod, documents as documents_mod, pipeline, plans as plans_mod, project as project_mod, review as review_mod
 from .config import SETTINGS, Settings
 from .ingest import _exif, _heic_to_jpeg
 from .packet import build_packet, packet_markdown
@@ -102,6 +102,11 @@ class FindingPatch(BaseModel):
     note: str | None = None
     pin_x: float | None = None
     pin_y: float | None = None
+
+
+class AskBody(BaseModel):
+    question: str
+    where: dict | None = None
 
 
 class DocsReviewIn(BaseModel):
@@ -612,6 +617,23 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         st.finish_run(run_id, "done", out["usage"])
         did = st.upsert_draft(run_id, "", out["subject"], out["body"], review_id=review_id)
         return st.draft_for_review(review_id) if did else None, None
+
+    @app.post("/api/projects/{slug}/ask")
+    def ask_project(slug: str, body: AskBody) -> dict:
+        """One call on the fast model: answer from the records, optionally move the screen. Reads only."""
+        st = store()
+        prj = _project(st, slug)
+        run_id = st.create_run(prj["id"], batch_id="", model_id=settings.fast_model_id, kind="ask")
+        try:
+            out = ask_mod.ask(st, prj["id"], body.question, body.where, settings, office=settings.office)
+        except ValueError as e:
+            st.finish_run(run_id, "failed", {"error": str(e)})
+            raise HTTPException(400, str(e))
+        except Exception as e:  # noqa: BLE001
+            st.finish_run(run_id, "failed", {"error": f"{type(e).__name__}: {e}"})
+            raise HTTPException(502, "Closeout could not answer that just now; ask again")
+        st.finish_run(run_id, "done", out["usage"])
+        return {"answer": out["text"], "go": out["go"], "usage": out["usage"]}
 
     @app.post("/api/projects/{slug}/reviews/{review_id}/finish")
     def finish_review(slug: str, review_id: str) -> dict:

@@ -232,6 +232,16 @@
   .back { display: inline-block; margin: 24px 0 8px; color: var(--mute); font-size: 14px; }
   .item-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; padding-bottom: 22px; }
   .item-head h1 { margin: 0; font-size: 30px; letter-spacing: -.02em; line-height: 1.2; }
+  /* a field note can run to three or four sentences; then it reads as a paragraph, not a headline */
+  .item-head h1.long { font-size: 21px; letter-spacing: -.01em; line-height: 1.35; font-weight: 600; }
+  @media (max-width: 760px) {
+    .item-head { flex-direction: column-reverse; align-items: flex-start; gap: 10px; padding-bottom: 14px; }
+    .item-head h1 { font-size: 22px; }
+    .item-head h1.long { font-size: 16px; line-height: 1.45; }
+    .item-head .where { font-size: 13px; }
+    .refs { grid-template-columns: 1fr 1fr; }
+    .grid2 { gap: 14px; }
+  }
   .item-head .where { color: var(--mute); margin-top: 6px; font-size: 15px; }
   .item-head .idm { font-family: var(--mono); font-size: 13px; color: var(--mute); margin-bottom: 6px; }
   .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
@@ -473,7 +483,7 @@
   .panel .acts .btn:disabled { opacity: .45; cursor: not-allowed; }
   .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(20px); background: var(--ink); color: #fff; padding: 10px 16px; border-radius: 10px; font-size: 14px; opacity: 0; transition: .2s; pointer-events: none; z-index: 9; }
   .toast.show { opacity: 1; transform: translateX(-50%); } .toast.err { background: var(--hot); }
-  @media (max-width: 760px) { .hero, .grid2, .drops, .refs { grid-template-columns: 1fr; } .wrap { padding: 0 16px 60px; } .tabs { overflow-x: auto; } }
+  @media (max-width: 760px) { .hero, .grid2, .drops { grid-template-columns: 1fr; } .wrap { padding: 0 16px 60px; } .tabs { overflow-x: auto; } }
   /* On a phone the deficiency list folds from a five-column table into one card per item: number and status on the first
      line, the wording under it, the engineer's call last. */
   @media (max-width: 760px) {
@@ -492,6 +502,26 @@
     .viewer .floors { flex-wrap: wrap; }
     .viewer .floors .pinf { flex-basis: 100%; margin-left: 0; padding-left: 0; border-left: 0; padding-top: 6px; border-top: 1px solid #2b2d31; }
   }
+  /* Ask Closeout: one question box, fixed to the bottom of every project screen. Answers come from the records;
+     when the answer is "look here", the screen moves. */
+  body.askable .wrap { padding-bottom: 120px; }
+  .askbar { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); width: min(720px, calc(100% - 32px)); z-index: 40; }
+  .askbar form { display: flex; align-items: center; gap: 8px; background: var(--ink); border-radius: 999px; padding: 6px 6px 6px 18px; box-shadow: 0 12px 34px rgba(18,19,20,.28); }
+  .askbar form input { flex: 1; min-width: 0; background: transparent; border: 0; color: #fff; font: 15px/1.4 var(--sans); outline: none; }
+  .askbar form input::placeholder { color: #a9adb4; }
+  .askbar form button { border: 0; background: #fff; color: var(--ink); border-radius: 999px; width: 38px; height: 38px; font-size: 18px; font-weight: 700; display: grid; place-items: center; cursor: pointer; flex: none; }
+  .askbar form button:disabled { opacity: .45; }
+  .askbar.busy form button { background: #c9ccd2; }
+  .askpanel { background: var(--card); border: 1px solid var(--line-2); border-radius: 16px; padding: 14px 16px 12px; margin-bottom: 10px; box-shadow: 0 16px 40px rgba(18,19,20,.14); position: relative; animation: askin .18s ease-out; }
+  .askpanel[hidden] { display: none; }
+  @keyframes askin { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  .askpanel .q { font-size: 12px; color: var(--mute); margin-bottom: 4px; padding-right: 28px; }
+  .askpanel .a { font-size: 15px; line-height: 1.5; color: var(--ink); white-space: pre-line; }
+  .askpanel .a.wait { color: var(--mute); }
+  .askpanel .went { margin-top: 8px; font-size: 12px; color: var(--ready); font-weight: 600; }
+  .askpanel .x { position: absolute; top: 8px; right: 10px; border: 0; background: transparent; color: var(--mute); font-size: 18px; cursor: pointer; padding: 4px 6px; }
+  .askpanel .fine { margin-top: 8px; font-size: 11px; color: var(--mute); }
+  @media (max-width: 760px) { .askbar { bottom: 10px; width: calc(100% - 20px); } body.askable .wrap { padding-bottom: 96px; } }
 </style>
 </head>
 <body>
@@ -503,6 +533,10 @@
   <main id="main"></main>
 </div>
 <div class="toast" id="toast"></div>
+<div class="askbar" id="askbar" hidden>
+  <div class="askpanel" id="askpanel" hidden></div>
+  <form id="askform" autocomplete="off"><input type="text" id="askq" placeholder="Ask Closeout… e.g. what is still open at 6895?" maxlength="600"><button type="submit" id="askgo" aria-label="Ask">↑</button></form>
+</div>
 
 <script>
 const $ = (s, el = document) => el.querySelector(s), $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -564,12 +598,13 @@ function render() {
   const inP = r.page !== "home" && p;
   document.body.classList.toggle("viewing", r.page === "sheet" && !!p);
   $("#crumbs").innerHTML = inP ? `<a href="#/">Projects</a><span>›</span><b>${esc(p.project.name)}</b>${r.page === "item" ? `<span>›</span><span>${esc(r.id)}</span>` : ""}` : `<span>${state.home ? `${state.home.projects.length} project${state.home.projects.length === 1 ? "" : "s"}` : ""}</span>`;
-  if (r.page === "contractor") { document.body.classList.add("contractor"); $("#crumbs").innerHTML = p ? `<span>${esc(p.project.name)}</span>` : ""; renderContractor(); return; }
+  if (r.page === "contractor") { document.body.classList.add("contractor"); $("#crumbs").innerHTML = p ? `<span>${esc(p.project.name)}</span>` : ""; renderContractor(); renderAsk(); return; }
   if (r.page === "home") renderHome();
   else if (!p) $("#main").innerHTML = `<a class="back" href="#/">← Projects</a><p class="empty">That project is not here.</p>`;
   else if (r.page === "item") renderItem(r.id);
   else if (r.page === "sheet") renderSheet(r.sheetId);
   else renderProject(r.tab);
+  renderAsk();
 }
 
 /* ---- projects home --------------------------------------------------- */
@@ -1181,7 +1216,7 @@ function renderItem(id) {
   $("#main").innerHTML = `
     <a class="back" href="${pHash(slug, "/deficiencies")}">← All deficiencies</a>
     <div class="item-head">
-      <div><div class="idm">${esc(d.item_id)} · ${esc(d.discipline || "")}${d.review_date ? ` · reviewed ${esc(d.review_date)}` : ""}${d.source === "field" ? " · recorded on site" : ""}</div><h1>${esc(d.description)}</h1><div class="where">${esc(d.location)}${d.sheet ? ` · sheet ${esc(d.sheet)}` : ""}${d.note ? ` · note: “${esc(d.note)}”` : ""}</div></div>
+      <div><div class="idm">${esc(d.item_id)} · ${esc(d.discipline || "")}${d.review_date ? ` · reviewed ${esc(d.review_date)}` : ""}${d.source === "field" ? " · recorded on site" : ""}</div><h1 class="${d.description.length > 110 ? "long" : ""}">${esc(d.description)}</h1><div class="where">${esc(d.location)}${d.sheet ? ` · sheet ${esc(d.sheet)}` : ""}${d.note ? ` · note: “${esc(d.note)}”` : ""}</div></div>
       <span class="pill lg ${s.k}">${esc(s.t)}</span>
     </div>
     <div class="grid2">
@@ -1833,6 +1868,74 @@ function zipBtn(text) { return `<label class="zipbtn">${esc(text)}<input type="f
 
 window.addEventListener("hashchange", () => { const r = route(); if (r.page === "home" && state.p) { state.p = null; } if (r.page !== "sheet") { resetDraft(); state.viewer = null; } if (!(r.page === "project" && r.tab === "field") && r.page !== "sheet" && state.shot) { URL.revokeObjectURL(state.shot.photoUrl); state.shot = null; } load(); });
 load();
+
+/* ---- Ask Closeout ------------------------------------------------------ */
+const askState = { busy: false, last: null };
+function askWhere() {
+  const r = route();
+  const w = { tab: r.page === "project" ? (r.tab === "list" ? "deficiencies" : r.tab) : r.page, filters: { ...state.filters } };
+  if (r.page === "item") w.item_id = r.id;
+  if (r.page === "sheet") { const sh = (state.p.project.sheets || []).find(x => x.id === r.sheetId); if (sh) w.sheet = sh.sheet_number; }
+  return w;
+}
+function renderAsk() {
+  const r = route(), on = !!state.p && (r.page === "project" || r.page === "item" || r.page === "sheet");
+  document.body.classList.toggle("askable", on);
+  $("#askbar").hidden = !on;
+  $("#askq").placeholder = window.innerWidth <= 760 ? "Ask Closeout…" : "Ask Closeout… e.g. what is still open at 6895?";
+  if (!on) { $("#askpanel").hidden = true; askState.last = null; }
+}
+function askPanel(q, a, went, wait) {
+  const el = $("#askpanel");
+  el.innerHTML = `<div class="q">${esc(q)}</div><div class="a${wait ? " wait" : ""}">${esc(a)}</div>${went ? `<div class="went">${esc(went)}</div>` : ""}${wait ? "" : `<div class="fine">From this project's records. Closeout answers; the engineer decides.</div>`}<button class="x" type="button" aria-label="Close">×</button>`;
+  el.hidden = false;
+  el.querySelector(".x").onclick = () => { el.hidden = true; };
+}
+function goLabel(go) {
+  const p = state.p;
+  const names = { overview: "the overview", deficiencies: "the deficiencies", field: "the field review", drawings: "the drawings", docs: "the documents", messages: "the messages" };
+  if (go.screen === "item") return `Opened ${go.item_id}`;
+  if (go.screen === "sheet") return `Opened sheet ${go.sheet || ""}`;
+  const bits = [];
+  if (go.building) { const b = buildings().find(x => x.key === go.building); bits.push(b ? b.name : go.building); }
+  if (go.discipline) bits.push(DISC_NAMES[go.discipline] || go.discipline);
+  if (go.review) { const rv = (p.reviews || []).find(x => x.id === go.review); if (rv) bits.push(rv.title); }
+  return `Took you to ${names[go.screen] || go.screen}${bits.length ? " · " + bits.join(" · ") : ""}`;
+}
+function applyGo(go) {
+  if (!go || !go.screen) return "";
+  const slug = state.slug;
+  let hash;
+  if (go.screen === "item") hash = pHash(slug, "/item/" + encodeURIComponent(go.item_id));
+  else if (go.screen === "sheet") hash = pHash(slug, "/field/" + encodeURIComponent(go.sheet_id));
+  else {
+    if (go.screen === "deficiencies") state.filters = { bld: go.building || "", disc: go.discipline || "", rv: go.review || "" };
+    if (go.screen === "field") { if (go.discipline) state.fieldDisc = go.discipline; if (go.review) state.openReview = go.review; }
+    hash = pHash(slug, go.screen === "overview" ? "" : "/" + go.screen);
+  }
+  if (location.hash === hash) render(); else location.hash = hash;
+  window.scrollTo({ top: 0, behavior: "smooth" });
+  return goLabel(go);
+}
+async function askSend() {
+  const input = $("#askq"), q = input.value.trim();
+  if (!q || askState.busy) return;
+  askState.busy = true; $("#askbar").classList.add("busy"); $("#askgo").disabled = true;
+  askPanel(q, "Looking through the records…", "", true);
+  try {
+    const r = await fetch(pUrl(state.slug, "/ask"), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ question: q, where: askWhere() }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.detail || "Closeout could not answer that just now");
+    const went = applyGo(j.go);
+    askPanel(q, j.answer, went, false);
+    input.value = "";
+  } catch (e) {
+    askPanel(q, e.message || "Closeout could not answer that just now; ask again", "", false);
+  } finally {
+    askState.busy = false; $("#askbar").classList.remove("busy"); $("#askgo").disabled = false;
+  }
+}
+$("#askform").onsubmit = e => { e.preventDefault(); askSend(); };
 </script>
 </body>
 </html>
