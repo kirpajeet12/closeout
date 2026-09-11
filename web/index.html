@@ -127,6 +127,8 @@
   .files .frow span { color: var(--ink-2); word-break: break-word; } .files .frow small { color: var(--mute); font-family: var(--mono); font-size: 11px; white-space: nowrap; }
   .rev { display: grid; gap: 14px; margin-top: 14px; }
   .rev .disc { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 18px 6px; }
+  .rev .revnote { margin: -4px 0 8px; font-size: 13px; color: var(--mute); }
+  .rev .revother { margin: 14px 0 4px; padding-top: 12px; border-top: 1px dashed var(--line-2); font-size: 13px; font-weight: 600; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; } .rev .revother small { font-weight: 400; color: var(--mute); }
   .rev .disc h4 { margin: 0 0 6px; font-size: 15px; display: flex; gap: 10px; align-items: baseline; } .rev .disc h4 small { color: var(--mute); font-weight: 500; font-size: 12px; }
   .rev .r { display: grid; grid-template-columns: 96px 1fr; gap: 14px; padding: 9px 0; border-top: 1px solid var(--line); font-size: 13px; position: relative; }
   .rev .r time { font-family: var(--mono); font-size: 12px; color: var(--mute); padding-top: 2px; } .rev .r.cur time { color: var(--ready); font-weight: 700; }
@@ -305,6 +307,22 @@
   .disc .rv b { color: var(--hot); } .disc .rv .live { width: 8px; height: 8px; border-radius: 50%; background: var(--hot); display: inline-block; margin-right: 6px; animation: pulse 1s infinite alternate; }
   .fr-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 30px; flex-wrap: wrap; }
   .fr-head h2 { margin: 0; font-size: 22px; letter-spacing: -.01em; } .fr-head p { margin: 4px 0 0; color: var(--mute); font-size: 14px; }
+  .brief { margin-top: 18px; border-radius: 18px; background: var(--card); border: 1px solid var(--line); padding: 16px 18px 18px; }
+  .brief .bh { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+  .brief .bh h3 { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: .14em; color: var(--mute); font-weight: 600; }
+  .brief .bh > span { font-size: 13px; color: var(--mute); }
+  .brief .bts { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+  .brief .bt { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 3px; min-height: 92px; background: var(--paper); }
+  .brief .bt small { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--mute); font-weight: 600; }
+  .brief .bt b { font-size: 17px; letter-spacing: -.01em; line-height: 1.2; } .brief .bt span { font-size: 12.5px; color: var(--ink-2); line-height: 1.35; overflow-wrap: anywhere; }
+  .brief .bt.hot { border-color: var(--needs); background: var(--needs-bg); } .brief .bt.hot b { color: var(--needs); }
+  .brief .bt[data-open] { cursor: pointer; } .brief .bt[data-open]:hover { border-color: var(--ink); }
+  .brief .bd { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+  .brief .bd .lead, .brief .bd .who { margin: 0 0 10px; font-size: 13.5px; color: var(--ink-2); } .brief .bd .who { margin: 10px 0 0; }
+  .brief .chg { display: grid; grid-template-columns: 64px 1fr; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line); }
+  .brief .chg:first-of-type { border-top: 0; } .brief .chg > b { font-size: 14px; } .brief .chg .t { font-size: 14px; font-weight: 600; } .brief .chg em { color: var(--mute); font-style: normal; font-weight: 400; font-size: 13px; }
+  .brief .chg ul { margin: 4px 0 0; padding-left: 18px; font-size: 13.5px; color: var(--ink-2); } .brief .chg small, .brief .bd > small { display: block; margin-top: 4px; font-size: 12px; color: var(--mute); }
+  .brief table.findings { margin: 0; }
   .btn.primary { background: var(--ink); color: #fff; border-color: var(--ink); font-weight: 600; padding: 11px 18px; border-radius: 10px; font-size: 15px; min-height: 44px; }
   .btn.hot { background: var(--hot); border-color: var(--hot); color: #fff; }
   .sheet .cap .pins { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 999px; background: var(--hot); color: #fff; font-size: 11px; font-weight: 700; }
@@ -622,7 +640,7 @@ const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt
 const when = s => { const d = new Date(s); return isNaN(d) ? String(s ?? "") : d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }); };
 const fileUrl = (id, page) => `/api/evidence/${id}/file` + (page ? `#page=${page}` : "");
 const isImg = name => /\.(jpe?g|png|heic|heif|webp)$/i.test(name || "");
-const state = { home: null, p: null, slug: null, es: null, run: { kind: "idle", text: "", done: 0, total: 0 }, fieldDisc: null, viewer: null, shot: null, openReview: null, finishing: null, drafting: null, mapping: null, docsAsking: false, filters: { bld: "", disc: "", rv: "" }, folder: [], pinMode: "" };
+const state = { home: null, p: null, slug: null, es: null, run: { kind: "idle", text: "", done: 0, total: 0 }, fieldDisc: null, viewer: null, shot: null, openReview: null, finishing: null, drafting: null, mapping: null, docsAsking: false, filters: { bld: "", disc: "", rv: "" }, folder: [], pinMode: "", brief: {}, briefOpen: {} };
 
 function toast(msg, err) { const t = $("#toast"); t.textContent = msg; t.className = "toast show" + (err ? " err" : ""); setTimeout(() => t.className = "toast", 3200); }
 function route() {
@@ -1190,20 +1208,22 @@ function renderRevisions(pr) {
   const drawings = (pr.documents || []).filter(d => d.kind === "drawing"), by = {};
   for (const d of drawings) {
     const key = d.discipline + "|" + (d.dated || "") + "|" + baseName(d).toLowerCase();
-    const e = by[key] = by[key] || { id: d.id, code: d.discipline, dated: d.dated, name: baseName(d), notes: [], current: false, copies: 0, pages: d.pages };
-    e.copies++; if (d.is_current) { e.current = true; e.id = d.id; }
+    const e = by[key] = by[key] || { id: d.id, code: d.discipline, dated: d.dated, name: baseName(d), notes: [], current: false, copies: 0, pages: d.pages, inSet: false };
+    e.copies++; if (d.is_current) { e.current = true; e.id = d.id; } if (d.in_set) e.inSet = true;
     const n = issueNote(d); if (n && !e.notes.includes(n)) e.notes.push(n);
   }
   const discs = {};
   Object.values(by).forEach(e => (discs[e.code] = discs[e.code] || []).push(e));
   const codes = Object.keys(discs).sort((a, b) => (a in DISC_NAMES ? 0 : 1) - (b in DISC_NAMES ? 0 : 1) || a.localeCompare(b));
   const cmp = state.cmp || {};
-  return `<div class="rev">${codes.map(code => { const rows = discs[code].sort((a, b) => (b.dated || "") < (a.dated || "") ? -1 : 1);
-    return `<div class="disc"><h4>${esc(groupName(code))}<small>${rows.length} issue${rows.length === 1 ? "" : "s"}</small></h4>
-      ${rows.map((e, i) => { const prev = rows[i + 1], open = prev && cmp.new === e.id && cmp.old === prev.id;
-        return `<div class="r ${e.current ? "cur" : ""}"><time>${esc(e.dated || "undated")}</time><div><b>${esc(e.notes.join(" · ") || (e.current ? "Current set" : "Issue"))}${e.current ? ` <em style="color:var(--ready);font-style:normal;font-size:12px">current</em>` : ""}</b><span><a class="file" href="${pUrl(state.slug, "/documents/" + encodeURIComponent(e.id) + "/file")}" target="_blank" rel="noopener">${esc(e.name)}</a>${e.copies > 1 ? ` · filed ${e.copies} times` : ""} · <a class="file" href="${pUrl(state.slug, "/documents/" + encodeURIComponent(e.id) + "/file")}?download=1">download</a></span></div>
+  const row = (e, prev, open) => `<div class="r ${e.current ? "cur" : ""}"><time>${esc(e.dated || "undated")}</time><div><b>${esc(e.notes.join(" · ") || (e.current ? "Current set" : e.inSet ? "Issue" : "File"))}${e.current ? ` <em style="color:var(--ready);font-style:normal;font-size:12px">current</em>` : ""}</b><span><a class="file" href="${pUrl(state.slug, "/documents/" + encodeURIComponent(e.id) + "/file")}" target="_blank" rel="noopener">${esc(e.name)}</a> · ${e.pages} page${e.pages === 1 ? "" : "s"}${e.copies > 1 ? ` · filed ${e.copies} times` : ""} · <a class="file" href="${pUrl(state.slug, "/documents/" + encodeURIComponent(e.id) + "/file")}?download=1">download</a></span></div>
           ${prev ? `<button class="cmpbtn ${open ? "on" : ""}" data-cmp-new="${esc(e.id)}" data-cmp-old="${esc(prev.id)}">${open ? "Close" : "Compare with the issue before"}</button>` : ""}</div>
-          ${open ? renderCompare(cmp, e, prev) : ""}`; }).join("")}
+          ${open ? renderCompare(cmp, e, prev) : ""}`;
+  return `<div class="rev">${codes.map(code => { const all = discs[code].sort((a, b) => (b.dated || "") < (a.dated || "") ? -1 : 1), rows = all.filter(e => e.inSet), other = all.filter(e => !e.inSet);
+    return `<div class="disc"><h4>${esc(groupName(code))}<small>${rows.length} issue${rows.length === 1 ? "" : "s"} of the set${other.length ? ` · ${other.length} other file${other.length === 1 ? "" : "s"}` : ""}</small></h4>
+      <p class="revnote">The same set, issued ${rows.length} time${rows.length === 1 ? "" : "s"}. Newest first; the newest is the one to walk with.</p>
+      ${rows.map((e, i) => { const prev = rows[i + 1]; return row(e, prev, prev && cmp.new === e.id && cmp.old === prev.id); }).join("")}
+      ${other.length ? `<h5 class="revother">Also on file for ${esc(groupName(code).toLowerCase())}<small>single sheets, calculations, redlines: not issues of the set</small></h5>${other.map(e => row(e, null, false)).join("")}` : ""}
     </div>`; }).join("")}</div>`;
 }
 /* What changed between two issues, from the words printed on the sheets. Plain code on the server; nothing is sent to a model. */
@@ -1459,6 +1479,7 @@ function renderField() {
       <div><h2>${esc(cur.name)}${rv ? ` · ${esc(rv.title)}` : ""}</h2><p>${rv ? `Started ${esc(when(rv.started_at))} · ${items.length} deficienc${items.length === 1 ? "y" : "ies"} so far. Open a sheet, tap where the problem is, take the photo.` : done.length ? `${done.length} review${done.length === 1 ? "" : "s"} finished. Start the next one to add more deficiencies.` : "Nothing recorded yet for this discipline."}</p></div>
       ${state.finishing === (rv && rv.id) && rv ? `<div class="thinking"><span class="dot"></span><span>Packaging ${items.length} deficienc${items.length === 1 ? "y" : "ies"} and drafting the message to the contractor…</span></div>` : rv ? `<span class="frbtns"><a class="btn quiet" href="${pUrl(slug, "/reviews/" + encodeURIComponent(rv.id) + "/report")}" target="_blank" rel="noopener">Report so far</a><button class="btn" id="finishRv">Finish ${esc(rv.title.toLowerCase())}</button></span>` : `<button class="btn primary" id="startRv">Start field review ${done.length + 1}</button>`}
     </div>
+    ${renderBrief(cur)}
     ${(() => { const show = state.finishing ? null : state.openReview ? done.find(x => x.id === state.openReview) : (!rv && done.length ? done[done.length - 1] : null); return show ? renderHandoff(show) : ""; })()}
     ${shot && shot.disc === cur.code && shot.pick ? `<p class="pickhint"><span>Which sheet does this belong on?</span> Tap it; the photo comes with you.</p>` : ""}
     ${renderGalleryGroups(cur)}
@@ -1472,9 +1493,43 @@ function renderField() {
   $("#tab").querySelectorAll("tr.row[data-rv]").forEach(r => r.onclick = () => { state.openReview = r.dataset.rv; renderField(); window.scrollTo({ top: 0, behavior: "smooth" }); });
   const st = $("#startRv"); if (st) st.onclick = () => startReview(cur.code);
   const fi = $("#finishRv"); if (fi) fi.onclick = () => finishReview(rv);
+  wireBrief(cur);
   const si = $("#shotIn"); if (si) si.onchange = () => { const f = si.files[0]; if (!f) return; beginShot(cur.code, f); };
   if (shot && shot.disc === cur.code) wireWhere(cur, rv);
   wireHandoff();
+}
+/* ---- before the walk: the set to carry, what changed, what is still open, what is missing, who to ask. Read, not generated. ---- */
+async function loadBrief(code) {
+  const slug = state.slug, b = state.brief[code];
+  if (b && (b.loading || (b.data && b.slug === slug))) return;
+  state.brief[code] = { loading: true, slug };
+  try { const r = await fetch(pUrl(slug, `/field/${encodeURIComponent(code)}/brief`)); if (!r.ok) throw new Error("Could not read the brief"); state.brief[code] = { data: await r.json(), slug }; }
+  catch (e) { state.brief[code] = { error: e.message || "Could not read the brief", slug }; }
+  if (state.p && state.slug === slug && state.fieldDisc === code && location.hash.endsWith("/field")) renderField();
+}
+function renderBrief(cur) {
+  const b = state.brief[cur.code], open = state.briefOpen[cur.code] || {};
+  if (!b || b.loading) return `<section class="brief"><div class="bh"><h3>Before you walk</h3><span class="thinking" style="padding:0;font-size:13px;color:var(--mute)"><span class="dot"></span>Reading the drawings on file…</span></div></section>`;
+  if (b.error) return `<section class="brief"><div class="bh"><h3>Before you walk</h3><span style="color:var(--mute);font-size:13px">${esc(b.error)}</span></div></section>`;
+  const d = b.data, c = d.changes, cu = d.current, pv = d.previous, sheetsN = cur.sheets.length;
+  const nChanged = c && !c.error ? c.changed + c.added + c.removed + c.renumbered : 0;
+  const tiles = [];
+  tiles.push(`<div class="bt"><small>Carry this set</small>${cu ? `<b>${esc(cu.dated || "undated")}</b><span>${esc(cu.file)}<br>${cu.pages} page${cu.pages === 1 ? "" : "s"} · issue ${d.issues} of ${d.issues}${pv ? ` · the one before was ${esc(pv.dated || "undated")}` : ""}</span>` : `<b>No set on file</b><span>Drop the ${esc(cur.name.toLowerCase())} drawings first.</span>`}</div>`);
+  tiles.push(`<div class="bt ${nChanged ? "hot" : ""}" ${c && nChanged ? `data-open="changes"` : ""}><small>Changed since the issue before</small>${!pv ? `<b>Nothing to compare</b><span>Only one issue of the set is on file.</span>` : !c ? `<b>Not read</b><span>Open Revisions to compare the two issues.</span>` : c.error ? `<b>Could not compare</b><span>${esc(c.error)}</span>` : nChanged ? `<b>${c.changed} sheet${c.changed === 1 ? "" : "s"} changed</b><span>${[c.added ? `${c.added} added` : "", c.removed ? `${c.removed} removed` : "", c.renumbered ? `${c.renumbered} renumbered` : "", `${c.unchanged} unchanged`].filter(Boolean).join(" · ")} · ${open.changes ? "hide" : "see what"}</span>` : `<b>Nothing changed</b><span>The words on every sheet match the issue before.</span>`}</div>`);
+  tiles.push(`<div class="bt ${d.open_items.length ? "hot" : ""}" ${d.open_items.length ? `data-open="items"` : ""}><small>Still open from earlier</small>${d.open_items.length ? `<b>${d.open_items.length} item${d.open_items.length === 1 ? "" : "s"}</b><span>${d.last_review ? `Last walk ${esc(d.last_review.title.toLowerCase())}, ${esc(when(d.last_review.finished_at))} · ${open.items ? "hide" : "see them"}` : ""}</span>` : d.reviews_done ? `<b>Nothing open</b><span>${d.reviews_done} review${d.reviews_done === 1 ? "" : "s"} done, every item accepted.</span>` : `<b>First walk</b><span>Nothing recorded yet for ${esc(cur.name.toLowerCase())}.</span>`}</div>`);
+  tiles.push(`<div class="bt ${d.missing.length ? "hot" : ""}" ${d.missing.length ? `data-open="missing"` : ""}><small>Missing from the folder</small>${d.missing.length ? `<b>${d.missing.length} document${d.missing.length === 1 ? "" : "s"}</b><span>Found by the folder check · ${open.missing ? "hide" : "see which"}</span>` : `<b>Nothing flagged</b><span>${d.general_missing ? `${d.general_missing} project-wide item${d.general_missing === 1 ? "" : "s"} under Documents.` : "Run the folder check under Documents to look."}</span>`}</div>`);
+  tiles.push(`<div class="bt"><small>Who to ask</small>${d.party ? `<b>${esc(d.party.company || "Not named on the drawings")}</b><span>${esc(d.party.role)}${d.other_on_file.length ? ` · ${d.other_on_file.length} other ${esc(cur.code)} file${d.other_on_file.length === 1 ? "" : "s"} on file` : ""}</span>` : `<b>Not named</b><span>The drawings do not say who the ${esc(cur.name.toLowerCase())} consultant is.</span>`}</div>`);
+  let detail = "";
+  if (open.changes && c && !c.error) detail = `<div class="bd"><p class="lead">What the sheets say now that they did not say on ${esc(pv.dated || "the issue before")}. ${esc(c.basis)}</p>${c.sheets.map(sh => `<div class="chg"><b>${esc(sh.number)}</b><div><span class="t">${esc(sh.title)}</span>${sh.now_says.length ? `<ul>${sh.now_says.map(l => `<li>${esc(l)}</li>`).join("")}</ul>` : `<span class="t" style="color:var(--mute)">Wording moved or was removed</span>`}${sh.more ? `<small>+ ${sh.more} more line${sh.more === 1 ? "" : "s"}, see Revisions</small>` : ""}</div></div>`).join("")}${c.more_sheets ? `<small>+ ${c.more_sheets} more sheet${c.more_sheets === 1 ? "" : "s"} changed, see Revisions</small>` : ""}${c.who_else.length ? `<p class="who">Other sets older than this issue: ${c.who_else.map(w => `<b>${esc(w.name)}</b> ${esc(w.dated)}`).join(", ")}. A change here may not be on theirs yet.</p>` : ""}</div>`;
+  if (open.items) detail = `<div class="bd"><table class="findings"><tbody>${d.open_items.map(o => `<tr class="row" data-id="${esc(o.item_id)}"><td class="id">${esc(o.item_id)}</td><td><div class="what">${esc(o.description)}</div><div class="where">${esc(o.location)} · ${esc(o.review.toLowerCase())}${o.status === "hold" ? " · on hold" : o.status === "reject" ? " · not accepted" : ""}</div></td><td class="go">›</td></tr>`).join("")}</tbody></table></div>`;
+  if (open.missing) detail = `<div class="bd">${d.missing.map(m => `<div class="chg"><b>·</b><div><span class="t">${esc(m.what)}${m.building ? ` <em>${esc(m.building)}</em>` : ""}</span>${m.why ? `<small>${esc(m.why)}</small>` : ""}</div></div>`).join("")}</div>`;
+  return `<section class="brief"><div class="bh"><h3>Before you walk</h3><span>Read from what is already on file. Nothing here is generated.</span></div><div class="bts">${tiles.join("")}</div>${detail}</section>`;
+}
+function wireBrief(cur) {
+  const b = state.brief[cur.code];
+  if (!b || (!b.loading && b.slug !== state.slug)) loadBrief(cur.code);
+  $("#tab").querySelectorAll(".brief .bt[data-open]").forEach(t => t.onclick = () => { const o = state.briefOpen[cur.code] || {}, k = t.dataset.open; state.briefOpen[cur.code] = o[k] ? {} : { [k]: true }; renderField(); });
+  $("#tab").querySelectorAll(".brief tr.row[data-id]").forEach(r => r.onclick = () => location.hash = pHash(state.slug, "/item/" + encodeURIComponent(r.dataset.id)));
 }
 function renderGalleryGroups(cur) {
   const p = state.p, blds = buildings(), own = new Set(cur.sheets.map(s => s.id));
@@ -1894,13 +1949,13 @@ function renderPanel(sh, rv) {
       <label>What is wrong</label><textarea id="fDesc" placeholder="Receptacle beside the basin has no GFCI protection and the cover plate is missing.">${esc(s.description || "")}</textarea>
       <label>What the contractor must send to close it</label><input id="fEv" value="${esc(s.evidence_required || "photo: completed work")}" placeholder="photo: repaired; report: test sheet">
       <div class="agentnote">Separate several with “;”</div>
-      <div class="acts"><button class="btn primary" id="save" ${v.draft ? "" : "disabled"}>Save as ${esc(rv ? rv.discipline : sh.discipline)}-${String(nextNumber(rv ? rv.discipline : sh.discipline)).padStart(2, "0")}</button>${!v.draft ? `<span class="agentnote">Tap the spot on the sheet first</span>` : !v.photoUrl ? `<span class="agentnote">No photo yet</span>` : ""}<button class="cancel" id="cancel">Cancel</button></div>`;
+      <div class="acts"><button class="btn primary" id="save">Save as ${esc(rv ? rv.discipline : sh.discipline)}-${String(nextNumber(rv ? rv.discipline : sh.discipline)).padStart(2, "0")}</button>${!v.draft ? `<span class="agentnote">No spot tapped yet. Tap the sheet to pin it, or save as is: the photo and the words are enough.</span>` : !v.photoUrl ? `<span class="agentnote">No photo yet</span>` : ""}<button class="cancel" id="cancel">Cancel</button></div>`;
   const pin = $("#photoIn"); if (pin) pin.onchange = () => { const f = pin.files[0]; if (!f) return; v.photo = f; if (v.photoUrl) URL.revokeObjectURL(v.photoUrl); v.photoUrl = URL.createObjectURL(f); renderPanel(sh, rv); };
   const note = $("#noteIn"); if (note) note.oninput = () => v.note = note.value;
   const cancel = $("#cancel"); if (cancel) cancel.onclick = () => { resetDraft(); render(); };
   const manual = $("#manual"); if (manual) manual.onclick = () => { v.step = "form"; v.sug = null; renderPanel(sh, rv); };
   const ask = $("#ask"); if (ask) ask.onclick = () => askAgent(sh, rv);
-  const save = $("#save"); if (save) save.onclick = () => { if (v.draft) saveFinding(sh, rv); };
+  const save = $("#save"); if (save) save.onclick = () => saveFinding(sh, rv);
 }
 function nextNumber(code) { let n = 0; state.p.register.forEach(d => { const m = d.item_id.match(new RegExp("^" + code + "-(\\d+)$")); if (m) n = Math.max(n, +m[1]); }); return n + 1; }
 function resetDraft() { const v = state.viewer; if (!v) return; if (v.photoUrl) URL.revokeObjectURL(v.photoUrl); Object.assign(v, { draft: null, step: "idle", photo: null, photoUrl: null, note: "", sug: null, busy: false, gps: "", carry: false }); }
@@ -1917,9 +1972,9 @@ async function askAgent(sh, rv) {
   v.busy = false; v.step = "form"; renderPanel(sh, rv);
 }
 async function saveFinding(sh, rv) {
-  const v = state.viewer; if (!rv) return toast("Start a field review first", true); if (!v.draft) return toast("Tap the spot on the sheet first", true);
+  const v = state.viewer; if (!rv) return toast("Start a field review first", true);
   const fd = new FormData(); if (v.gps) fd.append("gps", v.gps);
-  fd.append("sheet_id", sh.id); fd.append("pin_x", v.draft.x); fd.append("pin_y", v.draft.y); fd.append("review_id", rv.id);
+  fd.append("sheet_id", sh.id); if (v.draft) { fd.append("pin_x", v.draft.x); fd.append("pin_y", v.draft.y); } fd.append("review_id", rv.id);
   fd.append("location", $("#fLoc").value); fd.append("description", $("#fDesc").value); fd.append("evidence_required", $("#fEv").value);
   fd.append("unit", $("#fUnit").value); fd.append("level", $("#fLevel").value); fd.append("space", $("#fSpace").value); fd.append("note", v.note);
   fd.append("discipline", v.sug && v.sug.discipline ? v.sug.discipline : rv.discipline);

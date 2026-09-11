@@ -30,6 +30,7 @@ from .config import SETTINGS, Settings
 from .ingest import _exif, _heic_to_jpeg
 from .packet import build_packet, packet_markdown
 from . import report as report_mod
+from . import brief as brief_mod
 from .store import Store
 
 log = logging.getLogger("closeout.api")
@@ -442,6 +443,11 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         pid = prj["id"]
         view = project_mod.project_view(st, pid) or {"id": pid, "slug": prj["slug"], "name": prj["name"], "sheets": [], "units": [],
                                                     "levels": [], "spaces": [], "documents": [], "disciplines": [], "address": "", "city": ""}
+        in_set: set[str] = set()
+        for code in {d["discipline"] for d in view["documents"] if d.get("kind") == "drawing"}:
+            in_set |= revisions_mod.set_members(view["documents"], code)
+        for d in view["documents"]:
+            d["in_set"] = d["id"] in in_set
         for sh in view["sheets"]:
             sh["image_url"] = f"/api/sheets/{sh['id']}/image"
             sh["thumb_url"] = f"/api/sheets/{sh['id']}/thumb"
@@ -617,6 +623,9 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
             raise HTTPException(404, "no such document")
         if old["kind"] != "drawing" or new["kind"] != "drawing" or old["discipline"] != new["discipline"]:
             raise HTTPException(400, "compare two issues of the same discipline's drawing set")
+        return _compare(prj, old, new, docs)
+
+    def _compare(prj: dict, old: dict, new: dict, docs: list[dict]) -> dict:
         root = Path(prj["source_root"] or "").resolve()
         for d in (old, new):
             f = (root / d["rel_path"]).resolve()
@@ -626,6 +635,14 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         if key not in compare_cache:  # a big set takes seconds to read; the files do not change under their hash
             compare_cache[key] = revisions_mod.compare_documents(root, old, new, docs)
         return compare_cache[key]
+
+    @app.get("/api/projects/{slug}/field/{disc}/brief")
+    def field_brief(slug: str, disc: str) -> dict:
+        """Before the walk: the set to carry, what changed since the issue before, what is still open, what is
+        missing, who to ask. Read from what the project already holds; nothing is sent to a model."""
+        st = store()
+        prj = _project(st, slug)
+        return brief_mod.field_brief(st, prj["id"], disc.upper(), compare=lambda o, n: _compare(prj, o, n, st.documents(prj["id"])))
 
     @app.post("/api/projects/{slug}/documents/answer")
     def answer_document_question(slug: str, body: DocsAnswerIn) -> dict:
@@ -1062,19 +1079,24 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         return {"suggestion": out, "model_id": settings.model_id}
 
     @app.post("/api/projects/{slug}/findings")
-    async def save_finding(slug: str, sheet_id: str = Form(...), pin_x: float = Form(...), pin_y: float = Form(...),
+    async def save_finding(slug: str, sheet_id: str = Form(""), pin_x: float | None = Form(None), pin_y: float | None = Form(None),
                            review_id: str = Form(...), location: str = Form(...), description: str = Form(...),
                            evidence_required: str = Form(...), discipline: str = Form(""), unit: str = Form(""),
                            level: str = Form(""), space: str = Form(""), note: str = Form(""), gps: str = Form(""),
                            photo: UploadFile | None = File(None)) -> dict:
-        """The reviewer's confirmed deficiency: numbered, pinned to the sheet, photo kept as the reference."""
+        """The reviewer's confirmed deficiency: numbered, photo kept as the reference. The sheet and the pin on it are
+        optional: the photo, the unit, the level and the words are enough to record it; a pin can be added later."""
         from .register import RegisterError, parse_slots
         st = store()
         prj = _project(st, slug)
         pid = prj["id"]
-        sh = st.sheet(sheet_id)
-        if not sh or sh["project_id"] != pid:
+        sh = st.sheet(sheet_id) if sheet_id else None
+        if sheet_id and (not sh or sh["project_id"] != pid):
             raise HTTPException(404, "no such sheet in this project")
+        if (pin_x is None) != (pin_y is None):
+            raise HTTPException(400, "a pin needs both pin_x and pin_y")
+        if pin_x is not None and (not sh or not (0 <= pin_x <= 1 and 0 <= pin_y <= 1)):
+            raise HTTPException(400, "a pin needs a sheet and must be inside it")
         rv = st.review(review_id)
         if not rv or rv["project_id"] != pid:
             raise HTTPException(404, "no such review")
@@ -1101,7 +1123,7 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         if gps.strip():
             meta["gps"] = gps.strip()[:80]
         st.add_field_item(pid, item_id, location, description, evidence_required, slots, code, review_id,
-                          sheet=sh["sheet_number"] or f"{sh['discipline']} p.{sh['page']}", sheet_id=sheet_id,
+                          sheet=(sh["sheet_number"] or f"{sh['discipline']} p.{sh['page']}") if sh else "", sheet_id=sheet_id,
                           pin_x=pin_x, pin_y=pin_y, unit=unit.strip(), level=level.strip(), space=space.strip(),
                           note=note.strip(), reference_photo=ref_path, ref_meta=meta,
                           review_date=datetime.now(timezone.utc).date().isoformat())

@@ -87,3 +87,29 @@ def test_report_lists_every_item_with_status_pictures_and_drawings(client, tmp_p
     assert client.get(f"/api/projects/{slug}/register/EL-01/reference").status_code == 200
     # unknown review
     assert client.get(f"/api/projects/{slug}/reviews/rev_nothing/report").status_code == 404
+
+
+def test_a_finding_can_be_saved_without_a_pin_and_still_reports(client, tmp_path):
+    slug, sid = _seed(client, tmp_path)
+    rev = client.post(f"/api/projects/{slug}/reviews", json={"discipline": "EL"}).json()["review"]
+    # sheet known, no spot tapped
+    r = client.post(f"/api/projects/{slug}/findings", data={"sheet_id": sid, "review_id": rev["id"], "location": "Unit C, Upper Floor, hall",
+                    "description": "Smoke alarm missing at the top of the stair.", "evidence_required": "photo: installed", "unit": "Unit C", "level": "Upper Floor"},
+                    files={"photo": ("IMG_0003.jpg", _jpeg_bytes(), "image/jpeg")})
+    assert r.status_code == 200, r.text
+    item = r.json()["item"]
+    assert item["item_id"] == "EL-01" and item["sheet"] == "EL-2" and item["pin_x"] is None
+    # no sheet at all: the photo, the unit and the words are enough
+    r = client.post(f"/api/projects/{slug}/findings", data={"review_id": rev["id"], "location": "Unit C, Main Floor, garage",
+                    "description": "Exterior receptacle has no in-use cover.", "evidence_required": "photo: cover fitted", "unit": "Unit C", "level": "Main Floor"})
+    assert r.status_code == 200 and r.json()["item"]["sheet"] == "" and r.json()["item"]["sheet_id"] == ""
+    # half a pin, or a pin with no sheet, is refused
+    assert client.post(f"/api/projects/{slug}/findings", data={"sheet_id": sid, "pin_x": 0.2, "review_id": rev["id"], "location": "Unit C, hall",
+                       "description": "Something.", "evidence_required": "photo: done"}).status_code == 400
+    assert client.post(f"/api/projects/{slug}/findings", data={"pin_x": 0.2, "pin_y": 0.2, "review_id": rev["id"], "location": "Unit C, hall",
+                       "description": "Something.", "evidence_required": "photo: done"}).status_code == 400
+    data = client.get(f"/api/projects/{slug}/reviews/{rev['id']}/report.json").json()
+    assert data["count"] == 2 and data["items"][0]["plan_url"] == "" and data["items"][0]["photo_url"] and data["sheets_used"] == ["EL-2"]
+    assert client.get(f"/api/projects/{slug}/items/EL-01/pin.jpg").status_code == 404
+    page = client.get(f"/api/projects/{slug}/reviews/{rev['id']}/report").text
+    assert "Smoke alarm missing" in page and "Exterior receptacle" in page

@@ -11,6 +11,7 @@ import re
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
+from . import revisions
 from .review import DISCIPLINES
 from .store import Store
 
@@ -47,15 +48,19 @@ def review_report(store: Store, project_id: str, review_id: str, office: str = "
             "status": CALLS.get((call or {}).get("decision", ""), OPEN),
             "status_note": (call or {}).get("note") or "", "status_at": (call or {}).get("created_at", ""),
         })
-    docs = [x for x in store.documents(project_id) if x.get("kind") == "drawing" and x.get("discipline") == rv["discipline"]]
+    all_docs = store.documents(project_id)
+    members = revisions.set_members(all_docs, rv["discipline"])
+    docs = [x for x in all_docs if x.get("kind") == "drawing" and x.get("discipline") == rv["discipline"]]
     seen: dict[tuple, dict] = {}                       # the same issue filed in two folders is one drawing
     for x in docs:
         key = (x["rel_path"].rsplit("/", 1)[-1].lower(), x.get("dated") or "")
         row = seen.setdefault(key, {"file": x["rel_path"].rsplit("/", 1)[-1], "dated": x.get("dated") or "", "current": False,
-                                    "pages": x.get("pages") or 0})
+                                    "pages": x.get("pages") or 0, "in_set": False})
         row["current"] = row["current"] or bool(x.get("is_current"))
+        row["in_set"] = row["in_set"] or x["id"] in members
     drawings = list(seen.values())
-    drawings = [d for d in drawings if d["current"]] + sorted([d for d in drawings if not d["current"]], key=lambda d: d["dated"], reverse=True)
+    drawings = ([d for d in drawings if d["current"]] + sorted([d for d in drawings if not d["current"] and d["in_set"]], key=lambda d: d["dated"], reverse=True)
+                + sorted([d for d in drawings if not d["current"] and not d["in_set"]], key=lambda d: d["dated"], reverse=True))
     current = next((x for x in drawings if x["current"]), None)
     counts: dict[str, int] = {}
     for i in items:
@@ -110,7 +115,7 @@ def report_html(data: dict) -> str:
     for k, v in data["status_counts"].items():
         if k != OPEN:
             summary.append(f"{v} {k.lower()}")
-    drawings = "".join(f'<tr><td>{e(d["file"])}</td><td>{e(d["dated"] or "undated")}</td><td>{d["pages"] or ""}</td><td>{"Current issue" if d["current"] else "Superseded"}</td></tr>' for d in data["drawings"])
+    drawings = "".join(f'<tr><td>{e(d["file"])}</td><td>{e(d["dated"] or "undated")}</td><td>{d["pages"] or ""}</td><td>{"Current issue" if d["current"] else "Superseded" if d["in_set"] else "On file, not an issue of the set"}</td></tr>' for d in data["drawings"])
     return f'''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{e(data["name"])}</title>
 <style>{CSS}</style></head><body class="{"draft" if live else ""}">

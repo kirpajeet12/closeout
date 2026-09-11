@@ -198,3 +198,51 @@ def compare_documents(root: Path, old_doc: dict, new_doc: dict, documents: list[
     result["new"] = {"id": new_doc["id"], "dated": new_doc.get("dated"), "file": new_doc["rel_path"].split("/")[-1], "sheets": len(new)}
     result["basis"] = "Compared from the words printed on the sheets, not the drawn lines."
     return result
+
+
+# --- the set versus the one-off files ---------------------------------------------------------------------------
+# A discipline folder holds the drawing set issued again and again, and next to it single sheets that are not issues
+# of the set at all: a closet detail sent on its own, a load-calculation page, a redline the utility marked up.
+# Listing them all as "issues" reads as if every file were a version of the set. Membership is decided from the
+# file name's words (digits and dates stripped) and the page count, measured against the current set.
+
+_PAREN = re.compile(r"\([^)]*\)")
+
+
+def _family(rel_path: str) -> frozenset[str]:
+    stem = _PAREN.sub(" ", rel_path.split("/")[-1].rsplit(".", 1)[0]).lower()
+    return frozenset(t for t in re.split(r"[^a-z]+", stem) if len(t) >= 2)
+
+
+def _same_family(a: frozenset[str], b: frozenset[str]) -> bool:
+    if not a or not b:
+        return False
+    return len(a & b) / len(a | b) >= 0.5
+
+
+def set_members(documents: list[dict], discipline: str) -> set[str]:
+    """Ids of the drawing documents that are issues of this discipline's set: the current set and the earlier files
+    that share its name and its size. Everything else in the folder is a one-off."""
+    drawings = [d for d in documents if d.get("kind") == "drawing" and d.get("discipline") == discipline]
+    if not drawings:
+        return set()
+    anchor = next((d for d in drawings if d.get("is_current")), None) or max(drawings, key=lambda d: d.get("dated") or "")
+    fam, pages = _family(anchor["rel_path"]), int(anchor.get("pages") or 0)
+    out = set()
+    for d in drawings:
+        p = int(d.get("pages") or 0)
+        if _same_family(fam, _family(d["rel_path"])) and abs(p - pages) <= max(1, pages // 4):
+            out.add(d["id"])
+    return out
+
+
+def issues_by_kind(documents: list[dict], discipline: str) -> dict:
+    """{"set": [issues of the set, oldest first], "other": [one-off files, oldest first]} for one discipline."""
+    members = set_members(documents, discipline)
+    rows = [i for i in issues(documents) if i["discipline"] == discipline]
+    ids_in_set = {d["id"] for d in documents if d["id"] in members}
+    # a copy filed twice is one row; the row carries one id, so match on file name + date instead
+    keys_in_set = {((d.get("dated") or ""), (d.get("rel_path") or "").split("/")[-1].lower()) for d in documents if d["id"] in ids_in_set}
+    for r in rows:
+        r["in_set"] = ((r["dated"] or ""), r["file"].lower()) in keys_in_set
+    return {"set": [r for r in rows if r["in_set"]], "other": [r for r in rows if not r["in_set"]]}
