@@ -652,8 +652,9 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         return {"docs_scope": sorted(names)}
 
     @app.get("/api/projects/{slug}/documents/{doc_id}/file")
-    def document_file(slug: str, doc_id: str):
-        """The file itself, straight from the project folder, so a row in the Documents tab opens the PDF."""
+    def document_file(slug: str, doc_id: str, download: bool = False):
+        """The file itself, straight from the project folder, so a row in the Documents tab opens the PDF.
+        With ?download=1 the browser saves it under its own name instead of showing it."""
         st = store()
         prj = _project(st, slug)
         d = next((x for x in st.documents(prj["id"]) if x["id"] == doc_id), None)
@@ -664,7 +665,7 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         if not prj["source_root"] or not p.is_relative_to(root) or not p.is_file():
             raise HTTPException(404, "file missing from the project folder")
         return FileResponse(p, media_type=mimetypes.guess_type(p.name)[0] or "application/octet-stream", filename=p.name,
-                            content_disposition_type="inline")
+                            content_disposition_type="attachment" if download else "inline")
 
     @app.get("/api/projects/{slug}/documents/tree")
     def documents_tree(slug: str) -> dict:

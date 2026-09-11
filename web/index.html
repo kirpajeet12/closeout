@@ -130,6 +130,7 @@
   .rev .disc h4 { margin: 0 0 6px; font-size: 15px; display: flex; gap: 10px; align-items: baseline; } .rev .disc h4 small { color: var(--mute); font-weight: 500; font-size: 12px; }
   .rev .r { display: grid; grid-template-columns: 96px 1fr; gap: 14px; padding: 9px 0; border-top: 1px solid var(--line); font-size: 13px; position: relative; }
   .rev .r time { font-family: var(--mono); font-size: 12px; color: var(--mute); padding-top: 2px; } .rev .r.cur time { color: var(--ready); font-weight: 700; }
+  .rev .r span a.file { color: var(--ink-2); text-decoration: underline; text-decoration-color: #c9ccd2; text-underline-offset: 3px; } .rev .r span a.file:hover { color: var(--ink); }
   .rev .r b { display: block; font-weight: 600; } .rev .r span { display: block; color: var(--mute); font-size: 12px; margin-top: 2px; word-break: break-word; }
   .occ { margin-top: 14px; display: grid; gap: 12px; }
   .occ .tally { display: flex; align-items: baseline; gap: 12px; } .occ .tally b { font-size: 34px; font-weight: 700; letter-spacing: -.03em; } .occ .tally span { color: var(--mute); font-size: 14px; }
@@ -453,7 +454,8 @@
   .xrow .chev { color: var(--mute); font-size: 18px; margin-left: -6px; }
   .xrow.sheetrow img { width: 64px; height: 44px; object-fit: cover; object-position: top left; border-radius: 6px; border: 1px solid var(--line-2); background: #fff; }
   .xrow.sheetrow .pins { padding: 2px 8px; border-radius: 999px; background: var(--hot); color: #fff; font-size: 11px; font-weight: 700; }
-  .xrow.filerow { cursor: pointer; grid-template-columns: 1fr auto auto; padding-right: 6px; } .xrow.filerow .fi { margin: 0 3px; } .xrow.filerow.cur b { font-weight: 600; }
+  .xrow.filerow { cursor: pointer; grid-template-columns: 1fr auto auto auto; padding-right: 6px; }
+  .xrow.filerow .dl { color: var(--ink-2); text-decoration: none; font-size: 15px; line-height: 1; padding: 6px 8px; border-radius: 8px; } .xrow.filerow .dl:hover { background: #fff; color: var(--ink); } .xrow.filerow .fi { margin: 0 3px; } .xrow.filerow.cur b { font-weight: 600; }
   .xrow.filerow .open { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: center; color: inherit; text-decoration: none; min-width: 0; }
   .xrow .tag { font-size: 11px; font-weight: 600; white-space: nowrap; padding: 3px 8px; border-radius: 999px; letter-spacing: .01em; }
   .xrow .tag.by { background: #fff3d6; color: #8a5a00; } .xrow .tag.you { background: var(--ink); color: #fff; }
@@ -947,7 +949,7 @@ function renderExplorer(pr) {
   const cnt = f => f.sec ? `${f.got}/${f.need}` : `${f.n}${f.ghosts ? ` <em>+${f.ghosts}</em>` : ""}`;
   const tree = (f, depth) => `<div class="node ${f === cur ? "on" : ""} ${crumbs.includes(f) ? "open" : ""}" data-path="${esc(pathOf(f, root))}" style="--d:${depth}"><i class="fi ${f.site ? "site" : f.bld ? "bld" : f.crp || f.sec ? "crp" : f.root || f.prj ? "root" : ""}"></i><b>${esc(f.name)}</b><small>${cnt(f)}</small></div>${crumbs.includes(f) ? f.folders.map(c => tree(c, depth + 1)).join("") : ""}`;
   const hist = f => (state.p.filing_history || []).filter(h => h.file === f);
-  const fileRow = i => `<div class="xrow filerow ${i.current ? "cur" : ""} ${state.moving === i.file ? "moving" : ""}"><a class="open" href="${pUrl(state.slug, "/documents/" + encodeURIComponent(i.id) + "/file")}" target="_blank" rel="noopener"><i class="fi doc"></i><div><b>${esc(i.name)}</b><small>${esc(i.meta)}</small></div></a>${i.who === "closeout" ? `<span class="tag by">filed by Closeout</span>` : i.who === "engineer" ? `<span class="tag you">filed by you</span>` : ""}<button class="mv" data-move="${esc(i.file)}" aria-label="Move or rename">${state.moving === i.file ? "Close" : "Move…"}</button></div>${state.moving === i.file ? movePanel(i) : ""}`;
+  const fileRow = i => `<div class="xrow filerow ${i.current ? "cur" : ""} ${state.moving === i.file ? "moving" : ""}"><a class="open" href="${pUrl(state.slug, "/documents/" + encodeURIComponent(i.id) + "/file")}" target="_blank" rel="noopener"><i class="fi doc"></i><div><b>${esc(i.name)}</b><small>${esc(i.meta)}</small></div></a>${i.who === "closeout" ? `<span class="tag by">filed by Closeout</span>` : i.who === "engineer" ? `<span class="tag you">filed by you</span>` : ""}<a class="dl" href="${pUrl(state.slug, "/documents/" + encodeURIComponent(i.id) + "/file")}?download=1" aria-label="Download" title="Download">↓</a><button class="mv" data-move="${esc(i.file)}" aria-label="Move or rename">${state.moving === i.file ? "Close" : "Move…"}</button></div>${state.moving === i.file ? movePanel(i) : ""}`;
   const movePanel = i => { const pl = placed.get(i.file) || {}, h = hist(i.file), blds = buildings();
     return `<form class="mvpanel" data-file="${esc(i.file)}">
       <label><span>Building</span><select name="building"><option value="">Site · no building</option>${blds.map(b => `<option value="${esc(b.name)}" ${pl.building === b.name ? "selected" : ""}>${esc(b.name)}</option>`).join("")}</select></label>
@@ -1195,7 +1197,7 @@ function renderRevisions(pr) {
   return `<div class="rev">${codes.map(code => { const rows = discs[code].sort((a, b) => (b.dated || "") < (a.dated || "") ? -1 : 1);
     return `<div class="disc"><h4>${esc(groupName(code))}<small>${rows.length} issue${rows.length === 1 ? "" : "s"}</small></h4>
       ${rows.map((e, i) => { const prev = rows[i + 1], open = prev && cmp.new === e.id && cmp.old === prev.id;
-        return `<div class="r ${e.current ? "cur" : ""}"><time>${esc(e.dated || "undated")}</time><div><b>${esc(e.notes.join(" · ") || (e.current ? "Current set" : "Issue"))}${e.current ? ` <em style="color:var(--ready);font-style:normal;font-size:12px">current</em>` : ""}</b><span>${esc(e.name)}${e.copies > 1 ? ` · filed ${e.copies} times` : ""}</span></div>
+        return `<div class="r ${e.current ? "cur" : ""}"><time>${esc(e.dated || "undated")}</time><div><b>${esc(e.notes.join(" · ") || (e.current ? "Current set" : "Issue"))}${e.current ? ` <em style="color:var(--ready);font-style:normal;font-size:12px">current</em>` : ""}</b><span><a class="file" href="${pUrl(state.slug, "/documents/" + encodeURIComponent(e.id) + "/file")}" target="_blank" rel="noopener">${esc(e.name)}</a>${e.copies > 1 ? ` · filed ${e.copies} times` : ""} · <a class="file" href="${pUrl(state.slug, "/documents/" + encodeURIComponent(e.id) + "/file")}?download=1">download</a></span></div>
           ${prev ? `<button class="cmpbtn ${open ? "on" : ""}" data-cmp-new="${esc(e.id)}" data-cmp-old="${esc(prev.id)}">${open ? "Close" : "Compare with the issue before"}</button>` : ""}</div>
           ${open ? renderCompare(cmp, e, prev) : ""}`; }).join("")}
     </div>`; }).join("")}</div>`;
