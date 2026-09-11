@@ -175,6 +175,13 @@ Use the tools:
   (a document that depends on the site, the contract or the city), do not guess: ask the engineer in one plain sentence and
   they fill in the answer. At most five questions.
 - record_summary(summary): two or three plain sentences on the state of the folder, once, at the end.
+Work in this order, so the folder is arranged before the gaps are counted:
+1. record_file for every letter, form or report that names ONE building (do this first; a gap list is no use in a folder
+   nobody can find their way around). A discipline that is not in the project is recorded with discipline "".
+2. record_on_file for checklist rows a file plainly satisfies.
+3. record_missing for the gaps, most important first: there is room for 25.
+4. record_question for what the folder cannot tell you.
+5. record_summary once.
 Do not repeat gaps the rules already listed. Do not invent documents the project type does not need; when unsure, ask.
 Never state that anything complies, is approved or is acceptable: you list what is missing, the engineer decides."""
 
