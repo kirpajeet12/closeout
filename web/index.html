@@ -29,21 +29,23 @@
   .homehead { display: flex; align-items: flex-end; justify-content: space-between; padding: 40px 0 20px; gap: 20px; }
   .homehead h1 { margin: 0; font-size: 34px; letter-spacing: -.02em; }
   .homehead p { margin: 6px 0 0; color: var(--mute); }
-  .usage { background: var(--ink); color: #fff; border-radius: 18px; padding: 0; min-width: 300px; box-shadow: 0 24px 60px -34px rgba(0,0,0,.6); }
-  .usage summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 12px; padding: 14px 16px 14px 20px; }
-  .usage summary::-webkit-details-marker { display: none; }
-  .usage .nums { display: flex; gap: 22px; }
-  .usage .nums div { display: flex; flex-direction: column; gap: 1px; }
-  .usage .nums small { font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: rgba(255,255,255,.55); }
-  .usage .nums b { font-size: 22px; letter-spacing: -.02em; line-height: 1.15; } .usage .nums span { font-size: 12px; color: rgba(255,255,255,.6); }
-  .usage summary i { font-style: normal; color: rgba(255,255,255,.5); font-size: 20px; transition: transform .2s; margin-left: 4px; }
-  .usage[open] summary i { transform: rotate(90deg); }
-  .usage .more { padding: 0 20px 16px; border-top: 1px solid rgba(255,255,255,.1); }
-  .usage .more p { margin: 12px 0 10px; font-size: 12.5px; color: rgba(255,255,255,.65); max-width: 420px; }
-  .usage .more ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
-  .usage .more li { display: grid; grid-template-columns: 1fr auto auto; gap: 12px; align-items: baseline; font-size: 13.5px; }
-  .usage .more li b { font-weight: 600; } .usage .more li small { color: rgba(255,255,255,.55); font-size: 12px; min-width: 52px; text-align: right; }
-  @media (max-width: 760px) { .homehead { flex-direction: column; align-items: stretch; } .usage { min-width: 0; } .usage .nums { gap: 16px; } .usage .nums b { font-size: 19px; } }
+  .who { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; color: var(--ink); font-size: 13.5px; font-weight: 600; padding: 5px 12px 5px 6px; border: 1px solid var(--line-2); border-radius: 999px; background: var(--card); flex: 0 0 auto; }
+  .who .orb { width: 22px; height: 22px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, #ff9a5c, var(--hot) 60%, #b4400a); }
+  body.contractor .who { display: none; }
+  .office { max-width: 720px; }
+  .office .ohead { display: flex; align-items: center; gap: 18px; padding: 26px 0 8px; }
+  .office .ohead .orb { width: 56px; height: 56px; border-radius: 50%; flex: 0 0 56px; background: radial-gradient(circle at 30% 30%, #ff9a5c, var(--hot) 60%, #b4400a); box-shadow: 0 14px 30px -14px rgba(232,89,12,.7); }
+  .office h1 { margin: 0; font-size: 30px; letter-spacing: -.02em; } .office .ohead p { margin: 4px 0 0; color: var(--mute); font-size: 14px; }
+  .oblock { margin-top: 22px; background: var(--card); border: 1px solid var(--line-2); border-radius: 18px; padding: 20px 22px 22px; }
+  .oblock h2 { margin: 0 0 10px; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--mute); }
+  .oblock .fine { margin: 8px 0 0; font-size: 13.5px; color: var(--mute); line-height: 1.5; }
+  .uline { margin: 0; font-size: 17px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; color: var(--ink-2); }
+  .uline b { font-size: 26px; letter-spacing: -.02em; color: var(--ink); } .uline i { font-style: normal; color: var(--line-2); margin: 0 8px; }
+  .ukinds { list-style: none; margin: 14px 0 0; padding: 0; border-top: 1px solid var(--line); }
+  .ukinds li { display: grid; grid-template-columns: 1fr auto auto; gap: 14px; align-items: baseline; padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 14.5px; }
+  .ukinds li small { color: var(--mute); font-size: 12.5px; } .ukinds li b { font-weight: 600; min-width: 56px; text-align: right; }
+  .oblock form { margin-top: 12px; }
+  @media (max-width: 760px) { .who .wt { display: none; } .who { padding: 4px; border-radius: 50%; } .uline b { font-size: 22px; } }
   .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
   .pcard { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 22px 22px 18px; cursor: pointer; display: flex; flex-direction: column; gap: 10px; min-height: 190px; transition: border-color .15s, transform .15s; position: relative; }
   .pcard:hover { border-color: var(--ink); transform: translateY(-1px); }
@@ -777,6 +779,7 @@
   <header>
     <div class="wordmark"><a href="#/">Closeout</a></div>
     <div class="crumbs" id="crumbs"></div>
+    <a class="who" id="who" href="#/office" title="Office settings"><span class="orb"></span><span class="wt">Office</span></a>
   </header>
   <main id="main"></main>
 </div>
@@ -816,6 +819,7 @@ function route() {
   let m = h.match(/^p\/([^/]+)\/item\/(.+)$/); if (m) return { page: "item", slug: m[1], id: decodeURIComponent(m[2]) };
   m = h.match(/^p\/([^/]+)\/field\/([^/]+)$/); if (m) return { page: "sheet", slug: m[1], sheetId: m[2] };
   m = h.match(/^p\/([^/]+)\/?(deficiencies|drawings|docs|field|evidence|messages)?$/); if (m) return { page: "project", slug: m[1], tab: m[2] === "evidence" ? "messages" : m[2] === "deficiencies" ? "list" : m[2] || "overview" };
+  if (h === "office" || h === "office/") return { page: "office" };
   return { page: "home" };
 }
 const pUrl = (slug, tail) => `/api/projects/${encodeURIComponent(slug)}${tail || ""}`;
@@ -848,7 +852,7 @@ async function load() {
     state.p = res.ok ? await res.json() : null; state.slug = r.token;
     render(); return;
   }
-  if (r.page === "home") {
+  if (r.page === "home" || r.page === "office") {
     state.home = await (await fetch("/api/projects")).json();
     if (state.home.active_run_id && !state.es) follow(state.home.active_run_id);
   } else {
@@ -861,11 +865,12 @@ async function load() {
 }
 function render() {
   const r = route(), p = state.p;
-  const inP = r.page !== "home" && p;
+  const inP = r.page !== "home" && r.page !== "office" && p;
   document.body.classList.toggle("viewing", r.page === "sheet" && !!p);
-  $("#crumbs").innerHTML = inP ? `<a href="#/">Projects</a><span>›</span><b>${esc(p.project.name)}</b>${r.page === "item" ? `<span>›</span><span>${esc(r.id)}</span>` : ""}` : `<span>${state.home ? `${state.home.projects.length} project${state.home.projects.length === 1 ? "" : "s"}` : ""}</span>`;
+  $("#crumbs").innerHTML = inP ? `<a href="#/">Projects</a><span>›</span><b>${esc(p.project.name)}</b>${r.page === "item" ? `<span>›</span><span>${esc(r.id)}</span>` : ""}` : r.page === "office" ? `<a href="#/">Projects</a><span>›</span><b>Office</b>` : `<span>${state.home ? `${state.home.projects.length} project${state.home.projects.length === 1 ? "" : "s"}` : ""}</span>`;
   if (r.page === "contractor") { document.body.classList.add("contractor"); $("#crumbs").innerHTML = p ? `<span>${esc(p.project.name)}</span>` : ""; renderContractor(); renderAsk(); return; }
   if (r.page === "home") renderHome();
+  else if (r.page === "office") renderOffice();
   else if (!p) $("#main").innerHTML = `<a class="back" href="#/">← Projects</a><p class="empty">That project is not here.</p>`;
   else if (r.page === "item") renderItem(r.id);
   else if (r.page === "sheet") renderSheet(r.sheetId);
@@ -888,7 +893,7 @@ const usd = v => v == null ? "" : v < 0.005 ? "under a cent" : "$" + v.toFixed(2
 function renderHome() {
   const h = state.home, list = h.projects;
   $("#main").innerHTML = `
-    <div class="homehead"><div><h1>Projects</h1><p>${list.length ? "Open a project to review its deficiencies, drawings and the evidence contractors sent." : "Start with a project: upload one zip of its folder. The app files it, reads the current sheets and lists what is missing."}</p></div>${renderUsage(h.usage)}</div>
+    <div class="homehead"><div><h1>Projects</h1><p>${list.length ? "Open a project to review its deficiencies, drawings and the evidence contractors sent." : "Start with a project: upload one zip of its folder. The app files it, reads the current sheets and lists what is missing."}</p></div></div>
     <div class="status ${esc(state.run.kind)}" id="status" ${state.run.kind === "idle" ? "hidden" : ""}></div>
     <div class="cards" style="margin-top:18px">
       ${list.map(c => { const pct = k => c.items ? (c[k] / c.items * 100) + "%" : "0%"; return `
@@ -924,19 +929,38 @@ function renderHome() {
   renderStatus();
 }
 
-/* ---- what the reading and answering has cost, by week and month, in the office's own time. Voice is billed elsewhere. ---- */
-function renderUsage(u) {
-  if (!u || !u.runs) return "";
+/* ---- the office page: who is signed in, what the reading and answering has cost by week and month (in the office's
+   own time; voice is billed elsewhere), and sign out. ---- */
+function usageSince(u, t) { return (u.recent || []).filter(r => new Date(r.at) >= t).reduce((a, r) => ({ usd: a.usd + r.usd, n: a.n + 1 }), { usd: 0, n: 0 }); }
+function renderOffice() {
+  const h = state.home || {}, u = h.usage || { runs: 0, total_usd: 0, by_kind: {}, recent: [] };
   const now = new Date(), day = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const monday = new Date(day); monday.setDate(day.getDate() - ((day.getDay() + 6) % 7));
   const first = new Date(now.getFullYear(), now.getMonth(), 1);
-  const since = t => u.recent.filter(r => new Date(r.at) >= t).reduce((a, r) => ({ usd: a.usd + r.usd, n: a.n + 1 }), { usd: 0, n: 0 });
-  const w = since(monday), m = since(first);
-  const kinds = Object.values(u.by_kind).sort((a, b) => b.usd - a.usd).slice(0, 4);
-  const cell = (k, v) => `<div><small>${k}</small><b>${usd(v.usd) || "$0.00"}</b><span>${v.n === 1 ? "1 time" : `${v.n} times`}</span></div>`;
-  return `<details class="usage"><summary><div class="nums">${cell("This week", w)}${cell("This month", m)}${cell("Since the start", { usd: u.total_usd, n: u.runs })}</div><i>›</i></summary>
-    <div class="more"><p>What Closeout has read and answered, charged to the office's account. Voice is billed separately and is not counted here.</p>
-      <ul>${kinds.map(k => `<li><span>${esc(k.name)}</span><b>${usd(k.usd) || "$0.00"}</b><small>${k.runs === 1 ? "1 time" : `${k.runs} times`}</small></li>`).join("")}</ul></div></details>`;
+  const w = usageSince(u, monday), m = usageSince(u, first), n = { usd: u.total_usd, n: u.runs };
+  const kinds = Object.values(u.by_kind || {}).sort((a, b) => b.usd - a.usd);
+  const times = k => k === 1 ? "once" : `${k} times`;
+  $("#main").innerHTML = `
+    <a class="back" href="#/">← Projects</a>
+    <div class="office">
+      <div class="ohead"><span class="orb"></span><div><h1>${esc(h.office || "The office")}</h1><p>Signed in with the office code on this device. Contractor links open without it.</p></div></div>
+      <section class="oblock">
+        <h2>Usage</h2>
+        <p class="uline"><b>${usd(w.usd) || "$0.00"}</b> this week<i>·</i><b>${usd(m.usd) || "$0.00"}</b> this month<i>·</i><b>${usd(n.usd) || "$0.00"}</b> since the start</p>
+        <p class="fine">What Closeout has read and answered, charged to the office's account. Weeks start on Monday. Voice is billed separately and is not counted here.</p>
+        ${kinds.length ? `<ul class="ukinds">${kinds.map(k => `<li><span>${esc(k.name)}</span><small>${times(k.runs)}</small><b>${usd(k.usd) || "$0.00"}</b></li>`).join("")}</ul>` : `<p class="empty">Nothing read or answered yet.</p>`}
+      </section>
+      <section class="oblock">
+        <h2>Projects</h2>
+        <p class="fine">${h.projects ? `${h.projects.length} project${h.projects.length === 1 ? "" : "s"} on file. Saved conversations live on each project, in the Ask panel.` : ""}</p>
+      </section>
+      <section class="oblock">
+        <h2>Sign out</h2>
+        <p class="fine">Signing out clears this device. Anyone with the office code can sign back in.</p>
+        <form method="post" action="/signout"><button class="btn" type="submit">Sign out of this device</button></form>
+      </section>
+    </div>`;
+  renderStatus();
 }
 
 /* ---- project page ----------------------------------------------------- */

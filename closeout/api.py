@@ -404,7 +404,7 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         st = store()
         with lock:
             active = state["active"]
-        return {"model_id": settings.model_id, "active_run_id": active,
+        return {"model_id": settings.model_id, "active_run_id": active, "office": settings.office,
                 "projects": [project_card(st, p, active) for p in st.projects()], "usage": usage_mod.summary(st)}
 
     @app.get("/api/usage")
