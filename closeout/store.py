@@ -192,6 +192,24 @@ CREATE TABLE IF NOT EXISTS filings (
   at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS filings_by_file ON filings(project_id, file, at);
+CREATE TABLE IF NOT EXISTS conversations (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL,
+  title TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS turns (
+  id TEXT PRIMARY KEY,
+  conversation_id TEXT NOT NULL,
+  q TEXT NOT NULL,
+  a TEXT NOT NULL,
+  go_json TEXT NOT NULL DEFAULT '',   -- where the answer took the screen, if anywhere
+  action_json TEXT NOT NULL DEFAULT '', -- a prepared change, if one was offered
+  spoken INTEGER NOT NULL DEFAULT 0,
+  at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS turns_by_conv ON turns(conversation_id, at);
 """
 
 
@@ -702,6 +720,54 @@ class Store:
 
     def decisions(self, project_id: str) -> list[dict]:
         return [dict(r) for r in self.conn.execute("SELECT * FROM decisions WHERE project_id=? ORDER BY created_at", (project_id,))]
+
+    # --- conversations: every question and answer kept per project, so a chat can be picked up later ---
+    def create_conversation(self, project_id: str, title: str = "") -> dict:
+        cid, t = new_id("conv"), now()
+        self.conn.execute("INSERT INTO conversations(id, project_id, title, created_at, updated_at) VALUES(?,?,?,?,?)",
+                          (cid, project_id, title.strip(), t, t))
+        self.conn.commit()
+        return self.conversation(cid)
+
+    def conversation(self, conversation_id: str) -> dict | None:
+        r = self.conn.execute(
+            "SELECT c.*, (SELECT COUNT(*) FROM turns t WHERE t.conversation_id=c.id) AS turns FROM conversations c WHERE c.id=?",
+            (conversation_id,)).fetchone()
+        return dict(r) if r else None
+
+    def conversations(self, project_id: str) -> list[dict]:
+        rows = self.conn.execute(
+            "SELECT c.*, (SELECT COUNT(*) FROM turns t WHERE t.conversation_id=c.id) AS turns, "
+            "(SELECT a FROM turns t WHERE t.conversation_id=c.id ORDER BY at DESC LIMIT 1) AS last_answer "
+            "FROM conversations c WHERE c.project_id=? ORDER BY updated_at DESC", (project_id,))
+        return [dict(r) for r in rows]
+
+    def turns(self, conversation_id: str) -> list[dict]:
+        out = []
+        for r in self.conn.execute("SELECT * FROM turns WHERE conversation_id=? ORDER BY at, rowid", (conversation_id,)):
+            d = dict(r)
+            d["action"] = json.loads(d.pop("action_json") or "null")
+            d["go"] = json.loads(d.pop("go_json") or "null")
+            d["spoken"] = bool(d["spoken"])
+            out.append(d)
+        return out
+
+    def add_turn(self, conversation_id: str, q: str, a: str, go: dict | None = None, action: dict | None = None, spoken: bool = False) -> str:
+        tid, t = new_id("turn"), now()
+        self.conn.execute("INSERT INTO turns(id, conversation_id, q, a, go_json, action_json, spoken, at) VALUES(?,?,?,?,?,?,?,?)",
+                          (tid, conversation_id, q, a, json.dumps(go) if go else "", json.dumps(action) if action else "", 1 if spoken else 0, t))
+        self.conn.execute("UPDATE conversations SET updated_at=? WHERE id=?", (t, conversation_id))
+        self.conn.commit()
+        return tid
+
+    def rename_conversation(self, conversation_id: str, title: str) -> None:
+        self.conn.execute("UPDATE conversations SET title=?, updated_at=? WHERE id=?", (title.strip(), now(), conversation_id))
+        self.conn.commit()
+
+    def delete_conversation(self, conversation_id: str) -> None:
+        self.conn.execute("DELETE FROM turns WHERE conversation_id=?", (conversation_id,))
+        self.conn.execute("DELETE FROM conversations WHERE id=?", (conversation_id,))
+        self.conn.commit()
 
     # --- project --------------------------------------------------------
     def upsert_project(self, slug: str, name: str, source_root: str, model: dict | None = None) -> str:

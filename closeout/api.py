@@ -130,6 +130,11 @@ class AskBody(BaseModel):
     where: dict | None = None
     history: list[dict] = []   # earlier turns of the same conversation, {"q": ..., "a": ...}
     spoken: bool = False       # the answer will be read aloud: keep it short and natural
+    conversation_id: str | None = None   # continue a saved conversation; omitted = a new one is started
+
+
+class ConversationBody(BaseModel):
+    title: str = ""
 
 
 class SpeakBody(BaseModel):
@@ -822,15 +827,25 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         did = st.upsert_draft(run_id, "", out["subject"], out["body"], review_id=review_id)
         return st.draft_for_review(review_id) if did else None, None
 
+    def _conversation(st: Store, prj: dict, conversation_id: str) -> dict:
+        conv = st.conversation(conversation_id)
+        if not conv or conv["project_id"] != prj["id"]:
+            raise HTTPException(404, "no such conversation on this project")
+        return conv
+
     @app.post("/api/projects/{slug}/ask")
     def ask_project(slug: str, body: AskBody) -> dict:
-        """One call on the fast model: answer from the records, optionally move the screen. Reads only."""
+        """One call on the fast model: answer from the records, optionally move the screen. Reads only.
+        Every question and answer is kept in a conversation on the project, so it can be read or continued later."""
         st = store()
         prj = _project(st, slug)
+        q = " ".join(str(body.question or "").split())
+        conv = _conversation(st, prj, body.conversation_id) if body.conversation_id else None
+        history = body.history or ([{"q": t["q"], "a": t["a"]} for t in st.turns(conv["id"])[-8:]] if conv else [])
         run_id = st.create_run(prj["id"], batch_id="", model_id=settings.fast_model_id, kind="ask")
         try:
-            out = ask_mod.ask(st, prj["id"], body.question, body.where, settings, office=settings.office,
-                              history=body.history, spoken=body.spoken)
+            out = ask_mod.ask(st, prj["id"], q, body.where, settings, office=settings.office,
+                              history=history, spoken=body.spoken)
         except ValueError as e:
             st.finish_run(run_id, "failed", {"error": str(e)})
             raise HTTPException(400, str(e))
@@ -838,7 +853,45 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
             st.finish_run(run_id, "failed", {"error": f"{type(e).__name__}: {e}"})
             raise HTTPException(502, "Closeout could not answer that just now; ask again")
         st.finish_run(run_id, "done", out["usage"])
-        return {"answer": out["text"], "go": out["go"], "action": out.get("action"), "usage": out["usage"]}
+        if conv is None:
+            conv = st.create_conversation(prj["id"], q[:72])
+        turn_id = st.add_turn(conv["id"], q, out["text"], out.get("go"), out.get("action"), body.spoken)
+        return {"answer": out["text"], "go": out["go"], "action": out.get("action"), "usage": out["usage"],
+                "conversation_id": conv["id"], "conversation_title": conv["title"], "turn_id": turn_id}
+
+    @app.get("/api/projects/{slug}/conversations")
+    def list_conversations(slug: str) -> dict:
+        st = store()
+        prj = _project(st, slug)
+        return {"conversations": st.conversations(prj["id"])}
+
+    @app.post("/api/projects/{slug}/conversations")
+    def start_conversation(slug: str, body: ConversationBody) -> dict:
+        st = store()
+        prj = _project(st, slug)
+        return st.create_conversation(prj["id"], body.title)
+
+    @app.get("/api/projects/{slug}/conversations/{conversation_id}")
+    def read_conversation(slug: str, conversation_id: str) -> dict:
+        st = store()
+        conv = _conversation(st, _project(st, slug), conversation_id)
+        return {**conv, "turns": st.turns(conversation_id)}
+
+    @app.patch("/api/projects/{slug}/conversations/{conversation_id}")
+    def rename_conversation(slug: str, conversation_id: str, body: ConversationBody) -> dict:
+        st = store()
+        _conversation(st, _project(st, slug), conversation_id)
+        if not body.title.strip():
+            raise HTTPException(400, "give it a name")
+        st.rename_conversation(conversation_id, body.title)
+        return st.conversation(conversation_id)
+
+    @app.delete("/api/projects/{slug}/conversations/{conversation_id}")
+    def delete_conversation(slug: str, conversation_id: str) -> dict:
+        st = store()
+        _conversation(st, _project(st, slug), conversation_id)
+        st.delete_conversation(conversation_id)
+        return {"deleted": conversation_id}
 
     VOICE_TONE = ("A calm, clear colleague reading a short note aloud to an engineer on a building site. "
                   "Natural pace, plain, no drama. Item numbers like EL-01 are read as letters and digits.")

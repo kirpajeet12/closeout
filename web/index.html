@@ -610,36 +610,79 @@
     .viewer .floors { flex-wrap: wrap; }
     .viewer .floors .pinf { flex-basis: 100%; margin-left: 0; padding-left: 0; border-left: 0; padding-top: 6px; border-top: 1px solid #2b2d31; }
   }
-  /* Ask Closeout: one question box, fixed to the bottom of every project screen. Answers come from the records;
-     when the answer is "look here", the screen moves. */
-  body.askable .wrap { padding-bottom: 120px; }
-  .askbar { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); width: min(720px, calc(100% - 32px)); z-index: 40; }
-  .askbar form { display: flex; align-items: center; gap: 8px; background: var(--ink); border-radius: 999px; padding: 6px 6px 6px 18px; box-shadow: 0 12px 34px rgba(18,19,20,.28); }
+  /* Ask Closeout: a round button on every project screen opens a side panel. The conversation reads like
+     messages; answers come from the records; when the answer is "look here", the screen moves. Every
+     conversation is kept on the project and can be picked up again. */
+  body.askable .wrap { padding-bottom: 96px; }
+  .askfab { position: fixed; right: 22px; bottom: 22px; width: 58px; height: 58px; border-radius: 50%; border: 0; cursor: pointer; z-index: 40; color: #fff; display: grid; place-items: center; background: radial-gradient(circle at 30% 30%, #3a3d42, var(--ink) 65%); box-shadow: 0 14px 34px -10px rgba(18,19,20,.6), 0 0 0 4px rgba(232,89,12,.18); transition: transform .15s, box-shadow .15s; }
+  .askfab:hover { transform: translateY(-2px) scale(1.04); box-shadow: 0 18px 38px -10px rgba(18,19,20,.6), 0 0 0 6px rgba(232,89,12,.22); }
+  .askfab svg { width: 24px; height: 24px; display: block; }
+  .askfab[hidden] { display: none; }
+  .askdock { position: fixed; top: 0; right: 0; bottom: 0; width: min(430px, 100%); background: var(--paper); border-left: 1px solid var(--line); box-shadow: -30px 0 70px -40px rgba(0,0,0,.45); z-index: 45; display: flex; flex-direction: column; animation: dockin .22s ease-out; }
+  .askdock[hidden] { display: none; }
+  @keyframes dockin { from { transform: translateX(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+  @media (min-width: 1360px) { body.askopen .wrap { margin-right: 430px; } }
+  .dk-hd { display: flex; align-items: center; gap: 12px; padding: 14px 14px 12px 18px; border-bottom: 1px solid var(--line); background: var(--card); }
+  .dk-hd .av { width: 36px; height: 36px; border-radius: 50%; flex: none; background: radial-gradient(circle at 32% 30%, #ffb27a, var(--hot) 55%, #7a2e06 100%); box-shadow: inset 0 0 0 1px rgba(0,0,0,.08); }
+  .dk-hd .t { flex: 1; min-width: 0; } .dk-hd .t b { display: block; font-size: 15px; letter-spacing: -.01em; }
+  .dk-hd .t span { display: block; font-size: 12px; color: var(--mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dk-hd .btns { display: flex; gap: 6px; } .dk-hd .btns button { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--line-2); background: var(--card); color: var(--ink-2); cursor: pointer; display: grid; place-items: center; font: 600 16px var(--sans); }
+  .dk-hd .btns button svg { width: 16px; height: 16px; display: block; } .dk-hd .btns button.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .dk-thread { flex: 1; overflow-y: auto; padding: 18px 16px 10px; display: flex; flex-direction: column; gap: 12px; -webkit-overflow-scrolling: touch; }
+  .dk-thread[hidden], .dk-list[hidden] { display: none; }
+  .bub { max-width: 88%; font-size: 15px; line-height: 1.45; animation: askin .18s ease-out; }
+  @keyframes askin { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  .bub.me { align-self: flex-end; background: var(--ink); color: #fff; border-radius: 18px 18px 4px 18px; padding: 10px 14px; }
+  .bub.me.spoken::before { content: "🎙 "; opacity: .7; font-size: 12px; }
+  .bub.ai { align-self: flex-start; background: var(--card); border: 1px solid var(--line); border-radius: 4px 18px 18px 18px; padding: 12px 14px; white-space: pre-line; box-shadow: 0 10px 24px -18px rgba(18,19,20,.35); max-width: 94%; }
+  .bub.ai.wait { color: var(--mute); display: flex; align-items: center; gap: 10px; }
+  .bub.ai.wait .dots { display: inline-flex; gap: 4px; } .bub.ai.wait .dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--hot); animation: dot 1.1s ease-in-out infinite; } .bub.ai.wait .dots i:nth-child(2) { animation-delay: .18s; } .bub.ai.wait .dots i:nth-child(3) { animation-delay: .36s; }
+  @keyframes dot { 0%, 100% { opacity: .25; transform: translateY(0); } 50% { opacity: 1; transform: translateY(-3px); } }
+  .bub .went { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; font-size: 12px; color: var(--ready); background: var(--ready-bg); border-radius: 999px; padding: 4px 10px; font-weight: 600; white-space: normal; }
+  .bub .went::before { content: "→"; }
+  .bub time { display: block; margin-top: 6px; font-size: 11px; color: var(--mute); }
+  .bub .act { margin-top: 10px; border: 1px solid var(--line-2); border-radius: 12px; padding: 12px 14px; background: var(--paper); display: flex; align-items: center; gap: 12px; flex-wrap: wrap; white-space: normal; }
+  .bub .act .lbl { flex: 1 1 160px; font-size: 14px; }
+  .bub .act .lbl b { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: var(--mute); margin-bottom: 2px; }
+  .bub .act .btns { display: flex; gap: 8px; width: 100%; }
+  .bub .act .btn { padding: 9px 14px; border-radius: 10px; font-size: 14px; min-height: 40px; flex: 1; }
+  .bub .act.busy { opacity: .6; pointer-events: none; }
+  .bub .done { display: inline-block; margin-top: 10px; font-size: 13px; color: var(--ready); font-weight: 600; white-space: normal; }
+  .bub .offered { display: block; margin-top: 8px; font-size: 12px; color: var(--mute); white-space: normal; }
+  .dk-empty { padding: 26px 6px 10px; }
+  .dk-empty .av { width: 54px; height: 54px; border-radius: 50%; background: radial-gradient(circle at 32% 30%, #ffb27a, var(--hot) 55%, #7a2e06 100%); margin-bottom: 16px; box-shadow: 0 16px 30px -16px rgba(232,89,12,.7); }
+  .dk-empty h3 { margin: 0 0 6px; font-size: 22px; letter-spacing: -.02em; line-height: 1.15; }
+  .dk-empty p { margin: 0 0 16px; font-size: 14px; color: var(--mute); line-height: 1.5; }
+  .dk-empty .chips { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+  .dk-empty .chips button { border: 1px solid var(--line-2); background: var(--card); color: var(--ink); border-radius: 14px; padding: 10px 14px; font: 14px var(--sans); cursor: pointer; text-align: left; }
+  .dk-empty .chips button:hover { border-color: var(--ink); }
+  .dk-empty .fine { margin-top: 18px; font-size: 11px; color: var(--mute); }
+  .dk-list { flex: 1; overflow-y: auto; padding: 8px 10px 16px; }
+  .dk-list h4 { margin: 12px 8px 8px; font-size: 11px; text-transform: uppercase; letter-spacing: .14em; color: var(--mute); font-weight: 600; }
+  .dk-list .conv { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; padding: 12px 12px; border-radius: 14px; cursor: pointer; background: var(--card); border: 1px solid var(--line); margin-bottom: 8px; }
+  .dk-list .conv:hover { border-color: var(--line-2); } .dk-list .conv.on { border-color: var(--ink); }
+  .dk-list .conv b { display: block; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dk-list .conv small { display: block; color: var(--mute); font-size: 12px; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dk-list .conv .rm { border: 0; background: transparent; color: var(--mute); font-size: 18px; cursor: pointer; padding: 4px 6px; border-radius: 8px; } .dk-list .conv .rm:hover { background: var(--paper); color: var(--hot); }
+  .dk-list .empty { padding: 20px 8px; color: var(--mute); font-size: 14px; }
+  .askbar { padding: 10px 12px 12px; border-top: 1px solid var(--line); background: var(--card); }
+  .askbar form { display: flex; align-items: center; gap: 8px; background: var(--ink); border-radius: 999px; padding: 6px 6px 6px 18px; box-shadow: 0 12px 34px -14px rgba(18,19,20,.5); }
   .askbar form input { flex: 1; min-width: 0; background: transparent; border: 0; color: #fff; font: 15px/1.4 var(--sans); outline: none; }
   .askbar form input::placeholder { color: #a9adb4; }
   .askbar form button { border: 0; background: #fff; color: var(--ink); border-radius: 999px; width: 38px; height: 38px; font-size: 18px; font-weight: 700; display: grid; place-items: center; cursor: pointer; flex: none; }
   .askbar form button:disabled { opacity: .45; }
   .askbar.busy form button { background: #c9ccd2; }
-  .askpanel { background: var(--card); border: 1px solid var(--line-2); border-radius: 16px; padding: 14px 16px 12px; margin-bottom: 10px; box-shadow: 0 16px 40px rgba(18,19,20,.14); position: relative; animation: askin .18s ease-out; }
-  .askpanel[hidden] { display: none; }
-  @keyframes askin { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-  .askpanel .q { font-size: 12px; color: var(--mute); margin-bottom: 4px; padding-right: 28px; }
-  .askpanel .a { font-size: 15px; line-height: 1.5; color: var(--ink); white-space: pre-line; }
-  .askpanel .a.wait { color: var(--mute); }
-  .askpanel .went { margin-top: 8px; font-size: 12px; color: var(--ready); font-weight: 600; }
-  .askpanel .x { position: absolute; top: 8px; right: 10px; border: 0; background: transparent; color: var(--mute); font-size: 18px; cursor: pointer; padding: 4px 6px; }
-  .askpanel .fine { margin-top: 8px; font-size: 11px; color: var(--mute); }
   .askbar form button.mic { background: transparent; color: #fff; width: 34px; height: 34px; margin-left: -8px; }
   .askbar form button.mic svg { width: 18px; height: 18px; display: block; }
   .askbar.listening form { background: #8b1a1a; }
   .askbar.listening form button.mic { background: #fff; color: #8b1a1a; animation: pulse 1s ease-in-out infinite; }
   @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12); } }
-  /* Live: a hands-free conversation. The bar turns into a call strip: an orb that shows whether Closeout is listening,
+  /* Live: a hands-free conversation. The box turns into a call strip: an orb that shows whether Closeout is listening,
      thinking or speaking, the words as they are heard, and one way out. */
   .askbar form button.live { background: transparent; color: #fff; width: 34px; height: 34px; margin-left: -6px; }
   .askbar form button.live svg { width: 18px; height: 18px; display: block; }
   .askbar.live form { display: none; }
-  .livebar { display: none; align-items: center; gap: 14px; background: var(--ink); border-radius: 999px; padding: 8px 8px 8px 12px; box-shadow: 0 12px 34px rgba(18,19,20,.32); color: #fff; }
+  .livebar { display: none; align-items: center; gap: 14px; background: var(--ink); border-radius: 999px; padding: 8px 8px 8px 12px; box-shadow: 0 12px 34px -14px rgba(18,19,20,.5); color: #fff; }
   .askbar.live .livebar { display: flex; }
   .livebar .orb { position: relative; width: 44px; height: 44px; border-radius: 50%; flex: none; border: 0; padding: 0; cursor: pointer; background: radial-gradient(circle at 35% 35%, #ffffff, #b8bcc4 70%); box-shadow: 0 0 0 0 rgba(255,255,255,.35); transition: background .3s, box-shadow .3s; }
   .livebar .orb::after { content: ""; position: absolute; inset: -6px; border-radius: 50%; border: 2px solid transparent; }
@@ -655,14 +698,7 @@
   .livebar .words b { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .14em; color: #a9adb4; font-weight: 600; }
   .livebar .words span { display: block; font-size: 15px; line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .livebar .end { border: 0; background: #fff; color: var(--ink); border-radius: 999px; padding: 0 16px; height: 38px; font: 600 14px var(--sans); cursor: pointer; flex: none; }
-  .askpanel .act { margin-top: 10px; border: 1px solid var(--line-2); border-radius: 12px; padding: 12px 14px; background: var(--paper); display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-  .askpanel .act .lbl { flex: 1 1 200px; font-size: 14px; }
-  .askpanel .act .lbl b { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: var(--mute); margin-bottom: 2px; }
-  .askpanel .act .btns { display: flex; gap: 8px; }
-  .askpanel .act .btn { padding: 9px 14px; border-radius: 10px; font-size: 14px; min-height: 40px; }
-  .askpanel .act.busy { opacity: .6; pointer-events: none; }
-  .askpanel .done { margin-top: 8px; font-size: 13px; color: var(--ready); font-weight: 600; }
-  @media (max-width: 760px) { .askbar { bottom: 10px; width: calc(100% - 20px); } body.askable .wrap { padding-bottom: 96px; } .askpanel .act .btns { width: 100%; } .askpanel .act .btn { flex: 1; } }
+  @media (max-width: 760px) { .askfab { right: 16px; bottom: 18px; width: 54px; height: 54px; } .askdock { width: 100%; } }
 </style>
 </head>
 <body>
@@ -674,11 +710,17 @@
   <main id="main"></main>
 </div>
 <div class="toast" id="toast"></div>
-<div class="askbar" id="askbar" hidden>
-  <div class="askpanel" id="askpanel" hidden></div>
-  <form id="askform" autocomplete="off"><button type="button" class="mic" id="askmic" aria-label="Speak" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><path d="M12 17v4M8 21h8"/></svg></button><button type="button" class="live" id="asklive" aria-label="Talk with Closeout" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12h2M7 8v8M11 5v14M15 8v8M19 10v4M21 12h0"/></svg></button><input type="text" id="askq" placeholder="Ask Closeout… e.g. what is still open at 6895?" maxlength="600"><button type="submit" id="askgo" aria-label="Ask">↑</button></form>
-  <div class="livebar" id="livebar" data-state="tap"><button class="orb" id="liveorb" type="button" aria-label="Talk"></button><div class="words"><b id="livestate">Tap to talk</b><span id="livewords">Closeout is listening for a question</span></div><button class="end" id="liveend" type="button">End</button></div>
-</div>
+<button class="askfab" id="askfab" type="button" aria-label="Ask Closeout" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-4.5 4v-4A2.5 2.5 0 0 1 4 13.5z"/><path d="M8.5 8.5h7M8.5 11.5h4.5"/></svg></button>
+<aside class="askdock" id="askdock" hidden aria-label="Ask Closeout">
+  <header class="dk-hd"><span class="av"></span><div class="t"><b>Closeout</b><span id="askconvtitle">New conversation</span></div>
+    <div class="btns"><button type="button" id="askhist" aria-label="Saved conversations" title="Saved conversations"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg></button><button type="button" id="asknew" aria-label="New conversation" title="New conversation">+</button><button type="button" id="askclose" aria-label="Close">×</button></div></header>
+  <div class="dk-list" id="asklist" hidden></div>
+  <div class="dk-thread" id="askthread"></div>
+  <div class="askbar" id="askbar">
+    <form id="askform" autocomplete="off"><button type="button" class="mic" id="askmic" aria-label="Speak" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><path d="M12 17v4M8 21h8"/></svg></button><button type="button" class="live" id="asklive" aria-label="Talk with Closeout" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12h2M7 8v8M11 5v14M15 8v8M19 10v4M21 12h0"/></svg></button><input type="text" id="askq" placeholder="Ask Closeout…" maxlength="600"><button type="submit" id="askgo" aria-label="Ask">↑</button></form>
+    <div class="livebar" id="livebar" data-state="tap"><button class="orb" id="liveorb" type="button" aria-label="Talk"></button><div class="words"><b id="livestate">Tap to talk</b><span id="livewords">Closeout is listening for a question</span></div><button class="end" id="liveend" type="button">End</button></div>
+  </div>
+</aside>
 
 <script>
 // The live site asks for the office code once; if it is missing, go and get it.
@@ -2248,7 +2290,7 @@ window.addEventListener("hashchange", () => { const r = route(); if (r.page === 
 load();
 
 /* ---- Ask Closeout ------------------------------------------------------ */
-const askState = { busy: false, last: null };
+const askState = { busy: false, last: null, spoken: false, open: false, view: "thread", slug: null, conv: null, title: "", turns: [], list: [] };
 function askWhere() {
   const r = route();
   const w = { tab: r.page === "project" ? (r.tab === "list" ? "deficiencies" : r.tab) : r.page, filters: { ...state.filters } };
@@ -2256,24 +2298,105 @@ function askWhere() {
   if (r.page === "sheet") { const sh = (state.p.project.sheets || []).find(x => x.id === r.sheetId); if (sh) w.sheet = sh.sheet_number; }
   return w;
 }
+function askKey() { return "closeout.ask." + state.slug; }
+function askRemember() { try { localStorage.setItem(askKey(), JSON.stringify({ open: askState.open, conv: askState.conv })); } catch (e) {} }
+function askRestore() {
+  let saved = {}; try { saved = JSON.parse(localStorage.getItem(askKey()) || "{}"); } catch (e) {}
+  askState.conv = saved.conv || null; askState.title = ""; askState.turns = []; askState.view = "thread";
+  askState.open = !!saved.open && window.innerWidth >= 1000;   // on a phone the panel never opens on its own
+  if (askState.conv) askResume(askState.conv, true); else askThread();
+}
 function renderAsk() {
   const r = route(), on = !!state.p && (r.page === "project" || r.page === "item" || r.page === "sheet");
+  if (on && askState.slug !== state.slug) { askState.slug = state.slug; askRestore(); }
   document.body.classList.toggle("askable", on);
-  $("#askbar").hidden = !on;
-  $("#askq").placeholder = window.innerWidth <= 760 ? "Ask Closeout…" : "Ask Closeout… e.g. what is still open at 6895?";
-  if (!on) { $("#askpanel").hidden = true; askState.last = null; if (typeof live !== "undefined" && live.on) liveEnd(); }
+  document.body.classList.toggle("askopen", on && askState.open);
+  $("#askfab").hidden = !on || askState.open;
+  $("#askdock").hidden = !on || !askState.open;
+  if (!on) { askState.last = null; if (typeof live !== "undefined" && live.on) liveEnd(); }
 }
-function askPanel(q, a, went, wait, action) {
-  const el = $("#askpanel");
-  el.innerHTML = `<div class="q">${esc(q)}</div><div class="a${wait ? " wait" : ""}">${esc(a)}</div>${went ? `<div class="went">${esc(went)}</div>` : ""}
-    ${action ? `<div class="act" id="askact"><div class="lbl"><b>Ready to confirm</b>${esc(action.label)}</div><div class="btns"><button class="btn primary" id="askyes">Confirm</button><button class="btn" id="askno">Cancel</button></div></div>` : ""}
-    ${wait ? "" : `<div class="fine">From this project's records. Closeout ${action ? "prepares" : "answers"}; the engineer decides.</div>`}<button class="x" type="button" aria-label="Close">×</button>`;
-  el.hidden = false;
-  el.querySelector(".x").onclick = () => { el.hidden = true; };
-  if (action) {
-    $("#askno").onclick = () => { el.hidden = true; };
-    $("#askyes").onclick = () => askConfirm(action);
+function askOpen() { askState.open = true; askState.view = "thread"; askRemember(); renderAsk(); askThread(); if (window.innerWidth >= 1000) $("#askq").focus(); }
+function askClose() { askState.open = false; askRemember(); renderAsk(); if (typeof live !== "undefined" && live.on) liveEnd(); }
+function askNew() { askState.conv = null; askState.title = ""; askState.turns = []; askState.last = null; askState.view = "thread"; askRemember(); askThread(); $("#askq").focus(); }
+function askAdopt(j) {
+  if (!j || !j.conversation_id) return;
+  if (askState.conv !== j.conversation_id) { askState.conv = j.conversation_id; askRemember(); }
+  if (j.conversation_title) askState.title = j.conversation_title;
+  askHead();
+}
+function askHead() {
+  const n = askState.turns.filter(t => !t.wait).length;
+  $("#askconvtitle").textContent = askState.view === "list" ? "Saved conversations" : askState.title ? `${askState.title}${n ? ` · ${n} question${n === 1 ? "" : "s"}` : ""}` : "New conversation · kept on this project";
+  $("#askhist").classList.toggle("on", askState.view === "list");
+}
+function askStarters() {
+  const p = state.p, b = (typeof buildings === "function" ? buildings() : [])[0];
+  const out = [];
+  if (b) out.push(`What is still open at ${b.name}?`);
+  out.push("What did the last field review find?", "Which items are ready to close?");
+  if ((p.reviews || []).some(r => r.status === "active")) out.push("What is recorded in the review that is in progress?");
+  return out.slice(0, 4);
+}
+function askThread() {
+  askState.view = "thread"; $("#asklist").hidden = true; const el = $("#askthread"); el.hidden = false; askHead();
+  if (!askState.turns.length) {
+    el.innerHTML = `<div class="dk-empty"><span class="av"></span><h3>Ask about this project.</h3><p>Answers come from the records on file: the deficiencies, the reviews, what the contractor sent. Say "open EL-01" or "show the plumbing" and the screen moves.</p>
+      <div class="chips">${askStarters().map(q => `<button type="button" data-q="${esc(q)}">${esc(q)}</button>`).join("")}</div><p class="fine">Closeout answers; the engineer decides. A change is only made after you confirm it.</p></div>`;
+    el.querySelectorAll("[data-q]").forEach(b => b.onclick = () => { $("#askq").value = b.dataset.q; askState.spoken = false; askSend(); });
+    return;
   }
+  const last = askState.turns[askState.turns.length - 1];
+  el.innerHTML = askState.turns.map(t => {
+    const me = `<div class="bub me${t.spoken ? " spoken" : ""}">${esc(t.q)}</div>`;
+    if (t.wait) return me + `<div class="bub ai wait"><span class="dots"><i></i><i></i><i></i></span><span>${esc(t.a || "Looking through the records…")}</span></div>`;
+    const went = t.went || (t.go && !t.action ? goLabel(t.go) : "");
+    const act = t.action && !t.done && t === last ? `<div class="act" id="askact"><div class="lbl"><b>Ready to confirm</b>${esc(t.action.label)}</div><div class="btns"><button class="btn primary" id="askyes">Confirm</button><button class="btn" id="askno">Cancel</button></div></div>`
+      : t.done ? `<span class="done">Done · ${esc(t.done)}</span>` : (t.offered || (t.action && t.action.label)) ? `<span class="offered">Offered: ${esc(t.offered || t.action.label)} · not confirmed</span>` : "";
+    return me + `<div class="bub ai">${esc(t.a)}${went ? `<span class="went">${esc(went)}</span>` : ""}${act}${t.at ? `<time>${esc(when(t.at))}</time>` : ""}</div>`;
+  }).join("");
+  if (last.action && !last.done && !last.wait) {
+    const no = $("#askno"), yes = $("#askyes");
+    if (no) no.onclick = () => askDropAction();
+    if (yes) yes.onclick = () => askConfirm(last.action);
+  }
+  el.scrollTop = el.scrollHeight;
+}
+function askDropAction() { const t = askState.turns[askState.turns.length - 1]; if (t && t.action && !t.done) t.action = null; const a = $("#askact"); if (a) a.remove(); }
+function askPanel(q, a, went, wait, action) {
+  /* One exchange on the thread: a waiting bubble first, then the answer fills it in. */
+  const turns = askState.turns, last = turns[turns.length - 1];
+  if (wait) { turns.push({ q, a, wait: true, spoken: askState.spoken || (typeof live !== "undefined" && live.on) }); }
+  else if (last && last.wait) { Object.assign(last, { a, went: went || "", action: action || null, wait: false, at: new Date().toISOString() }); }
+  else if (last && last.q === q && last.a === a) { last.action = action || last.action; last.done = null; }
+  else turns.push({ q, a, went: went || "", action: action || null, at: new Date().toISOString(), spoken: askState.spoken });
+  askState.last = { q, a };
+  if (!askState.open) { askState.open = true; askRemember(); renderAsk(); }
+  askThread();
+}
+async function askHistory() {
+  askState.view = "list"; $("#askthread").hidden = true; const el = $("#asklist"); el.hidden = false; askHead();
+  el.innerHTML = `<div class="empty">Loading…</div>`;
+  const r = await fetch(pUrl(state.slug, "/conversations")); const j = await r.json().catch(() => ({}));
+  askState.list = j.conversations || [];
+  if (!askState.list.length) { el.innerHTML = `<div class="empty">No conversations yet on this project. Every question you ask is kept here.</div>`; return; }
+  el.innerHTML = `<h4>On this project</h4>` + askState.list.map(c => `<div class="conv ${c.id === askState.conv ? "on" : ""}" data-id="${esc(c.id)}"><div><b>${esc(c.title || "Untitled")}</b><small>${esc(when(c.updated_at))} · ${c.turns} question${c.turns === 1 ? "" : "s"}${c.last_answer ? " · " + esc(c.last_answer) : ""}</small></div><button class="rm" type="button" data-rm="${esc(c.id)}" aria-label="Delete">×</button></div>`).join("");
+  el.querySelectorAll(".conv").forEach(row => row.onclick = () => askResume(row.dataset.id));
+  el.querySelectorAll("[data-rm]").forEach(b => b.onclick = async e => {
+    e.stopPropagation();
+    const r = await fetch(pUrl(state.slug, "/conversations/" + encodeURIComponent(b.dataset.rm)), { method: "DELETE" });
+    if (!r.ok) return toast("Could not delete", true);
+    if (askState.conv === b.dataset.rm) { askState.conv = null; askState.title = ""; askState.turns = []; askRemember(); }
+    toast("Conversation deleted"); askHistory();
+  });
+}
+async function askResume(id, quiet) {
+  const r = await fetch(pUrl(state.slug, "/conversations/" + encodeURIComponent(id)));
+  if (!r.ok) { if (!quiet) toast("That conversation is gone", true); askState.conv = null; askState.title = ""; askState.turns = []; askRemember(); askThread(); return; }
+  const j = await r.json();
+  askState.conv = j.id; askState.title = j.title;
+  // an earlier session's offered change is shown as history, never re-offered
+  askState.turns = (j.turns || []).map(t => ({ q: t.q, a: t.a, go: t.go, action: null, offered: t.action ? t.action.label : "", at: t.at, spoken: t.spoken, done: null }));
+  askRemember(); askThread();
 }
 async function askConfirm(action) {
   const act = $("#askact"); if (!act) return;
@@ -2283,7 +2406,8 @@ async function askConfirm(action) {
     const r = await fetch(pUrl(state.slug, action.path), { method: action.method, headers: action.body ? { "content-type": "application/json" } : {}, body: action.body ? JSON.stringify(action.body) : undefined });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(j.detail || "Could not do that");
-    act.outerHTML = `<div class="done">Done · ${esc(action.label)}</div>`;
+    const t = askState.turns[askState.turns.length - 1]; if (t && t.action === action) t.done = action.label;
+    act.outerHTML = `<span class="done">Done · ${esc(action.label)}</span>`;
     toast("Done");
     await load();
     if (action.then) applyGo(action.then);
@@ -2325,21 +2449,27 @@ async function askSend() {
   const input = $("#askq"), q = input.value.trim();
   if (!q || askState.busy) return;
   askState.busy = true; $("#askbar").classList.add("busy"); $("#askgo").disabled = true;
+  input.value = "";
   askPanel(q, "Looking through the records…", "", true);
   try {
-    const r = await fetch(pUrl(state.slug, "/ask"), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ question: q, where: askWhere() }) });
+    const r = await fetch(pUrl(state.slug, "/ask"), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ question: q, where: askWhere(), conversation_id: askState.conv, spoken: askState.spoken }) });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(j.detail || "Closeout could not answer that just now");
+    askAdopt(j);
     const went = j.action ? "" : applyGo(j.go);
     askPanel(q, j.answer, went, false, j.action);
     if (askState.spoken) askSay(j.answer + (j.action ? ` ${j.action.label}. Confirm on the screen.` : ""));
-    input.value = "";
   } catch (e) {
     askPanel(q, e.message || "Closeout could not answer that just now; ask again", "", false);
   } finally {
     askState.busy = false; $("#askbar").classList.remove("busy"); $("#askgo").disabled = false;
   }
 }
+$("#askfab").onclick = askOpen;
+$("#askclose").onclick = askClose;
+$("#asknew").onclick = askNew;
+$("#askhist").onclick = () => { if (askState.view === "list") askThread(); else askHistory(); };
+document.addEventListener("keydown", e => { if (e.key === "Escape" && askState.open && !$("#askdock").hidden) askClose(); });
 $("#askform").onsubmit = e => { e.preventDefault(); askState.spoken = false; askSend(); };
 
 /* Voice: the phone's own speech recognition fills the box and sends; the answer is read back when the question
@@ -2459,7 +2589,7 @@ async function liveHeard(q) {
   if (live.pending) {
     const action = live.pending;
     const short = q.trim().split(/\s+/).length <= 6;
-    if (NO.test(q)) { live.pending = null; $("#askpanel").hidden = true; liveHistory(q, "Left as it was."); liveSay("Okay, left as it was."); return; }
+    if (NO.test(q)) { live.pending = null; askDropAction(); liveHistory(q, "Left as it was."); liveSay("Okay, left as it was."); return; }
     if (YES.test(q) && short) {
       live.pending = null; liveSet("thinking", q);
       if (!$("#askact")) askPanel(live.last.q, live.last.a, "", false, action);
@@ -2467,7 +2597,7 @@ async function liveHeard(q) {
       const said = ok === true ? "Done. " + action.label : `That did not go through. ${ok}`;
       liveHistory(q, said); liveSay(said); return;
     }
-    live.pending = null; $("#askpanel").hidden = true;   // anything else is a new question; the change is dropped
+    live.pending = null; askDropAction();   // anything else is a new question; the change is dropped
   }
   liveSet("thinking", q);
   askPanel(q, "Looking through the records…", "", true);
@@ -2475,9 +2605,10 @@ async function liveHeard(q) {
   let answer, action = null, went = "";
   try {
     const r = await fetch(pUrl(state.slug, "/ask"), { method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ question: q, where: askWhere(), history: live.history.slice(-6), spoken: true }) });
+      body: JSON.stringify({ question: q, where: askWhere(), history: live.history.slice(-6), spoken: true, conversation_id: askState.conv }) });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(j.detail || "Closeout could not answer that just now");
+    askAdopt(j);
     answer = j.answer; action = j.action || null;
     went = action ? "" : applyGo(j.go);
   } catch (e) { answer = e.message || "Closeout could not answer that just now; ask again"; }
