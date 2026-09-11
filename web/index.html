@@ -351,6 +351,8 @@
   .handoff .hd { padding: 16px 20px 14px; border-left: 5px solid var(--hot); display: flex; justify-content: space-between; gap: 12px; align-items: baseline; flex-wrap: wrap; }
   .handoff .hd h3 { margin: 0; font-size: 18px; letter-spacing: -.01em; } .handoff .hd p { margin: 3px 0 0; color: var(--mute); font-size: 13px; }
   .handoff .hd .x { border: 0; background: none; color: var(--mute); font-size: 13px; padding: 0; }
+  .handoff .hd .hdbtns { display: flex; align-items: center; gap: 14px; } .handoff .hd .hdbtns a.btn { text-decoration: none; }
+  .fr-head .frbtns { display: flex; align-items: center; gap: 8px; } .fr-head .frbtns a.btn { text-decoration: none; } .fr-head .btn.quiet { color: var(--mute); border-color: transparent; }
   .handoff .pk { padding: 0 20px; } .handoff .pk .row { display: grid; grid-template-columns: 58px 1fr; gap: 10px; padding: 9px 0; border-top: 1px solid var(--line); font-size: 14px; align-items: baseline; }
   .handoff .pk .row .id { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 700; color: var(--hot); }
   .handoff .pk .row small { display: block; color: var(--mute); margin-top: 2px; }
@@ -1455,7 +1457,7 @@ function renderField() {
         <div class="rv">${a ? `<span><i class="live"></i><b>${esc(a.title)}</b> in progress</span>` : `<span style="color:var(--mute)">${p.reviews.filter(r => r.discipline === d.code).length ? p.reviews.filter(r => r.discipline === d.code).length + " done" : "Not started"}</span>`}</div></div>`; }).join("")}</div>
     <div class="fr-head">
       <div><h2>${esc(cur.name)}${rv ? ` · ${esc(rv.title)}` : ""}</h2><p>${rv ? `Started ${esc(when(rv.started_at))} · ${items.length} deficienc${items.length === 1 ? "y" : "ies"} so far. Open a sheet, tap where the problem is, take the photo.` : done.length ? `${done.length} review${done.length === 1 ? "" : "s"} finished. Start the next one to add more deficiencies.` : "Nothing recorded yet for this discipline."}</p></div>
-      ${state.finishing === (rv && rv.id) && rv ? `<div class="thinking"><span class="dot"></span><span>Packaging ${items.length} deficienc${items.length === 1 ? "y" : "ies"} and drafting the message to the contractor…</span></div>` : rv ? `<button class="btn" id="finishRv">Finish ${esc(rv.title.toLowerCase())}</button>` : `<button class="btn primary" id="startRv">Start field review ${done.length + 1}</button>`}
+      ${state.finishing === (rv && rv.id) && rv ? `<div class="thinking"><span class="dot"></span><span>Packaging ${items.length} deficienc${items.length === 1 ? "y" : "ies"} and drafting the message to the contractor…</span></div>` : rv ? `<span class="frbtns"><a class="btn quiet" href="${pUrl(slug, "/reviews/" + encodeURIComponent(rv.id) + "/report")}" target="_blank" rel="noopener">Report so far</a><button class="btn" id="finishRv">Finish ${esc(rv.title.toLowerCase())}</button></span>` : `<button class="btn primary" id="startRv">Start field review ${done.length + 1}</button>`}
     </div>
     ${(() => { const show = state.finishing ? null : state.openReview ? done.find(x => x.id === state.openReview) : (!rv && done.length ? done[done.length - 1] : null); return show ? renderHandoff(show) : ""; })()}
     ${shot && shot.disc === cur.code && shot.pick ? `<p class="pickhint"><span>Which sheet does this belong on?</span> Tap it; the photo comes with you.</p>` : ""}
@@ -1521,7 +1523,7 @@ function renderHandoff(r) {
   const items = pkg ? pkg.items : findingsIn(r.id).map(d => ({ item_id: d.item_id, location: d.location, description: d.description, evidence_required: d.evidence_required, sheet: d.sheet, photo: !!d.reference_photo }));
   const photos = items.filter(i => i.photo).length, busy = state.drafting === r.id;
   return `<section class="handoff" data-rv="${esc(r.id)}">
-    <div class="hd"><div><h3>${esc(r.title)} · ${esc(disc)} · finished</h3><p>${esc(when(r.finished_at || r.started_at))} · ${items.length} deficienc${items.length === 1 ? "y" : "ies"} · ${photos} photo${photos === 1 ? "" : "s"} · this is what the contractor gets</p></div><button class="x" data-close>close</button></div>
+    <div class="hd"><div><h3>${esc(r.title)} · ${esc(disc)} · finished</h3><p>${esc(when(r.finished_at || r.started_at))} · ${items.length} deficienc${items.length === 1 ? "y" : "ies"} · ${photos} photo${photos === 1 ? "" : "s"} · this is what the contractor gets</p></div><div class="hdbtns"><a class="btn" href="${pUrl(state.slug, "/reviews/" + encodeURIComponent(r.id) + "/report")}" target="_blank" rel="noopener">Open the report</a><button class="x" data-close>close</button></div></div>
     ${items.length ? `<div class="pk">${items.map(i => `<div class="row" data-id="${esc(i.item_id)}"><span class="id">${esc(i.item_id)}</span><div>${esc(i.description)}<small>${esc(i.location)} · sheet ${esc(i.sheet || "?")} · send to close: ${esc(i.evidence_required)}</small></div></div>`).join("")}</div>` : `<div class="pk"><div class="row" style="grid-template-columns:1fr"><span>Nothing was recorded in this review, so there is nothing to send.</span></div></div>`}
     <div class="ms">
       ${busy ? `<div class="thinking"><span class="dot"></span><span>Writing the covering message from these ${items.length} item${items.length === 1 ? "" : "s"}…</span></div>`

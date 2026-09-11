@@ -29,6 +29,7 @@ from . import ask as ask_mod, documents as documents_mod, pipeline, plans as pla
 from .config import SETTINGS, Settings
 from .ingest import _exif, _heic_to_jpeg
 from .packet import build_packet, packet_markdown
+from . import report as report_mod
 from .store import Store
 
 log = logging.getLogger("closeout.api")
@@ -851,6 +852,40 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         st.set_review_package(review_id, pkg)
         message, error = (st.draft_for_review(review_id), None) if st.draft_for_review(review_id) else _draft_review_message(st, prj, review_id)
         return {"review": st.review(review_id), "package": pkg, "message": message, "error": error}
+
+    @app.get("/api/projects/{slug}/reviews/{review_id}/report.json")
+    def review_report_json(slug: str, review_id: str) -> dict:
+        """The field review report as data: every item with its status, the drawings on file, the sign-off fields."""
+        st = store()
+        prj = _project(st, slug)
+        try:
+            return report_mod.review_report(st, prj["id"], review_id, office=settings.office)
+        except ValueError as e:
+            raise HTTPException(404, str(e)) from e
+
+    @app.get("/api/projects/{slug}/reviews/{review_id}/report", include_in_schema=False)
+    def review_report_page(slug: str, review_id: str):
+        """The printable report. Built from the saved walk; nothing is sent and no wording is generated."""
+        st = store()
+        prj = _project(st, slug)
+        try:
+            data = report_mod.review_report(st, prj["id"], review_id, office=settings.office)
+        except ValueError as e:
+            raise HTTPException(404, str(e)) from e
+        return HTMLResponse(report_mod.report_html(data))
+
+    @app.get("/api/projects/{slug}/items/{item_id}/pin.jpg")
+    def item_pin_crop(slug: str, item_id: str):
+        """A close-up of the sheet around the item's pin, with the pin drawn on. For the report and the item page."""
+        st = store()
+        d = st.deficiency(_project(st, slug)["id"], item_id)
+        if not d or d.get("pin_x") is None or not d.get("sheet_id"):
+            raise HTTPException(404, "no pin for this item")
+        sh = st.sheet(d["sheet_id"])
+        if not sh or not Path(sh["image_path"]).exists():
+            raise HTTPException(404, "sheet image missing")
+        crop, _whole = review_mod.pin_images(Path(sh["image_path"]), d["pin_x"], d["pin_y"])
+        return Response(crop, media_type="image/jpeg")
 
     LINK_LINE = "Send your photos and documents through this link: "
 
