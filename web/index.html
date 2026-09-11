@@ -223,6 +223,9 @@
   .pill.ready { color: var(--ready); background: var(--ready-bg); } .pill.needs { color: var(--needs); background: var(--needs-bg); }
   .pill.unclear { color: var(--unclear); background: var(--unclear-bg); } .pill.none { color: var(--none); background: var(--none-bg); }
   .pill.lg { font-size: 14px; padding: 7px 14px; }
+  .item-head .pills { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; } .item-head .pills small { font-size: 12px; color: var(--mute); }
+  td.st small.ev { display: block; margin-top: 3px; font-size: 11px; color: var(--mute); }
+  .sent .addsent { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 14px; margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--line); } .sent .addsent input { display: none; } .sent .addsent label.btn { cursor: pointer; } .sent .addsent.busy label.btn { opacity: .5; pointer-events: none; } .sent .addsent small { color: var(--mute); font-size: 12px; flex-basis: 100%; } .sent .addsent select { font: inherit; font-size: 13px; padding: 7px 10px; border-radius: 10px; border: 1px solid var(--line); background: #fff; max-width: 100%; }
 
   .left { display: grid; gap: 10px; }
   .left .card { display: grid; grid-template-columns: 72px 1fr; gap: 14px; padding: 12px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; }
@@ -676,7 +679,7 @@ const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt
 const when = s => { const d = new Date(s); return isNaN(d) ? String(s ?? "") : d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }); };
 const fileUrl = (id, page) => `/api/evidence/${id}/file` + (page ? `#page=${page}` : "");
 const isImg = name => /\.(jpe?g|png|heic|heif|webp)$/i.test(name || "");
-const state = { home: null, p: null, slug: null, es: null, run: { kind: "idle", text: "", done: 0, total: 0 }, fieldDisc: null, viewer: null, shot: null, openReview: null, finishing: null, drafting: null, mapping: null, docsAsking: false, filters: { bld: "", disc: "", rv: "" }, folder: [], pinMode: "", brief: {}, briefOpen: {}, starting: null, cov: {}, unitLog: null, stagesEdit: null };
+const state = { home: null, p: null, slug: null, es: null, run: { kind: "idle", text: "", done: 0, total: 0 }, fieldDisc: null, filing: null, viewer: null, shot: null, openReview: null, finishing: null, drafting: null, mapping: null, docsAsking: false, filters: { bld: "", disc: "", rv: "" }, folder: [], pinMode: "", brief: {}, briefOpen: {}, starting: null, cov: {}, unitLog: null, stagesEdit: null };
 
 function toast(msg, err) { const t = $("#toast"); t.textContent = msg; t.className = "toast show" + (err ? " err" : ""); setTimeout(() => t.className = "toast", 3200); }
 function route() {
@@ -698,6 +701,9 @@ function status(i) {
   return { k: "none", t: "Nothing yet" };
 }
 const CALL = { accept: "Ready to close", reject: "Not accepted", hold: "On hold" };
+const CALL_K = { accept: "ready", reject: "needs", hold: "unclear" };
+/* what the pill says: the engineer's call when there is one, else where the evidence stands */
+function callPill(i) { const d = i.decision && i.decision.decision; return d && CALL[d] ? { k: CALL_K[d], t: CALL[d], ev: status(i).t } : { ...status(i), ev: "" }; }
 function items() {
   const p = state.p, pk = p.packet;
   const blank = d => ({ item: d, completeness: "no_evidence", evidence: [], unresolved: [], missing_slots: d.slots, history: [], followup_draft: null, decision: null });
@@ -903,7 +909,7 @@ function renderList() {
       ${list.map(i => { const s = status(i); return `<tr class="row" data-id="${esc(i.item.item_id)}">
         <td class="id">${esc(i.item.item_id)}</td>
         <td class="what-cell"><div class="what">${esc(i.item.description)}</div><div class="where">${esc(i.item.location)}${i.item.sheet ? ` · sheet ${esc(i.item.sheet)}` : ""}</div></td>
-        <td class="st"><span class="pill ${s.k}">${esc(s.t)}</span></td>
+        <td class="st">${(() => { const c = callPill(i); return `<span class="pill ${c.k}">${esc(c.t)}</span>${c.ev ? `<small class="ev">${esc(c.ev)}</small>` : ""}`; })()}</td>
         <td class="call">${i.decision ? esc(CALL[i.decision.decision] || i.decision.decision) : ""}</td>
         <td class="go">›</td></tr>`; }).join("")}
     </tbody></table>` : all.length ? `<p class="empty">Nothing matches these filters.</p>` : `<p class="empty">No deficiency list yet. Drop one above to start.</p>`}
@@ -1421,7 +1427,7 @@ function renderItem(id) {
     <a class="back" href="${pHash(slug, "/deficiencies")}">← All deficiencies</a>
     <div class="item-head">
       <div><div class="idm">${esc(d.item_id)} · ${esc(d.discipline || "")}${d.review_date ? ` · reviewed ${esc(d.review_date)}` : ""}${d.source === "field" ? " · recorded on site" : ""}</div><h1 class="${d.description.length > 110 ? "long" : ""}">${esc(d.description)}</h1><div class="where">${esc(d.location)}${d.sheet ? ` · sheet ${esc(d.sheet)}` : ""}${d.note ? ` · note: “${esc(d.note)}”` : ""}</div></div>
-      <span class="pill lg ${s.k}">${esc(s.t)}</span>
+      ${(() => { const c = callPill(i); return `<div class="pills"><span class="pill lg ${c.k}">${esc(c.t)}</span>${c.ev ? `<small>Evidence: ${esc(c.ev)}</small>` : ""}</div>`; })()}
     </div>
     <div class="grid2">
       <section class="box asked"><h2>What we asked for</h2>
@@ -1436,6 +1442,7 @@ function renderItem(id) {
     </div>
     <section class="box sent"><h2>What the contractor sent</h2>
       ${i.evidence.length || i.unresolved.length ? `<div class="left">${i.evidence.map(f => sentCard(f, false)).join("")}${i.unresolved.map(f => sentCard(f, true)).join("")}</div>` : `<p class="empty">Nothing for this item yet.</p>`}
+      <div class="addsent ${state.filing === d.item_id ? "busy" : ""}">${d.slots.length > 1 ? `<select id="sentSlot">${d.slots.map(sl => `<option value="${sl.index}">${esc(sl.type)}: ${esc(sl.description)}</option>`).join("")}</select>` : ""}<label class="btn"><input type="file" id="sentIn" multiple accept="image/*,.pdf,.heic,.heif">${state.filing === d.item_id ? "Filing…" : "Add what the contractor sent"}</label><small>Photos or documents handed over in person or by email. Filed to ${esc(d.item_id)} as is; nothing is read by Closeout.</small></div>
     </section>
     <section class="box call"><h2>Your call</h2>
       <div class="btns">
@@ -1453,6 +1460,18 @@ function renderItem(id) {
     const r = await fetch(pUrl(slug, `/items/${encodeURIComponent(d.item_id)}/decision`), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ decision: btn.dataset.d, note: $("#decNote").value || null }) });
     if (r.ok) { toast("Recorded"); load(); } else toast("Could not record", true);
   });
+  const si = $("#sentIn"); if (si) si.onchange = async () => {
+    const files = [...si.files]; if (!files.length) return;
+    const fd = new FormData(); files.forEach(f => fd.append("files", f, f.name)); const ss = $("#sentSlot"); if (ss) fd.append("slot", ss.value);
+    state.filing = d.item_id; renderItem(id);
+    try {
+      const r = await fetch(pUrl(slug, `/items/${encodeURIComponent(d.item_id)}/evidence`), { method: "POST", body: fd });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.detail || "Could not file that");
+      toast(`Filed ${j.files} file${j.files === 1 ? "" : "s"} to ${d.item_id}`);
+    } catch (e) { toast(e.message || "Could not file that", true); }
+    state.filing = null; await load();
+  };
   const sv = $("#saveDraft"); if (sv) sv.onclick = async () => {
     const r = await fetch(`/api/drafts/${draft.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ subject: $("#draftSubject").value, body: $("#draftBody").value }) });
     toast(r.ok ? "Saved" : "Could not save", !r.ok); if (r.ok) load();
@@ -1466,7 +1485,7 @@ function sentCard(f, unresolved) {
     how = f.kind === "weak_match" ? "Fits this item, but nothing on the file confirms where it was taken" : f.kind === "ambiguous" ? `Could be ${(f.candidates || []).join(" or ")}` : `Says it is somewhere else (${(f.flags || []).includes("conflicting_reference") ? "its own label contradicts the list" : "conflict"})`;
   } else {
     const fl = f.flags || [];
-    how = f.tier === "explicit" ? "Named on the file or in the note" : f.tier === "strong" ? (fl.includes("location_by_reference") ? "Same spot as the engineer's photo" : fl.includes("location_from_sequence") ? "Taken right after a photo that names the place" : "Place and scope both on the file") : "Location not confirmed";
+    how = f.provenance === "office" ? "Filed by the office" : f.tier === "explicit" ? "Named on the file or in the note" : f.tier === "strong" ? (fl.includes("location_by_reference") ? "Same spot as the engineer's photo" : fl.includes("location_from_sequence") ? "Taken right after a photo that names the place" : "Place and scope both on the file") : "Location not confirmed";
     if (f.tier === "weak") cls = "unsure";
   }
   const obs = (f.observations || []).filter(o => o.text).map(o => o.text);

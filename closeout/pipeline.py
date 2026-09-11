@@ -175,6 +175,37 @@ def process_batch(store: Store, project_id: str, files: list[Path], label: str, 
     return continue_run(store, run_id, settings, progress)
 
 
+def file_to_item(store: Store, project_id: str, item_id: str, files: list[Path], label: str, settings: Settings = SETTINGS,
+                 slot_index: int | None = None, note: str = "", root: Path | None = None) -> dict:
+    """The office files what the contractor handed over straight to one item. The office said which item, so there is
+    nothing to work out: no model call. Completeness is recomputed and a packet saved so every screen sees it."""
+    item = next((d for d in store.deficiencies(project_id) if d["item_id"] == item_id), None)
+    if item is None:
+        raise ValueError(f"no item {item_id} on this project")
+    slots = item["slots"]
+    if slots and (slot_index is None or not any(sl["index"] == slot_index for sl in slots)):
+        slot_index = slots[0]["index"]
+    ingest = ingest_batch(store, project_id, files, label, settings.data_dir / "evidence", root=root)
+    run_id = store.create_run(project_id, ingest.batch_id, "", kind="batch")
+    evidence = store.batch_evidence(ingest.batch_id)
+    why = f"Filed to {item_id} by the office" + (f": {note.strip()}" if note and note.strip() else ".")
+    for e in evidence:
+        store.add_finding(run_id=run_id, evidence_id=e["id"], item_id=item_id, status="matched", tier="explicit",
+                          slot_index=slot_index if slots else None, candidates=[item_id], provenance="office",
+                          rationale=why, sources=[{"evidence_id": e["id"], "page": None}])
+    findings = store.current_findings(project_id)
+    statuses = {}
+    for d in store.deficiencies(project_id):
+        st = compute_item_status(d, findings)
+        statuses[d["item_id"]] = st
+        store.add_item_status(run_id, d["item_id"], st["completeness"], st["missing_slots"], st["filled_slots"], st["unresolved"])
+    store.finish_run(run_id, "done", {})
+    store.touch_project(project_id)
+    save_packet(store, run_id, settings.data_dir / "runs" / run_id)
+    return {"run_id": run_id, "batch_id": ingest.batch_id, "files": len(evidence), "duplicates": ingest.duplicates_in_batch,
+            "completeness": statuses[item_id]["completeness"]}
+
+
 def continue_run(store: Store, run_id: str, settings: Settings = SETTINGS, progress: Progress = _noop) -> dict:
     """Run every pending/failed job in the run, then completeness, drafts, packet. Safe to call again after a failure."""
     run = store.run(run_id)

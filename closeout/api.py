@@ -1240,6 +1240,22 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         _launch(target, feed)
         return {"label": label, "files": len(file_list), "feed": "/api/runs/pending/events"}
 
+    @app.post("/api/projects/{slug}/items/{item_id}/evidence")
+    async def file_evidence_to_item(slug: str, item_id: str, files: list[UploadFile] = File(...),
+                                    slot: int | None = Form(None), note: str | None = Form(None)) -> dict:
+        """What the contractor handed over for one item, filed by the office straight to it. No model call."""
+        st = store()
+        prj = _project(st, slug)
+        if not any(d["item_id"] == item_id for d in st.deficiencies(prj["id"])):
+            raise HTTPException(404, "no such item on this project")
+        label = f"for-{item_id}-{_stamp()}"
+        root, _ = await _save_upload(files, None, re.sub(r"[^A-Za-z0-9._-]+", "_", label))
+        file_list = _sorted_files(root)
+        if not file_list:
+            raise HTTPException(400, "nothing to file")
+        out = pipeline.file_to_item(st, prj["id"], item_id, file_list, label, settings, slot_index=slot, note=note or "", root=root)
+        return out
+
     @app.post("/api/runs/{run_id}/retry")
     def retry(run_id: str) -> dict:
         st = store()
