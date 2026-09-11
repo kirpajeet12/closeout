@@ -65,6 +65,8 @@ OCCUPANCY_DOCS: list[tuple[str, str, str]] = [
     ("Trade certificates and reports", "HVAC balancing report, life-safety fans", r"balanc"),
 ]
 CHECKLIST_NAMES = {name.lower(): name for _, name, _ in OCCUPANCY_DOCS}
+# the model often writes the row as "<section> / <row>"; accept that form too
+CHECKLIST_NAMES.update({f"{grp.lower()} / {name.lower()}": name for grp, name, _ in OCCUPANCY_DOCS})
 
 # Sheet kinds that belong to one building; everything else (site plan, notes, details, schedules, renderings…) is site-wide.
 BUILDING_KINDS = {"floor_plan", "plan", "elevation", "section", "roof_plan"}
