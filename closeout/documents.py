@@ -336,6 +336,43 @@ def folder_text(view: dict, tree: dict, already: list[str]) -> str:
     return "\n".join(lines)
 
 
+def record_placements(store: Store, project_id: str, placed: list[dict]) -> None:
+    """Closeout's own placements become filings marked 'closeout'. A file the engineer has already moved or renamed is left
+    alone: their word wins, and a review never overwrites it. A placement that matches the current one adds no row."""
+    current = store.filings(project_id)
+    for p in placed:
+        cur = current.get(p["file"])
+        if cur and cur["who"] == "engineer":
+            continue
+        if cur and (cur["building"], cur["discipline"]) == (p.get("building") or "", p.get("discipline") or ""):
+            continue
+        store.file_document(project_id, p["file"], p.get("building") or "", p.get("discipline") or "", "", who="closeout")
+
+
+def file_by_engineer(store: Store, project_id: str, view: dict, file: str, building: str | None, discipline: str | None,
+                     name: str | None) -> dict:
+    """The engineer's move or rename, checked against the real file names, buildings and disciplines before it is kept.
+    None for a field means 'leave as it is'. Raises ValueError with a plain reason."""
+    files = {d["rel_path"].split("/")[-1] for d in view.get("documents") or []}
+    f = (file or "").strip()
+    if f not in files:
+        raise ValueError(f"no such file in the project folder: {f[:80]!r}")
+    tree = site_tree(view)
+    buildings = {b["name"] for b in tree["buildings"]}
+    disciplines = {d["code"] for d in view.get("disciplines") or []} | {sh["discipline"] for sh in view.get("sheets") or []}
+    cur = store.filings(project_id).get(f) or {"building": "", "discipline": "", "name": ""}
+    b = cur["building"] if building is None else building.strip()
+    if b and b not in buildings:
+        raise ValueError(f"unknown building {b!r}; the project has: " + (", ".join(sorted(buildings)) or "none"))
+    d = cur["discipline"] if discipline is None else discipline.strip().upper()
+    if d and d not in disciplines:
+        raise ValueError(f"unknown discipline {d!r}; the project has: " + (", ".join(sorted(disciplines)) or "none"))
+    n = cur["name"] if name is None else " ".join(name.split())[:120]
+    if (b, d, n) == (cur["building"], cur["discipline"], cur["name"]):
+        raise ValueError("that is where the file already is")
+    return store.file_document(project_id, f, b, d, n, who="engineer")
+
+
 def review_documents(store: Store, project_id: str, view: dict, already: list[str] | None = None, settings: Settings = SETTINGS,
                      model=None) -> dict:
     """One model call over the folder. Returns the validated claims; raises RuntimeError when the agent recorded nothing."""

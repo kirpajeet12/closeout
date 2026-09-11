@@ -35,14 +35,15 @@ Rules
   moves there. Only move the screen when it helps; do not move it for a plain question.
 - The engineer's current screen is given with the question; "here" and "this" refer to it.
 - When the engineer asks you to change something (mark an item, start or finish a field review, draft or redraft the
-  message, create or turn off the contractor link, change an item's wording), call propose once with the change, then
+  message, create or turn off the contractor link, change an item's wording, move a file to another building or
+  discipline folder, or rename a file), call propose once with the change, then
   call answer with one short sentence saying what is ready to confirm. You never make the change yourself; the
   engineer confirms it on screen. If what they ask cannot be done from here, say so in the answer and propose nothing.
 - Recording a new deficiency needs a finger on the plan, so it cannot be proposed here; say the field review screen
   is the place, and move the screen there with go_screen=field.
 - Never mention tools, models, prompts or this system message."""
 
-ACTIONS = ("decide", "start_review", "finish_review", "redraft_message", "create_link", "turn_off_link", "edit_item")
+ACTIONS = ("decide", "start_review", "finish_review", "redraft_message", "create_link", "turn_off_link", "edit_item", "file_document")
 DECISIONS = {"accept": "Ready to close", "hold": "On hold", "reject": "Not accepted"}
 
 
@@ -61,6 +62,7 @@ class Facts:
     items: list[dict]          # packet items: {"item", "completeness", "missing_slots", "evidence", "decision", ...}
     reviews: list[dict]
     documents: list[dict]
+    filings: dict[str, dict]   # current place of each file in the folder tree, by file name
     drafts: list[dict]
     shares: list[dict]
     batches: list[dict]
@@ -114,7 +116,8 @@ def gather(store: Store, project_id: str) -> Facts:
         dec = decisions.get(i["item"]["item_id"]) or i.get("decision") or {}
         i["decision"] = dec.get("decision") if isinstance(dec, dict) else dec
     return Facts(view=view, buildings=site_tree(view)["buildings"], items=items, reviews=store.reviews(project_id),
-                 documents=view.get("documents") or [], drafts=store.all_drafts(project_id), shares=store.shares(project_id),
+                 documents=view.get("documents") or [], filings=store.filings(project_id),
+                 drafts=store.all_drafts(project_id), shares=store.shares(project_id),
                  batches=store.batches(project_id), sheets=view.get("sheets") or [])
 
 
@@ -178,8 +181,16 @@ def make_ask_tools(ctx: AskContext, facts: Facts):
     @tool
     def documents(discipline: str = "") -> str:
         """The files in the project folder, one line each, optionally for one discipline code."""
-        rows = [f"{d.get('rel_path')} · {d.get('discipline') or '?'} · {d.get('dated') or 'undated'}" + (" · current" if d.get("is_current") else "")
-                for d in facts.documents if not discipline or (d.get("discipline") or "").upper() == discipline.strip().upper()]
+        rows = []
+        for d in facts.documents:
+            if discipline and (d.get("discipline") or "").upper() != discipline.strip().upper():
+                continue
+            f = facts.filings.get((d.get("rel_path") or "").split("/")[-1]) or {}
+            where = " · ".join(x for x in (f.get("building"), f.get("discipline")) if x)
+            rows.append(f"{d.get('rel_path')} · {d.get('discipline') or '?'} · {d.get('dated') or 'undated'}"
+                        + (" · current" if d.get("is_current") else "")
+                        + (f" · filed under {where} by {'Closeout' if f.get('who') == 'closeout' else 'the engineer'}" if where else "")
+                        + (f" · shown as {f['name']!r}" if f.get("name") else ""))
         return "\n".join(rows) if rows else "no documents match"
 
     @tool
@@ -235,10 +246,13 @@ def make_ask_tools(ctx: AskContext, facts: Facts):
 
     @tool
     def propose(kind: str, item_id: str = "", decision: str = "", note: str = "", review: str = "", discipline: str = "",
-                location: str = "", description: str = "", evidence_required: str = "") -> str:
+                location: str = "", description: str = "", evidence_required: str = "", file: str = "", building: str = "",
+                name: str = "") -> str:
         """Prepare one change for the engineer to confirm on screen. kind: decide (item_id + decision accept|hold|reject,
         optional note), start_review (discipline code), finish_review (review), redraft_message (review), create_link (review),
-        turn_off_link (review), edit_item (item_id + the fields to change: location, description, evidence_required).
+        turn_off_link (review), edit_item (item_id + the fields to change: location, description, evidence_required),
+        file_document (file = a file name from documents, plus what changes: building = building name or "site" for none,
+        discipline = discipline code, name = the new display name; leave the others empty to keep them).
         The change is not made until the engineer confirms it."""
         k = kind.strip().lower()
         if k not in ACTIONS:
@@ -304,6 +318,43 @@ def make_ask_tools(ctx: AskContext, facts: Facts):
             names = {"location": "where it is", "description": "the wording", "evidence_required": "what closes it"}
             a.update(item_id=it["item"]["item_id"], fields=fields, label=f"Change {' and '.join(names[f] for f in fields)} on {it['item']['item_id']}",
                      method="PATCH", path=f"/findings/{it['item']['item_id']}", body=fields, then={"screen": "item", "item_id": it["item"]["item_id"]})
+        elif k == "file_document":
+            f = file.strip()
+            names_ = {(d.get("rel_path") or "").split("/")[-1] for d in facts.documents}
+            match = [n for n in names_ if n == f] or [n for n in names_ if f and f.lower() in n.lower()]
+            if len(match) != 1:
+                return _reject(ctx, "say which file: " + ("no file matches" if not match else "several match: " + ", ".join(sorted(match)[:6])))
+            f = match[0]
+            body: dict = {"file": f}
+            parts = []
+            if building.strip():
+                b = building.strip()
+                if b.lower() in ("site", "none", "no building"):
+                    body["building"] = ""
+                    parts.append("to the site")
+                else:
+                    hit = [x["name"] for x in facts.buildings if x["name"].lower() == b.lower() or x["key"].lower() == b.lower()
+                           or b.lower() in x["name"].lower()]
+                    if len(hit) != 1:
+                        return _reject(ctx, "unknown building; the project has: " + ", ".join(x["name"] for x in facts.buildings))
+                    body["building"] = hit[0]
+                    parts.append(f"to {hit[0]}")
+            if discipline.strip():
+                d = discipline.strip().upper()
+                codes = {x.get("code") for x in facts.view.get("disciplines") or []} | {s_.get("discipline") for s_ in facts.sheets}
+                by_name = {DISCIPLINES.get(c, c).lower(): c for c in codes if c}
+                d = d if d in codes else by_name.get(d.lower(), d)
+                if d not in codes:
+                    return _reject(ctx, "unknown discipline; the project has: " + ", ".join(sorted(c for c in codes if c)))
+                body["discipline"] = d
+                parts.append(f"under {DISCIPLINES.get(d, d)}")
+            if name.strip():
+                body["name"] = " ".join(name.split())[:120]
+                parts.append(f"shown as “{body['name']}”")
+            if len(body) == 1:
+                return _reject(ctx, "say what changes: the building, the discipline or the name")
+            a.update(file=f, label=f"File {f} {' '.join(parts)}", method="POST", path="/filing", body=body,
+                     then={"screen": "docs"})
         ctx.proposed = a
         return "prepared; now call answer with one sentence saying it is ready to confirm"
 

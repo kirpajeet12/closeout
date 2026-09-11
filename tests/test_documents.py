@@ -183,3 +183,42 @@ def test_a_document_row_opens_the_file_from_the_project_folder(client, tmp_path)
     assert client.get(f"/api/projects/{slug}/documents/doc_nope/file").status_code == 404
     (root / "PM" / "Fire Safety Plan rev2.pdf").unlink()
     assert client.get(f"/api/projects/{slug}/documents/{doc['id']}/file").status_code == 404
+
+
+# --- filing: Closeout may place a file, the engineer can always move or rename it, and every change can be undone ----------
+
+def test_closeout_placements_become_filings_the_engineer_can_override_and_undo(client, tmp_path):
+    slug = _seed(client, tmp_path)
+    FakeDocsAgent.calls = [
+        {"tool": "record_file", "file": "Fire Safety Plan rev2.pdf", "building": "6893 Elm St"},
+        {"tool": "record_summary", "summary": "One letter is filed under a building; the rest of the folder stays on the site."},
+    ]
+    j = client.post(f"/api/projects/{slug}/documents/review", json={}).json()
+    assert j["filings"]["Fire Safety Plan rev2.pdf"]["who"] == "closeout"
+    assert j["filings"]["Fire Safety Plan rev2.pdf"]["building"] == "6893 Elm St"
+    # a wrong file, building or discipline is refused with a plain reason
+    assert client.post(f"/api/projects/{slug}/filing", json={"file": "nope.pdf", "building": "6895 Elm St"}).status_code == 400
+    assert "unknown building" in client.post(f"/api/projects/{slug}/filing", json={"file": "Fire Safety Plan rev2.pdf", "building": "6899 Elm St"}).json()["detail"]
+    assert "unknown discipline" in client.post(f"/api/projects/{slug}/filing", json={"file": "Fire Safety Plan rev2.pdf", "discipline": "PL"}).json()["detail"]
+    assert "already" in client.post(f"/api/projects/{slug}/filing", json={"file": "Fire Safety Plan rev2.pdf", "building": "6893 Elm St"}).json()["detail"]
+    # the engineer moves it to another building and gives it a name; only what they name changes
+    j = client.post(f"/api/projects/{slug}/filing", json={"file": "Fire Safety Plan rev2.pdf", "building": "6895 Elm St", "name": "Fire safety plan (revision 2)"}).json()
+    cur = j["filings"]["Fire Safety Plan rev2.pdf"]
+    assert (cur["who"], cur["building"], cur["discipline"], cur["name"]) == ("engineer", "6895 Elm St", "", "Fire safety plan (revision 2)")
+    j = client.post(f"/api/projects/{slug}/filing", json={"file": "Fire Safety Plan rev2.pdf", "discipline": "el"}).json()
+    cur = j["filings"]["Fire Safety Plan rev2.pdf"]
+    assert (cur["building"], cur["discipline"], cur["name"]) == ("6895 Elm St", "EL", "Fire safety plan (revision 2)")
+    assert [h["who"] for h in j["history"]] == ["closeout", "engineer", "engineer"]
+    # a later review by Closeout never overrides the engineer
+    FakeDocsAgent.calls = [{"tool": "record_file", "file": "Fire Safety Plan rev2.pdf", "building": "6897 Elm St"}, {"tool": "record_summary", "summary": "The same folder looked at a second time, nothing else is new."}]
+    j = client.post(f"/api/projects/{slug}/documents/review", json={}).json()
+    assert j["filings"]["Fire Safety Plan rev2.pdf"]["building"] == "6895 Elm St" and len(client.get(f"/api/projects/{slug}/filing").json()["history"]) == 3
+    # undo walks back one step at a time, down to Closeout's own placement, then to nothing
+    j = client.post(f"/api/projects/{slug}/filing/undo", json={"file": "Fire Safety Plan rev2.pdf"}).json()
+    assert j["filings"]["Fire Safety Plan rev2.pdf"]["discipline"] == "" and j["filings"]["Fire Safety Plan rev2.pdf"]["building"] == "6895 Elm St"
+    client.post(f"/api/projects/{slug}/filing/undo", json={"file": "Fire Safety Plan rev2.pdf"})
+    j = client.post(f"/api/projects/{slug}/filing/undo", json={"file": "Fire Safety Plan rev2.pdf"}).json()
+    assert j["filings"] == {} and j["history"] == []
+    assert client.post(f"/api/projects/{slug}/filing/undo", json={"file": "Fire Safety Plan rev2.pdf"}).status_code == 404
+    detail = client.get(f"/api/projects/{slug}").json()
+    assert detail["filings"] == {} and detail["filing_history"] == []

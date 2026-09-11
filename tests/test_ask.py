@@ -199,3 +199,27 @@ def test_a_spoken_follow_up_carries_the_conversation_and_asks_for_a_short_answer
     r = cl.post(f"/api/projects/{pid}/ask", json={"question": "and the second floor?"})
     sent = "\n".join(b["text"] for b in FakeAskAgent.calls[-1])
     assert "SPOKEN:" not in sent and "EARLIER" not in sent
+
+
+def test_a_spoken_move_or_rename_is_prepared_for_the_confirm_step(asking, tmp_path):
+    slug, rev, _ = _finished_review(asking, tmp_path)
+    st = Store(asking.settings.data_dir / "closeout.db")
+    pid = st.project_by_slug(slug)["id"]
+    st.replace_documents(pid, [{"rel_path": "PM/Sprinkler test cert.pdf", "discipline": "PM", "dated": None, "pages": 1, "kind": "document",
+                                "is_current": 0, "sha256": "x", "size": 1}])
+    FakeAskAgent.proposals = [
+        {"kind": "file_document", "file": "nothing.pdf", "discipline": "EL"},                # no such file
+        {"kind": "file_document", "file": "sprinkler"},                                      # nothing to change
+        {"kind": "file_document", "file": "sprinkler", "building": "9999 Nowhere"},          # no such building
+        {"kind": "file_document", "file": "sprinkler", "discipline": "electrical", "name": "Sprinkler material test certificate, above ground"},
+    ]
+    FakeAskAgent.answers = [{"text": "Ready to confirm: the sprinkler certificate goes under Electrical with its new name."}]
+    j = asking.post(f"/api/projects/{slug}/ask", json={"question": "put the sprinkler file under electrical and call it the above ground test certificate"}).json()
+    a = j["action"]
+    assert [r.startswith("REJECTED") for r in FakeAskAgent.replies] == [True, True, True, False]
+    assert a["kind"] == "file_document" and a["method"] == "POST" and a["path"] == "/filing" and a["then"] == {"screen": "docs"}
+    assert a["body"] == {"file": "Sprinkler test cert.pdf", "discipline": "EL", "name": "Sprinkler material test certificate, above ground"}
+    assert a["label"].startswith("File Sprinkler test cert.pdf under Electrical shown as")
+    assert st.filings(pid) == {}                                                       # nothing moved yet
+    r = asking.post(f"/api/projects/{slug}{a['path']}", json=a["body"])                # the Confirm button
+    assert r.status_code == 200 and st.filings(pid)["Sprinkler test cert.pdf"]["who"] == "engineer"

@@ -139,6 +139,17 @@ class DocsScopeIn(BaseModel):
     in_scope: bool = True      # the gaps the web app's rules already show, so the agent does not repeat them
 
 
+class FilingIn(BaseModel):
+    file: str                  # file name as listed in the project folder
+    building: str | None = None    # None = keep the current one; "" = the site, no building
+    discipline: str | None = None  # None = keep; "" = the file's own discipline
+    name: str | None = None        # None = keep; "" = back to the file's own name
+
+
+class FilingUndoIn(BaseModel):
+    file: str
+
+
 class NewProject(BaseModel):
     name: str
     address: str | None = None
@@ -445,7 +456,8 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
                 "messages": st.all_drafts(pid), "decisions": st.decisions(pid), "model_id": settings.model_id,
                 "reviews": st.reviews(pid), "shares": st.shares(pid), "office": settings.office,
                 "docs_review": prj.get("docs_review"), "docs_scope": prj.get("docs_scope") or [],
-                "occupancy_docs": [list(row) for row in documents_mod.OCCUPANCY_DOCS]}
+                "occupancy_docs": [list(row) for row in documents_mod.OCCUPANCY_DOCS],
+                "filings": st.filings(pid), "filing_history": st.filing_history(pid)}
 
     @app.get("/api/sheets/{sheet_id}/image")
     def sheet_image(sheet_id: str):
@@ -546,7 +558,37 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         st.finish_run(run_id, "done", out["usage"])
         review = {**out, "run_id": run_id, "model_id": settings.model_id, "at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
         st.set_docs_review(prj["id"], review)
-        return {"docs_review": review}
+        documents_mod.record_placements(st, prj["id"], out.get("placed") or [])
+        return {"docs_review": review, "filings": st.filings(prj["id"])}
+
+    @app.get("/api/projects/{slug}/filing")
+    def filing(slug: str) -> dict:
+        """Where every file sits in the project folder tree now, and every move behind it."""
+        st = store()
+        prj = _project(st, slug)
+        return {"filings": st.filings(prj["id"]), "history": st.filing_history(prj["id"])}
+
+    @app.post("/api/projects/{slug}/filing")
+    def file_document(slug: str, body: FilingIn) -> dict:
+        """The engineer moves or renames a file: a new row in its history, the old one kept so it can be undone."""
+        st = store()
+        prj = _project(st, slug)
+        view = project_mod.project_view(st, prj["id"]) or {}
+        try:
+            row = documents_mod.file_by_engineer(st, prj["id"], view, body.file, body.building, body.discipline, body.name)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        return {"filing": row, "filings": st.filings(prj["id"]), "history": st.filing_history(prj["id"])}
+
+    @app.post("/api/projects/{slug}/filing/undo")
+    def undo_filing(slug: str, body: FilingUndoIn) -> dict:
+        """Put the file back where it was before the last move or rename."""
+        st = store()
+        prj = _project(st, slug)
+        before = st.undo_filing(prj["id"], body.file)
+        if before is None:
+            raise HTTPException(404, "nothing to undo for that file")
+        return {"filing": before, "filings": st.filings(prj["id"]), "history": st.filing_history(prj["id"])}
 
     @app.post("/api/projects/{slug}/documents/answer")
     def answer_document_question(slug: str, body: DocsAnswerIn) -> dict:

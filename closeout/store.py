@@ -181,6 +181,17 @@ CREATE TABLE IF NOT EXISTS sheets (
   views_json TEXT NOT NULL DEFAULT '[]',   -- where each floor plan drawing sits on the sheet (fractions), for the viewer
   created_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS filings (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL,
+  file TEXT NOT NULL,             -- file base name as it sits in the project folder
+  building TEXT NOT NULL DEFAULT '',
+  discipline TEXT NOT NULL DEFAULT '',
+  name TEXT NOT NULL DEFAULT '',  -- display name; '' = the file name itself
+  who TEXT NOT NULL,              -- closeout | engineer
+  at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS filings_by_file ON filings(project_id, file, at);
 """
 
 
@@ -750,6 +761,43 @@ class Store:
 
     def documents(self, project_id: str) -> list[dict]:
         return [dict(r) for r in self.conn.execute("SELECT * FROM documents WHERE project_id=? ORDER BY discipline, dated, rel_path", (project_id,))]
+
+    # --- filings: where a file sits in the project folder tree, and who put it there -------------------
+    # Every change is a new row; the newest row per file is the current filing, the rest is its history.
+
+    def file_document(self, project_id: str, file: str, building: str = "", discipline: str = "", name: str = "",
+                      who: str = "engineer") -> dict:
+        fid = new_id("fil")
+        self.conn.execute("INSERT INTO filings(id, project_id, file, building, discipline, name, who, at) VALUES(?,?,?,?,?,?,?,?)",
+                          (fid, project_id, file, building or "", discipline or "", name or "", who, now()))
+        self.conn.commit()
+        return dict(self.conn.execute("SELECT * FROM filings WHERE id=?", (fid,)).fetchone())
+
+    def filing_history(self, project_id: str, file: str | None = None) -> list[dict]:
+        if file is None:
+            rows = self.conn.execute("SELECT * FROM filings WHERE project_id=? ORDER BY at, rowid", (project_id,))
+        else:
+            rows = self.conn.execute("SELECT * FROM filings WHERE project_id=? AND file=? ORDER BY at, rowid", (project_id, file))
+        return [dict(r) for r in rows]
+
+    def filings(self, project_id: str) -> dict[str, dict]:
+        """Current filing per file (the newest row), with the engineer's own row winning over a later Closeout row."""
+        out: dict[str, dict] = {}
+        for r in self.filing_history(project_id):
+            cur = out.get(r["file"])
+            if cur and cur["who"] == "engineer" and r["who"] != "engineer":
+                continue
+            out[r["file"]] = r
+        return out
+
+    def undo_filing(self, project_id: str, file: str) -> dict | None:
+        """Drop the newest filing row for the file, so the one before it is current again. None when nothing to undo."""
+        rows = self.filing_history(project_id, file)
+        if not rows:
+            return None
+        self.conn.execute("DELETE FROM filings WHERE id=?", (rows[-1]["id"],))
+        self.conn.commit()
+        return rows[-2] if len(rows) > 1 else {"file": file, "building": "", "discipline": "", "name": "", "who": "", "at": ""}
 
     def replace_sheets(self, project_id: str, sheets: list[dict]) -> list[str]:
         self.conn.execute("DELETE FROM sheets WHERE project_id=?", (project_id,))

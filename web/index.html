@@ -434,7 +434,20 @@
   .xrow .chev { color: var(--mute); font-size: 18px; margin-left: -6px; }
   .xrow.sheetrow img { width: 64px; height: 44px; object-fit: cover; object-position: top left; border-radius: 6px; border: 1px solid var(--line-2); background: #fff; }
   .xrow.sheetrow .pins { padding: 2px 8px; border-radius: 999px; background: var(--hot); color: #fff; font-size: 11px; font-weight: 700; }
-  .xrow.filerow { cursor: pointer; } .xrow.filerow .fi { margin: 0 3px; } .xrow.filerow.cur b { font-weight: 600; }
+  .xrow.filerow { cursor: pointer; grid-template-columns: 1fr auto auto; padding-right: 6px; } .xrow.filerow .fi { margin: 0 3px; } .xrow.filerow.cur b { font-weight: 600; }
+  .xrow.filerow .open { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: center; color: inherit; text-decoration: none; min-width: 0; }
+  .xrow .tag { font-size: 11px; font-weight: 600; white-space: nowrap; padding: 3px 8px; border-radius: 999px; letter-spacing: .01em; }
+  .xrow .tag.by { background: #fff3d6; color: #8a5a00; } .xrow .tag.you { background: var(--ink); color: #fff; }
+  .xrow .mv { background: transparent; border: 1px solid var(--line-2); color: var(--ink-2); font-size: 12px; padding: 5px 10px; border-radius: 999px; cursor: pointer; white-space: nowrap; }
+  .xrow .mv:hover, .xrow.moving .mv { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .mvpanel { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; margin: 0 6px 10px 42px; padding: 14px 16px 12px; border-radius: 14px; background: var(--paper); border: 1px solid var(--line-2); }
+  .mvpanel label { display: grid; gap: 4px; font-size: 12px; color: var(--mute); } .mvpanel label.wide, .mvpanel .acts, .mvpanel .hist { grid-column: 1 / -1; }
+  .mvpanel select, .mvpanel input { font: inherit; font-size: 14px; padding: 8px 10px; border-radius: 9px; border: 1px solid var(--line-2); background: #fff; color: var(--ink); min-width: 0; }
+  .mvpanel .acts { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; } .mvpanel .acts .note { font-size: 12px; color: var(--mute); flex: 1 1 200px; }
+  .mvpanel .acts button { font: inherit; font-size: 13px; padding: 8px 14px; border-radius: 999px; cursor: pointer; border: 1px solid var(--line-2); background: #fff; color: var(--ink); }
+  .mvpanel .acts button.primary { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .mvpanel .hist { margin: 4px 0 0; padding: 8px 0 0 18px; border-top: 1px dashed var(--line-2); font-size: 12px; color: var(--ink-2); } .mvpanel .hist li { padding: 3px 0; } .mvpanel .hist small { color: var(--mute); margin-left: 8px; font-family: var(--mono); font-size: 11px; }
+  @media (max-width: 600px) { .mvpanel { grid-template-columns: 1fr; margin-left: 6px; } }
   .xrow.ghost { border: 1px dashed var(--line-2); margin: 3px 0; background: transparent; } .xrow.ghost b { color: var(--ink-2); font-weight: 500; } .xrow.ghost .who { font-size: 11px; color: var(--hot); font-weight: 600; white-space: nowrap; }
   .fi.crp { background: var(--hot); }
   .xrow .scope { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--mute); white-space: nowrap; cursor: pointer; } .xrow .scope input { accent-color: var(--ink); }
@@ -860,12 +873,15 @@ function renderDrawings() {
    open folder on the right; on a phone you drill in folder by folder. */
 function folderTree(pr) {
   const blds = buildings(), rv = state.p.docs_review, discs = pr.disciplines || [], dn = c => DISC_NAMES[c] || c;
-  const placed = new Map(((rv || {}).placed || []).map(x => [x.file, x]));
+  // where each file sits: the filings (Closeout's placements and the engineer's moves, newest wins) and, for a review made
+  // before filings existed, its placed list
+  const placed = new Map(((rv || {}).placed || []).map(x => [x.file, { ...x, who: "closeout" }]));
+  Object.entries(state.p.filings || {}).forEach(([f, x]) => placed.set(f, x));
   const missing = rv ? rv.missing : [], onFile = (rv || {}).on_file || [], scope = new Set(state.p.docs_scope || []);
   const copies = {}; (pr.documents || []).forEach(d => { const k = baseName(d) + "|" + (d.dated || ""); copies[k] = (copies[k] || 0) + 1; });
   const seenDoc = new Set(), docs = (pr.documents || []).filter(d => { const k = baseName(d) + "|" + (d.dated || ""); if (seenDoc.has(k)) return false; seenDoc.add(k); return true; });
   const folder = (key, name, meta, opts = {}) => ({ key, name, meta, kind: "folder", folders: [], items: [], ...opts });
-  const fileItem = d => ({ kind: "file", id: d.id, name: baseName(d), meta: [d.kind === "drawing" ? (d.is_current ? "current set" : "older issue") : d.kind === "document" ? "letter or form" : "file", d.dated ? "issued " + d.dated : "", d.pages ? d.pages + " p." : "", copies[baseName(d) + "|" + (d.dated || "")] > 1 ? copies[baseName(d) + "|" + (d.dated || "")] + " copies in the folder" : ""].filter(Boolean).join(" · "), path: d.rel_path, current: d.kind === "drawing" && d.is_current });
+  const fileItem = d => { const pl = placed.get(baseName(d)) || {}; return { kind: "file", id: d.id, file: baseName(d), name: pl.name || baseName(d), renamed: !!pl.name, who: pl.building || pl.discipline || pl.name ? pl.who : "", meta: [d.kind === "drawing" ? (d.is_current ? "current set" : "older issue") : d.kind === "document" ? "letter or form" : "file", d.dated ? "issued " + d.dated : "", d.pages ? d.pages + " p." : "", copies[baseName(d) + "|" + (d.dated || "")] > 1 ? copies[baseName(d) + "|" + (d.dated || "")] + " copies in the folder" : "", pl.name ? "file: " + baseName(d) : ""].filter(Boolean).join(" · "), path: d.rel_path, current: d.kind === "drawing" && d.is_current }; };
   const ghost = (m, who) => ({ kind: "ghost", name: m.what, meta: m.why, who });
   // the CRP checklist, section by section
   const crp = folder("crp", "Documents before occupancy", "the CRP's checklist, section by section", { crp: true });
@@ -880,14 +896,14 @@ function folderTree(pr) {
   const site = folder("site", "Site", "everything that covers all buildings", { site: true });
   const siteDisc = {}, codes = [...new Set([...discs.map(d => d.code), ...docs.map(d => d.discipline)])];
   codes.forEach(code => { const f = folder("site/" + code, code in DISC_NAMES ? dn(code) : groupName(code), "", { code }); siteDisc[code] = f; site.folders.push(f); });
-  docs.forEach(d => { if (placed.get(baseName(d))) return; (siteDisc[d.discipline] || siteDisc.OTHER || site).items.push(fileItem(d)); });
+  docs.forEach(d => { const pl = placed.get(baseName(d)); if (pl && pl.building) return; const code = (pl && pl.discipline) || d.discipline; (siteDisc[code] || siteDisc.OTHER || site).items.push(fileItem(d)); });
   missing.filter(m => !m.building).forEach(m => (siteDisc[m.discipline] || site).items.push(ghost(m, "agent")));
   const bfs = blds.map(b => {
     const units = b.units.map(u => u.label.replace(/\s*\(.*$/, "")).join(", ");
     const bf = folder("b/" + b.key, b.name, units || "named on the drawings", { bld: b.key, badge: b.key });
     discs.forEach(d => {
       const f = folder("b/" + b.key + "/" + d.code, dn(d.code), "", { code: d.code });
-      docs.filter(x => { const pl = placed.get(baseName(x)); return pl && pl.building === b.name && (pl.discipline || x.discipline) === d.code; }).forEach(x => f.items.push({ ...fileItem(x), who: "agent" }));
+      docs.filter(x => { const pl = placed.get(baseName(x)); return pl && pl.building === b.name && (pl.discipline || x.discipline) === d.code; }).forEach(x => f.items.push(fileItem(x)));
       missing.filter(m => m.building === b.name && (m.discipline || "") === d.code).forEach(m => f.items.push(ghost(m, "agent")));
       if (f.items.length) bf.folders.push(f);
     });
@@ -901,16 +917,27 @@ function folderTree(pr) {
   root.folders.push(crp, prj);
   const count = f => { f.n = f.items.filter(i => i.kind === "file" || (i.kind === "check" && i.files.length && !i.out)).length + f.folders.reduce((a, c) => a + count(c), 0); f.ghosts = f.items.filter(i => i.kind === "ghost" || (i.kind === "check" && !i.files.length && !i.out)).length + f.folders.reduce((a, c) => a + c.ghosts, 0); return f.n; };
   count(root);
+  root.placed = placed; root.docs = docs;
   return root;
 }
 function findFolder(root, path) { let f = root; for (const k of path) { const n = f.folders.find(x => x.key === k); if (!n) return root; f = n; } return f; }
 function renderExplorer(pr) {
-  const root = folderTree(pr), cur = findFolder(root, state.folder);
+  const root = folderTree(pr), cur = findFolder(root, state.folder), placed = root.placed, docs = root.docs, dn = c => DISC_NAMES[c] || c;
   if (cur === root) state.folder = [];
   const crumbs = [root]; { let f = root; for (const k of state.folder) { f = f.folders.find(x => x.key === k); crumbs.push(f); } }
   const cnt = f => f.sec ? `${f.got}/${f.need}` : `${f.n}${f.ghosts ? ` <em>+${f.ghosts}</em>` : ""}`;
   const tree = (f, depth) => `<div class="node ${f === cur ? "on" : ""} ${crumbs.includes(f) ? "open" : ""}" data-path="${esc(pathOf(f, root))}" style="--d:${depth}"><i class="fi ${f.site ? "site" : f.bld ? "bld" : f.crp || f.sec ? "crp" : f.root || f.prj ? "root" : ""}"></i><b>${esc(f.name)}</b><small>${cnt(f)}</small></div>${crumbs.includes(f) ? f.folders.map(c => tree(c, depth + 1)).join("") : ""}`;
-  const row = i => i.kind === "file" ? `<a class="xrow filerow ${i.current ? "cur" : ""}" href="${pUrl(state.slug, "/documents/" + encodeURIComponent(i.id) + "/file")}" target="_blank" rel="noopener"><i class="fi doc"></i><div><b>${esc(i.name)}</b><small>${esc(i.meta)}</small></div><span class="chev">›</span></a>`
+  const hist = f => (state.p.filing_history || []).filter(h => h.file === f);
+  const fileRow = i => `<div class="xrow filerow ${i.current ? "cur" : ""} ${state.moving === i.file ? "moving" : ""}"><a class="open" href="${pUrl(state.slug, "/documents/" + encodeURIComponent(i.id) + "/file")}" target="_blank" rel="noopener"><i class="fi doc"></i><div><b>${esc(i.name)}</b><small>${esc(i.meta)}</small></div></a>${i.who === "closeout" ? `<span class="tag by">filed by Closeout</span>` : i.who === "engineer" ? `<span class="tag you">filed by you</span>` : ""}<button class="mv" data-move="${esc(i.file)}" aria-label="Move or rename">${state.moving === i.file ? "Close" : "Move…"}</button></div>${state.moving === i.file ? movePanel(i) : ""}`;
+  const movePanel = i => { const pl = placed.get(i.file) || {}, h = hist(i.file), blds = buildings();
+    return `<form class="mvpanel" data-file="${esc(i.file)}">
+      <label><span>Building</span><select name="building"><option value="">Site · no building</option>${blds.map(b => `<option value="${esc(b.name)}" ${pl.building === b.name ? "selected" : ""}>${esc(b.name)}</option>`).join("")}</select></label>
+      <label><span>Discipline</span><select name="discipline"><option value="">Its own (${esc(dn(docs.find(d => baseName(d) === i.file)?.discipline || "?"))})</option>${(pr.disciplines || []).map(d => `<option value="${esc(d.code)}" ${pl.discipline === d.code ? "selected" : ""}>${esc(dn(d.code))}</option>`).join("")}</select></label>
+      <label class="wide"><span>Shown as</span><input name="name" value="${esc(pl.name || "")}" placeholder="${esc(i.file)}" maxlength="120"></label>
+      <div class="acts"><button type="submit" class="primary">Save</button>${h.length ? `<button type="button" class="undo" data-undo="${esc(i.file)}">Undo last change</button>` : ""}<span class="note">Nothing in the folder itself changes; only where the file is shown and what it is called.</span></div>
+      ${h.length ? `<ol class="hist">${h.slice().reverse().map(x => `<li><b>${x.who === "closeout" ? "Closeout" : "You"}</b> ${x.building || x.discipline ? `filed it under ${esc([x.building, x.discipline ? dn(x.discipline) : ""].filter(Boolean).join(" · "))}` : "put it back on the site"}${x.name ? `, shown as “${esc(x.name)}”` : ""}<small>${esc(String(x.at || "").replace("T", " ").slice(0, 16))}</small></li>`).join("")}</ol>` : ""}
+    </form>`; };
+  const row = i => i.kind === "file" ? fileRow(i)
     : i.kind === "check" ? (i.out ? "" : `<div class="xrow ${i.files.length ? "filerow" : "ghost"}"><i class="fi ${i.files.length ? "doc" : "ghost"}"></i><div><b>${esc(i.name)}</b><small>${i.files.length ? esc(i.files.join(" · ")) : "not on file yet"}</small></div><label class="scope"><input type="checkbox" data-scope="${esc(i.name)}"> Not in scope</label></div>`)
     : `<div class="xrow ghost"><i class="fi ghost"></i><div><b>${esc(i.name)}</b><small>${esc(i.meta)}</small></div><span class="who">not in the folder yet</span></div>`;
   const outRows = cur.items.filter(i => i.kind === "check" && i.out);
@@ -931,6 +958,14 @@ function pathOf(f, root) { const walk = (n, acc) => { if (n === f) return acc; f
 function wireExplorer() {
   const ex = $("#tab").querySelector(".explorer"); if (!ex) return;
   ex.querySelectorAll("[data-path]").forEach(el => el.onclick = e => { e.preventDefault(); state.folder = el.dataset.path ? el.dataset.path.split("|") : []; const y = scrollY; render(); scrollTo(0, y); });
+  const refile = async (path, body, okMsg) => {
+    const r = await fetch(pUrl(state.slug, path), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }), j = await r.json().catch(() => ({}));
+    if (!r.ok) return toast(j.detail || "Could not file that", true);
+    state.p.filings = j.filings; state.p.filing_history = j.history; state.moving = null; const y = scrollY; render(); scrollTo(0, y); toast(okMsg);
+  };
+  ex.querySelectorAll("button[data-move]").forEach(b => b.onclick = e => { e.preventDefault(); state.moving = state.moving === b.dataset.move ? null : b.dataset.move; const y = scrollY; render(); scrollTo(0, y); });
+  ex.querySelectorAll("form.mvpanel").forEach(f => f.onsubmit = e => { e.preventDefault(); const fd = new FormData(f); refile("/filing", { file: f.dataset.file, building: fd.get("building"), discipline: fd.get("discipline"), name: fd.get("name").trim() }, "Filed"); });
+  ex.querySelectorAll("button[data-undo]").forEach(b => b.onclick = e => { e.preventDefault(); refile("/filing/undo", { file: b.dataset.undo }, "Put back"); });
   ex.querySelectorAll("input[data-scope]").forEach(inp => inp.onchange = async () => {
     const r = await fetch(pUrl(state.slug, "/documents/scope"), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: inp.dataset.scope, in_scope: !inp.checked }) }), j = await r.json();
     if (!r.ok) { inp.checked = !inp.checked; return toast(j.detail || "Could not save", true); }
@@ -1061,7 +1096,7 @@ function issueNote(d) {
 function renderDocs() {
   const pr = state.p.project, slug = state.slug, docs = pr.documents || [];
   $("#tab").innerHTML = docs.length ? `
-    <p class="lead" style="margin-top:22px">${docs.length} files, kept exactly as the folder came. Filed by discipline and issue date. Nothing is moved or renamed.</p>
+    <p class="lead" style="margin-top:22px">${docs.length} files, kept exactly as they came. Closeout files them by building and discipline; you can move or rename any of them, and every change can be undone.</p>
     ${renderExplorer(pr)}
     <h3 class="sec">Revision log</h3>
     <p class="lead" style="margin:0">Every issue of every drawing set, newest first, with the reason the office wrote on the folder.</p>
