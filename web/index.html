@@ -319,6 +319,7 @@
   .brief .bt[data-open] { cursor: pointer; } .brief .bt[data-open]:hover { border-color: var(--ink); }
   .brief .bd { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
   .brief .bd .lead, .brief .bd .who { margin: 0 0 10px; font-size: 13.5px; color: var(--ink-2); } .brief .bd .who { margin: 10px 0 0; }
+  .ugrp { margin: 4px 0 6px } .ugrp h4 { margin: 16px 0 6px; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink); display: flex; gap: 10px; align-items: baseline } .ugrp h4 small { font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--mute); font-size: 12px }
   .stagepick, .ustrip, .cov, .ulog { margin-top: 18px; border-radius: 18px; background: var(--card); border: 1px solid var(--line); padding: 16px 18px 18px; }
   .handoff .pk .ustrip { margin: 4px 0 12px; padding: 12px 14px 14px; background: var(--paper); }
   .stagepick .bh, .ustrip .bh, .cov .bh, .ulog .bh { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
@@ -1516,13 +1517,12 @@ function renderField() {
     </div>
     ${!rv && state.starting && state.starting.code === cur.code ? renderStartPanel(cur, done) : ""}
     ${rv ? renderUnitsStrip(rv, true) : ""}
-    ${renderBrief(cur)}
-    ${renderCoverage(cur)}
-    ${renderUnitLog(cur)}
+    ${rv ? "" : renderBrief(cur)}
+    ${STAGES_ON ? renderCoverage(cur) + renderUnitLog(cur) : ""}
     ${(() => { const show = state.finishing ? null : state.openReview ? done.find(x => x.id === state.openReview) : (!rv && done.length ? done[done.length - 1] : null); return show ? renderHandoff(show) : ""; })()}
     ${shot && shot.disc === cur.code && shot.pick ? `<p class="pickhint"><span>Which sheet does this belong on?</span> Tap it; the photo comes with you.</p>` : ""}
     ${renderGalleryGroups(cur)}
-    ${items.length ? `<h3 class="sec">Recorded in ${esc(rv.title.toLowerCase())}</h3><table class="findings"><tbody>${items.map(d => `<tr class="row" data-id="${esc(d.item_id)}"><td class="id">${esc(d.item_id)}</td><td><div class="what">${esc(d.description)}</div><div class="where">${esc(d.location)} · sheet ${esc(d.sheet)}</div></td><td class="go">›</td></tr>`).join("")}</tbody></table>` : ""}
+    ${items.length ? `<h3 class="sec">Recorded in ${esc(rv.title.toLowerCase())}</h3>${renderByUnit(items)}` : ""}
     ${done.length ? `<h3 class="sec">Earlier reviews</h3><table><tbody>${done.map(r => { const n = findingsIn(r.id).length, m = messageFor(r.id); return `<tr class="row" data-rv="${esc(r.id)}"><td class="id">${esc(r.title)}</td><td><div class="what">${esc(when(r.started_at))} → ${esc(when(r.finished_at))}</div><div class="where">${m ? "Message drafted for the contractor" : n ? "No message yet" : "Nothing recorded"}</div></td><td class="num">${n} item${n === 1 ? "" : "s"}</td><td class="go">›</td></tr>`; }).join("")}</tbody></table>` : ""}
     <footer><span>Numbers are ${esc(cur.code)}-01, ${esc(cur.code)}-02 … and never reused.</span><span>Closeout suggests the wording; you decide what is saved.</span></footer>`;
   $("#tab").querySelectorAll(".disc").forEach(d => d.onclick = () => { state.fieldDisc = d.dataset.code; renderField(); });
@@ -1530,9 +1530,9 @@ function renderField() {
   const mb = $("#mapBtn"); if (mb) mb.onclick = () => mapFloors(JSON.parse(mb.dataset.list).map(id => p.project.sheets.find(x => x.id === id)));
   $("#tab").querySelectorAll("tr.row[data-id]").forEach(r => r.onclick = () => location.hash = pHash(slug, "/item/" + encodeURIComponent(r.dataset.id)));
   $("#tab").querySelectorAll("tr.row[data-rv]").forEach(r => r.onclick = () => { state.openReview = r.dataset.rv; renderField(); window.scrollTo({ top: 0, behavior: "smooth" }); });
-  const st = $("#startRv"); if (st) st.onclick = () => { state.starting = { code: cur.code, stage: "", other: false }; renderField(); };
+  const st = $("#startRv"); if (st) st.onclick = () => { if (!STAGES_ON) return startReview(cur.code, ""); state.starting = { code: cur.code, stage: "", other: false }; renderField(); };
   const fi = $("#finishRv"); if (fi) fi.onclick = () => finishReview(rv);
-  wireBrief(cur); wireStart(cur); wireUnitsStrip(); wireCoverage(cur);
+  if (!rv) wireBrief(cur); wireStart(cur); wireUnitsStrip(); if (STAGES_ON) wireCoverage(cur);
   const si = $("#shotIn"); if (si) si.onchange = () => { const f = si.files[0]; if (!f) return; beginShot(cur.code, f); };
   if (shot && shot.disc === cur.code) wireWhere(cur, rv);
   wireHandoff();
@@ -1841,6 +1841,7 @@ async function startReview(code, stage) {
 }
 
 /* ---- stages and units: which walks this discipline needs, which units each walk covered. Read, not generated. ---- */
+const STAGES_ON = false; /* stages are on hold: the picker, the grid and the stage chips stay in code but off screen */
 const shortUnit = s => String(s || "").replace(/\s*\(.*$/, "").trim();
 function stagesFor(code) { return (state.p.stages || {})[code] || ["Rough-in", "Final"]; }
 function reviewFits(r, f) {
@@ -1872,12 +1873,22 @@ function wireStart(cur) {
     state.stagesEdit = null; if (s.stage && !list.includes(s.stage)) s.stage = ""; toast("List saved"); await load();
   };
 }
+/* the log of one walk, unit by unit: named units in project order, then anything recorded site-wide */
+function renderByUnit(items) {
+  const blds = state.p.units || [], order = [], where = {};
+  blds.forEach(b => b.units.forEach(u => { const k = shortUnit(u); order.push(k); where[k] = b.name; }));
+  const groups = {}; items.forEach(d => { const k = shortUnit(d.unit) || ""; (groups[k] = groups[k] || []).push(d); });
+  const keys = [...order.filter(k => groups[k]), ...Object.keys(groups).filter(k => k && !order.includes(k)).sort(), ...(groups[""] ? [""] : [])];
+  const rows = list => `<table class="findings"><tbody>${list.map(d => `<tr class="row" data-id="${esc(d.item_id)}"><td class="id">${esc(d.item_id)}</td><td><div class="what">${esc(d.description)}</div><div class="where">${esc([d.level, d.space].filter(Boolean).join(" · ") || d.location)} · sheet ${esc(d.sheet)}</div></td><td class="go">›</td></tr>`).join("")}</tbody></table>`;
+  if (keys.length === 1 && keys[0] === "") return rows(items);
+  return keys.map(k => `<div class="ugrp"><h4>${esc(k || "Site and general")}<small>${esc(k ? where[k] || "" : "no unit")}${k && where[k] ? " · " : ""}${groups[k].length}</small></h4>${rows(groups[k])}</div>`).join("");
+}
 function renderUnitsStrip(rv, editable) {
   const blds = state.p.units || []; if (!blds.some(b => b.units.length)) return "";
   const counts = {}; findingsIn(rv.id).forEach(d => { const k = shortUnit(d.unit); if (k) counts[k] = (counts[k] || 0) + 1; });
   const stages = stagesFor(rv.discipline), units = rv.units || [];
   return `<section class="ustrip" data-rv="${esc(rv.id)}"><div class="bh"><h3>Units walked${rv.stage ? ` · ${esc(rv.stage)}` : ""}</h3><span>${rv.units_edited ? "As you set it." : units.length ? "Read from where the deficiencies were recorded." : "Nothing recorded yet."}${editable ? " Tap a unit to mark it walked, or not." : ""}</span>${rv.units_edited && editable ? `<button class="lnk" data-ureset>Back to what the deficiencies say</button>` : ""}</div>
-    ${!rv.stage && editable ? `<div class="setstage"><span>Which walk is this?</span><div class="chips small">${stages.map(x => `<button class="chip" data-setstage="${esc(x)}">${esc(x)}</button>`).join("")}</div></div>` : ""}
+    ${STAGES_ON && !rv.stage && editable ? `<div class="setstage"><span>Which walk is this?</span><div class="chips small">${stages.map(x => `<button class="chip" data-setstage="${esc(x)}">${esc(x)}</button>`).join("")}</div></div>` : ""}
     <div class="ublds">${blds.map(b => `<div class="ubld"><b>${esc(b.name)}</b><div class="us">${b.units.map(u => { const on = units.includes(u), n = counts[shortUnit(u)] || 0; return `<button class="u ${on ? "on" : ""}" data-unit="${esc(u)}" ${editable ? "" : "disabled"} title="${esc(u)}">${esc(shortUnit(u))}${n ? `<i>${n}</i>` : ""}</button>`; }).join("")}</div></div>`).join("")}</div></section>`;
 }
 function wireUnitsStrip() {
