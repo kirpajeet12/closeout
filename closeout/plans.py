@@ -10,6 +10,7 @@ view is only a zoom, the pin coordinates stay on the real sheet.
 from __future__ import annotations
 
 import io
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -39,22 +40,76 @@ For each floor plan drawing call record_plan once:
 - top_row / bottom_row: the first and last grid rows it covers (numbers, inclusive).
 Cover the whole drawing including its title, a little generous is better than cutting it. If two drawings share a level
 (for example, two units drawn separately), record both.
+- unit: when the drawing shows ONE unit only, the unit label as printed on it (e.g. "#2", "UNIT B", "#1 6895"). When one
+  plan shows the whole building with several units inside it, leave unit empty. Use the unit list given to you.
 If there is no floor plan drawing on the sheet, call record_plan with title "none" and level "" and nothing else.
 """
+
+
+def _norm(t: str) -> str:
+    return " ".join(str(t or "").lower().replace("–", "-").replace("—", "-").split())
+
+
+def unit_aliases(unit: dict) -> set[str]:
+    """Every short way a drawing might print this unit: 'unit c', 'c', '#2', '2', '#2 6893 laurel st'…"""
+    out: set[str] = set()
+    label, addr = _norm(unit.get("label", "")), _norm(unit.get("address", ""))
+    for t in (label, re.sub(r"\s*\(.*$", "", label), addr):
+        t = t.strip()
+        if not t:
+            continue
+        out.add(t)
+        out.add(t.replace("#", "").strip())
+        m = re.match(r"^(?:unit|suite|apt\.?|apartment)\s+([a-z0-9]+)$", t)
+        if m:
+            out.add(m.group(1))
+        m = re.match(r"^#?\s*(\d+)\b", t)
+        if m:
+            out.add("#" + m.group(1))
+            out.add(m.group(1))
+    return {x for x in out if x}
+
+
+def sheet_units(units: list[dict], sheet_title: str) -> list[dict]:
+    """The units a sheet can show: those whose address carries a civic number printed in the sheet title. A title that
+    names no building (or a project with no addresses) leaves every unit possible."""
+    nums = set(re.findall(r"\b\d{2,6}\b", sheet_title or ""))
+    hits = [u for u in units if any(re.search(r"(^|\D)" + n + r"(\D|$)", _norm(u.get("address", ""))) for n in nums)]
+    return hits or list(units)
+
+
+def match_unit(text: str, candidates: list[dict]) -> str:
+    """The project unit label a printed unit label means, or '' when none matches."""
+    t = _norm(text).strip()
+    if not t:
+        return ""
+    forms = {t, t.replace("#", "").strip(), re.sub(r"^(unit|suite|apt\.?|apartment)\s+", "", t)}
+    m = re.match(r"^#?\s*(\d+)\b", t)
+    if m:
+        forms |= {"#" + m.group(1), m.group(1)}
+    for u in candidates:
+        if forms & unit_aliases(u):
+            return u.get("label", "")
+    return ""
 
 
 @dataclass
 class ViewsContext:
     views: list[dict] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
+    notes: list[str] = field(default_factory=list)
     none: bool = False
 
 
-def make_views_tools(ctx: ViewsContext, allowed_levels: set[str]):
+def make_views_tools(ctx: ViewsContext, allowed_levels: set[str], units: list[dict] | None = None):
+    units = units or []
+
     @tool
-    def record_plan(title: str, level: str, left_col: str = "", right_col: str = "", top_row: int = 0, bottom_row: int = 0) -> str:
-        """Record one floor plan drawing on the sheet: its printed title, the project level name it shows, and the grid
-        columns (letters) and rows (numbers) it covers, inclusive."""
+    def record_plan(title: str, level: str, left_col: str = "", right_col: str = "", top_row: int = 0, bottom_row: int = 0,
+                    unit: str = "") -> str:
+        """Record one floor plan drawing on the sheet: its printed title, the project level name it shows, the grid
+        columns (letters) and rows (numbers) it covers, inclusive, and the unit label printed on it when the drawing
+        shows a single unit (empty when it shows the whole building)."""
         title = " ".join(str(title or "").split())
         if title.lower() == "none":
             ctx.none = True
@@ -76,9 +131,13 @@ def make_views_tools(ctx: ViewsContext, allowed_levels: set[str]):
             return "REJECTED: " + ctx.errors[-1]
         x, y = COLS.index(l) / GRID_COLS, (t - 1) / GRID_ROWS
         w, h = (COLS.index(r) + 1) / GRID_COLS - x, b / GRID_ROWS - y
-        ctx.views.append({"title": title[:80], "level": level, "x": round(x, 4), "y": round(y, 4), "w": round(w, 4), "h": round(h, 4),
-                          "cells": f"{l}{t}–{r}{b}", "source": "agent"})
-        return "recorded"
+        unit_text = " ".join(str(unit or "").split())[:40]
+        matched = match_unit(unit_text, units) if unit_text else ""
+        if unit_text and not matched:
+            ctx.notes.append(f"unit '{unit_text}' is not a unit of this building; the box is kept for the whole building")
+        ctx.views.append({"title": title[:80], "level": level, "unit": matched, "unit_text": unit_text, "x": round(x, 4), "y": round(y, 4),
+                          "w": round(w, 4), "h": round(h, 4), "cells": f"{l}{t}–{r}{b}", "source": "agent"})
+        return "recorded" if matched or not unit_text else "recorded (unit not matched: " + ctx.notes[-1] + ")"
     return [record_plan]
 
 
@@ -138,14 +197,16 @@ def find_plan_views(store: Store, project_id: str, sheet_id: str, settings: Sett
     if not levels:
         raise ValueError("the project has no level names yet; read the drawings first")
     read = sh.get("read") or {}
+    units = sheet_units((store.project(project_id) or {}).get("model", {}).get("units", []), sh.get("title", ""))
     ctx = ViewsContext()
-    agent = Agent(model=model or make_model(settings), tools=make_views_tools(ctx, set(levels)),
+    agent = Agent(model=model or make_model(settings), tools=make_views_tools(ctx, set(levels), units),
                   system_prompt=VIEWS_SYSTEM, callback_handler=None)
     ref = sh.get("sheet_number") or f"{sh['discipline']} p.{sh['page']}"
     content = [
         {"text": f"SHEET {ref}: {sh.get('title', '')}. Grid: columns A–{COLS[GRID_COLS - 1]}, rows 1–{GRID_ROWS}."},
         {"image": {"format": "jpeg", "source": {"bytes": grid_image(Path(sh['image_path']))}}},
         {"text": "PROJECT LEVEL NAMES (use exactly these): " + ", ".join(levels)
+                 + ("\nUNITS THIS SHEET CAN SHOW: " + "; ".join(f"{u.get('label', '')} = {u.get('address', '') or 'no address'}" for u in units) if units else "")
                  + (f"\nWhat the sheet-reading agent found: levels {read.get('levels')}; summary: {str(read.get('summary', ''))[:600]}" if read else "")},
         {"text": "Call record_plan once per floor plan drawing."},
     ]
@@ -153,7 +214,7 @@ def find_plan_views(store: Store, project_id: str, sheet_id: str, settings: Sett
     if not ctx.views and not ctx.none:
         raise RuntimeError("agent finished without recording any plan" + (f"; last rejection: {ctx.errors[-1]}" if ctx.errors else ""))
     store.set_sheet_views(sheet_id, ctx.views)
-    return {"sheet_id": sheet_id, "views": ctx.views, "usage": _usage(result), "rejections": ctx.errors}
+    return {"sheet_id": sheet_id, "views": ctx.views, "usage": _usage(result), "rejections": ctx.errors, "notes": ctx.notes}
 
 
 def plan_sheets(store: Store, project_id: str) -> list[dict]:

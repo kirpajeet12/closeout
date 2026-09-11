@@ -102,6 +102,7 @@ class StagesPatch(BaseModel):
 class SheetView(BaseModel):
     title: str = ""
     level: str
+    unit: str = ""
     x: float
     y: float
     w: float
@@ -525,6 +526,28 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
                 im.save(thumb, "JPEG", quality=82)
         return FileResponse(thumb, media_type="image/jpeg")
 
+    @app.get("/api/sheets/{sheet_id}/crop")
+    def sheet_crop(sheet_id: str, x: float, y: float, w: float, h: float):
+        """One box of a sheet as a JPEG (a unit's floor plan, say); cut once from the full render and kept next to it."""
+        sh = store().sheet(sheet_id)
+        if not sh or not Path(sh["image_path"]).exists():
+            raise HTTPException(404, "no such sheet")
+        if not (0 <= x < 1 and 0 <= y < 1 and 0 < w <= 1 - x + 1e-6 and 0 < h <= 1 - y + 1e-6):
+            raise HTTPException(400, "the box must lie within the sheet")
+        src = Path(sh["image_path"])
+        key = hashlib.sha1(f"{x:.4f},{y:.4f},{w:.4f},{h:.4f}".encode()).hexdigest()[:10]
+        out = src.with_name(f"{src.stem}.crop-{key}.jpg")
+        if not out.exists() or out.stat().st_mtime < src.stat().st_mtime:
+            from PIL import Image
+            with Image.open(src) as im:
+                im = im.convert("RGB")
+                W, H = im.size
+                box = (int(x * W), int(y * H), min(W, int((x + w) * W) + 1), min(H, int((y + h) * H) + 1))
+                im = im.crop(box)
+                im.thumbnail((1100, 1100))
+                im.save(out, "JPEG", quality=84)
+        return FileResponse(out, media_type="image/jpeg")
+
     # --- register -------------------------------------------------------
     @app.post("/api/projects/{slug}/register")
     async def upload_register(slug: str, files: list[UploadFile] = File(...), paths: list[str] | None = Form(None)) -> dict:
@@ -879,7 +902,7 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
             if not (0 <= v.x < 1 and 0 <= v.y < 1 and 0 < v.w <= 1 - v.x + 1e-6 and 0 < v.h <= 1 - v.y + 1e-6):
                 raise HTTPException(400, "a box must lie within the sheet")
             # a box the engineer did not touch keeps its "agent" mark; anything else is his
-            views.append({"title": v.title.strip()[:80], "level": v.level.strip(), "x": v.x, "y": v.y, "w": v.w, "h": v.h,
+            views.append({"title": v.title.strip()[:80], "level": v.level.strip(), "unit": v.unit.strip()[:80], "x": v.x, "y": v.y, "w": v.w, "h": v.h,
                           "source": "agent" if v.source == "agent" else "engineer"})
         st.set_sheet_views(sheet_id, views)
         return {"sheet_id": sheet_id, "views": views}

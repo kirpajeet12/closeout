@@ -575,6 +575,19 @@
   .tier h4.grp { margin-top: 20px; } .tier.site h4.grp { color: #fff; } .tier.site h4.grp small { color: #9a9ea6; }
   .tier .gallery { margin-top: 10px; } .tier .gallery.hero { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
   .tier.site .sheet { border-color: #33363b; } .tier.site .sheet .cap { background: #1b1d21; } .tier.site .sheet .cap b, .tier.site .sheet .cap span { color: #fff; } .tier.site .sheet .cap small { color: #9a9ea6; }
+  .tier.units .thead h3 { margin: 0 0 4px; font-size: 20px; letter-spacing: -.02em; } .tier.units .thead p { margin: 0; color: var(--mute); font-size: 14px; }
+  .ucards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; margin-top: 12px; }
+  .ucard { border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px 14px; background: var(--bg); }
+  .ucard .uh { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; } .ucard .uh b { font-size: 16px; letter-spacing: -.01em; } .ucard .uh small { color: var(--mute); font-size: 12.5px; }
+  .utiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+  .utile { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--card); cursor: pointer; transition: border-color .15s, transform .15s; }
+  .utile:hover { border-color: var(--hot); transform: translateY(-1px); }
+  .utile .pic { aspect-ratio: 4 / 5; background: #fff; display: grid; place-items: center; overflow: hidden; } .utile .pic img { width: 100%; height: 100%; object-fit: contain; }
+  .utile.none { cursor: default; border-style: dashed; } .utile.none .pic { background: transparent; color: var(--mute); font-size: 12.5px; }
+  .utile.shared .pic { opacity: .8; }
+  .utile .cap { padding: 7px 8px 8px; display: flex; flex-direction: column; gap: 2px; } .utile .cap b { font-size: 12.5px; } .utile .cap small { color: var(--mute); font-size: 11.5px; line-height: 1.3; }
+  .utile select.retie { margin-top: 4px; font: inherit; font-size: 11.5px; color: var(--mute); border: 1px solid var(--line); border-radius: 6px; padding: 2px 4px; background: var(--card); max-width: 100%; }
+  .tier.units .mapbar { margin-top: 12px; }
   .tier .none { margin: 8px 0 0; font-size: 13px; color: var(--mute); }
   .tier .gaps { list-style: none; margin: 16px 0 0; padding: 14px 0 0; border-top: 1px dashed var(--line-2); display: grid; gap: 8px; } .tier.site .gaps { border-top-color: #3a3d43; }
   .tier .gaps li { display: grid; grid-template-columns: 30px 1fr; gap: 10px; align-items: start; font-size: 14px; } .tier .gaps li i { display: grid; place-items: center; height: 24px; border-radius: 7px; font: 700 10px var(--mono); background: var(--hot); color: #fff; }
@@ -1107,6 +1120,7 @@ function renderDrawings() {
   $("#tab").innerHTML = pr.sheets.length ? `
     ${renderStrip(pr, byDisc)}
     ${renderDrawingsReview(pr)}
+    ${renderUnits(pr)}
     ${renderHierarchy(pr)}
     <p class="empty" style="margin-top:18px">Tap a sheet to open it. To record a deficiency on it, start a field review first.</p>
     ${renderAsk(pr)}`
@@ -1114,7 +1128,64 @@ function renderDrawings() {
   $("#tab").querySelectorAll(".sheet").forEach(s => s.onclick = () => location.hash = pHash(slug, "/field/" + s.dataset.id));
   const pb = $("#askPrint"); if (pb) pb.onclick = () => print();
   wireDrawingsReview();
+  wireUnits();
   wireDrop($("#dropPrj"), "drawings", slug); renderStatus();
+}
+
+/* ---- Units: each unit's floor plans, cut out of the drawings and tied to its building and floor. The boxes come from
+   the floor-boxing reading (one call per plan sheet, on the engineer's press only); a box whose printed unit label
+   matched a project unit belongs to that unit, a box with no unit is the whole building's plan and stands in for every
+   unit on that floor. The engineer can re-tie any box to another unit by hand. ---- */
+const cropUrl = (sh, v) => `/api/sheets/${sh.id}/crop?x=${v.x}&y=${v.y}&w=${v.w}&h=${v.h}`;
+function unitPlan(b, u, level, blds) {
+  const sheets = state.p.project.sheets.filter(sh => isPlanSheet(sh) && sheetOwner(sh, blds) === b);
+  let own = null, shared = null;
+  for (const sh of sheets) for (const v of sh.views || []) {
+    if (v.level !== level) continue;
+    if (v.unit && v.unit === u.label && !own) own = { sh, v };
+    else if (!v.unit && !shared) shared = { sh, v };
+  }
+  return own ? { ...own, shared: false } : shared ? { ...shared, shared: true } : null;
+}
+function renderUnits(pr) {
+  const blds = buildings().filter(b => b.units.length);
+  if (!blds.length) return "";
+  const plans = pr.sheets.filter(sh => isPlanSheet(sh) && sheetOwner(sh, blds) !== null);
+  const tagged = plans.filter(sh => (sh.views || []).some(v => "unit" in v));
+  const m = state.mapping;
+  const bar = m ? `<div class="mapbar"><div class="thinking" style="margin:0"><span class="dot"></span><span>Reading ${esc(m.cur.sheet_number || "a sheet")} · ${m.done} of ${m.n} done…</span></div></div>`
+    : plans.length && tagged.length < plans.length ? `<div class="mapbar"><span>${tagged.length ? `${plans.length - tagged.length} of ${plans.length} plan sheets` : `${plans.length} plan sheet${plans.length === 1 ? "" : "s"}`} not yet cut into units. Closeout reads each plan sheet once and ties every floor plan on it to its unit · about half a minute a sheet.</span><button class="btn" id="unitsBtn" data-list='${esc(JSON.stringify(plans.filter(sh => !tagged.includes(sh)).map(sh => sh.id)))}'>Find the units</button></div>` : "";
+  const tile = (b, u, level) => {
+    const hit = unitPlan(b, u, level, blds);
+    if (!hit) return `<div class="utile none"><div class="pic"><span>Not cut yet</span></div><div class="cap"><b>${esc(level)}</b><small>no plan boxed</small></div></div>`;
+    const { sh, v, shared } = hit, opts = [`<option value="" ${shared ? "selected" : ""}>Whole building</option>`, ...b.units.map(x => `<option value="${esc(x.label)}" ${!shared && x.label === u.label ? "selected" : ""}>${esc(shortUnit(x.label))}</option>`)];
+    return `<div class="utile ${shared ? "shared" : ""}" data-open="${sh.id}" data-level="${esc(level)}" data-unit="${esc(u.label)}"><div class="pic"><img src="${cropUrl(sh, v)}" alt="" loading="lazy"></div>
+      <div class="cap"><b>${esc(level)}</b><small>${esc(sh.sheet_number || "p." + sh.page)}${shared ? " · whole building" : ""}${v.source === "engineer" ? " · tied by you" : ""}</small>
+      <select class="retie" data-sheet="${sh.id}" data-level="${esc(level)}" data-x="${v.x}" title="Which unit this plan shows">${opts.join("")}</select></div></div>`;
+  };
+  return `<section class="tier units"><div class="thead"><div><h3>Units</h3><p>Each unit's floor plans, cut from the drawings and tied to its building and floor. Tap one to open the sheet on that plan.</p></div></div>
+    ${bar}
+    ${blds.map(b => `<h4 class="grp">${esc(b.name)}<small>${b.units.length} unit${b.units.length === 1 ? "" : "s"}</small></h4>
+      <div class="ucards">${b.units.map(u => `<div class="ucard"><div class="uh"><b>${esc(shortUnit(u.label))}</b><small>${esc(u.address || "")}</small></div><div class="utiles">${floorsFor(b, u.label).map(l => tile(b, u, l)).join("")}</div></div>`).join("")}</div>`).join("")}
+  </section>`;
+}
+function wireUnits() {
+  const root = $("#tab .units"); if (!root) return;
+  const p = state.p;
+  const ub = $("#unitsBtn"); if (ub) ub.onclick = () => mapFloors(JSON.parse(ub.dataset.list).map(id => p.project.sheets.find(x => x.id === id)));
+  root.querySelectorAll(".utile[data-open]").forEach(t => t.onclick = e => {
+    if (e.target.closest("select")) return;
+    const sh = p.project.sheets.find(x => x.id === t.dataset.open), focus = (sh.views || []).find(v => v.level === t.dataset.level && (v.unit === t.dataset.unit || !v.unit)) || null;
+    state.viewer = { sheetId: sh.id, scale: 0, draft: null, step: "idle", photo: null, photoUrl: null, note: "", sug: { unit: t.dataset.unit, level: t.dataset.level }, busy: false, gps: "", disc: state.fieldDisc || sh.discipline, focus };
+    location.hash = pHash(state.slug, "/field/" + sh.id);
+  });
+  root.querySelectorAll("select.retie").forEach(sel => sel.onchange = async () => {
+    const sh = p.project.sheets.find(x => x.id === sel.dataset.sheet);
+    const views = (sh.views || []).map(v => v.level === sel.dataset.level && String(v.x) === sel.dataset.x ? { ...v, unit: sel.value, source: "engineer" } : v);
+    const r = await fetch(pUrl(state.slug, `/sheets/${sh.id}/views`), { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ views }) });
+    if (!r.ok) return toast((await r.json().catch(() => ({}))).detail || "Could not save", true);
+    sh.views = (await r.json()).views; toast(sel.value ? `Tied to ${shortUnit(sel.value)}` : "Kept as the whole building's plan", false); renderDrawings();
+  });
 }
 
 /* The Documents tab as a folder tree, the way a file explorer shows it. Two top folders: the occupancy paperwork
@@ -1993,7 +2064,7 @@ function buildings() {
     const b = buildingOf(u.address || label) || { key: label, name: label };
     let g = out.find(x => x.key === b.key);
     if (!g) { g = { ...b, units: [], levels: [] }; out.push(g); }
-    g.units.push({ label, levels });
+    g.units.push({ label, levels, address: u.address || "" });
     levels.forEach(l => { if (!g.levels.includes(l)) g.levels.push(l); });
   }
   // A building the unit list does not name but a plan or elevation is titled with (same street): it gets a place with no units.
@@ -2152,10 +2223,11 @@ function switchSheet(sheetId, focus) {
 }
 /* one agent call per plan sheet: where each floor's plan drawing sits, so the viewer can open on a floor */
 async function mapFloors(list) {
-  state.mapping = { n: list.length, done: 0, cur: list[0] }; renderField();
+  const rr = () => route().tab === "drawings" ? renderDrawings() : renderField();
+  state.mapping = { n: list.length, done: 0, cur: list[0] }; rr();
   let ok = 0;
   for (const sh of list) {
-    state.mapping.cur = sh; renderField();
+    state.mapping.cur = sh; rr();
     try { const r = await fetch(pUrl(state.slug, `/sheets/${sh.id}/views`), { method: "POST" }); if (r.ok) ok++; else toast((await r.json().catch(() => ({}))).detail || `Could not read ${sh.sheet_number}`, true); }
     catch (e) { toast(`Lost the connection on ${sh.sheet_number}`, true); }
     state.mapping.done++;

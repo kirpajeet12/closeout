@@ -325,3 +325,24 @@ def test_grid_image_is_a_jpeg_of_the_sheet(tmp_path):
     assert data[:2] == b"\xff\xd8"
     im = Image.open(io.BytesIO(data))
     assert max(im.size) <= 1568 and im.getpixel((im.width // 2, 1)) != (250, 250, 245)
+
+
+def test_plan_boxes_carry_the_unit_and_crop_to_a_picture(client, tmp_path):
+    """A box the reading marks with a unit label ties that floor plan to one of the project's units; a label that is
+    not a unit of the building keeps the box for the whole building. Each box can be cut out as a picture."""
+    slug, sid = _seed(client, tmp_path)
+    FakeFieldAgent.proposals = [
+        {"title": "MAIN FLOOR PLAN", "level": "Main Floor", "left_col": "A", "right_col": "D", "top_row": 1, "bottom_row": 6, "unit": "UNIT C"},
+        {"title": "UPPER FLOOR PLAN", "level": "Upper Floor", "left_col": "E", "right_col": "H", "top_row": 1, "bottom_row": 6, "unit": "#9"},
+    ]
+    out = client.post(f"/api/projects/{slug}/sheets/{sid}/views").json()
+    assert [v["unit"] for v in out["views"]] == ["Unit C", ""]
+    assert out["views"][1]["unit_text"] == "#9" and len(out["notes"]) == 1 and out["rejections"] == []
+    v = out["views"][0]
+    r = client.get(f"/api/sheets/{sid}/crop", params={"x": v["x"], "y": v["y"], "w": v["w"], "h": v["h"]})
+    assert r.status_code == 200 and r.headers["content-type"] == "image/jpeg" and len(r.content) > 100
+    assert client.get(f"/api/sheets/{sid}/crop", params={"x": 0.9, "y": 0, "w": 0.5, "h": 0.5}).status_code == 400
+    # the engineer can re-tie a box to another unit by hand
+    r = client.put(f"/api/projects/{slug}/sheets/{sid}/views", json={"views": [{**v, "unit": "", "source": "engineer"}]})
+    assert r.status_code == 200 and r.json()["views"][0]["unit"] == "" and r.json()["views"][0]["source"] == "engineer"
+    assert client.get(f"/api/projects/{slug}").json()["project"]["sheets"][0]["views"][0]["unit"] == ""
