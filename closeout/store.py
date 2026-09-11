@@ -192,6 +192,21 @@ CREATE TABLE IF NOT EXISTS filings (
   at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS filings_by_file ON filings(project_id, file, at);
+CREATE TABLE IF NOT EXISTS drawings_reviews (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL,
+  discipline TEXT NOT NULL,
+  run_id TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'reading',   -- reading | done
+  sheets_json TEXT NOT NULL DEFAULT '[]',   -- one row per sheet: status, summary, findings, usage
+  summary TEXT NOT NULL DEFAULT '',
+  gaps_json TEXT NOT NULL DEFAULT '[]',
+  usage_json TEXT NOT NULL DEFAULT '{}',
+  cost_usd REAL NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  finished_at TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS drawings_reviews_by_project ON drawings_reviews(project_id, created_at);
 CREATE TABLE IF NOT EXISTS conversations (
   id TEXT PRIMARY KEY,
   project_id TEXT NOT NULL,
@@ -722,6 +737,47 @@ class Store:
         return [dict(r) for r in self.conn.execute("SELECT * FROM decisions WHERE project_id=? ORDER BY created_at", (project_id,))]
 
     # --- conversations: every question and answer kept per project, so a chat can be picked up later ---
+    # --- drawings reviews ------------------------------------------------
+    def _drawings_row(self, r) -> dict:
+        d = dict(r)
+        d["sheets"] = json.loads(d.pop("sheets_json") or "[]")
+        d["gaps"] = json.loads(d.pop("gaps_json") or "[]")
+        d["usage"] = json.loads(d.pop("usage_json") or "{}")
+        return d
+
+    def create_drawings_review(self, project_id: str, discipline: str, run_id: str, sheets: list[dict]) -> dict:
+        rid = new_id("drw")
+        self.conn.execute("INSERT INTO drawings_reviews(id, project_id, discipline, run_id, sheets_json, created_at) VALUES(?,?,?,?,?,?)",
+                          (rid, project_id, discipline, run_id, json.dumps(sheets), now()))
+        self.conn.commit()
+        return self.drawings_review(rid)
+
+    def drawings_review(self, review_id: str) -> dict | None:
+        r = self.conn.execute("SELECT * FROM drawings_reviews WHERE id=?", (review_id,)).fetchone()
+        return self._drawings_row(r) if r else None
+
+    def drawings_reviews(self, project_id: str) -> list[dict]:
+        rows = self.conn.execute("SELECT * FROM drawings_reviews WHERE project_id=? ORDER BY created_at DESC", (project_id,)).fetchall()
+        return [self._drawings_row(r) for r in rows]
+
+    def update_drawings_review(self, review_id: str, sheets: list | None = None, status: str | None = None, summary: str | None = None,
+                               gaps: list | None = None, usage: dict | None = None, cost_usd: float | None = None, finished: bool = False) -> None:
+        sets, vals = [], []
+        for col, v in (("sheets_json", json.dumps(sheets) if sheets is not None else None), ("status", status), ("summary", summary),
+                       ("gaps_json", json.dumps(gaps) if gaps is not None else None), ("usage_json", json.dumps(usage) if usage is not None else None),
+                       ("cost_usd", cost_usd)):
+            if v is not None:
+                sets.append(f"{col}=?"); vals.append(v)
+        if finished:
+            sets.append("finished_at=?"); vals.append(now())
+        if sets:
+            self.conn.execute(f"UPDATE drawings_reviews SET {', '.join(sets)} WHERE id=?", (*vals, review_id))
+            self.conn.commit()
+
+    def delete_drawings_review(self, review_id: str) -> None:
+        self.conn.execute("DELETE FROM drawings_reviews WHERE id=?", (review_id,))
+        self.conn.commit()
+
     def create_conversation(self, project_id: str, title: str = "") -> dict:
         cid, t = new_id("conv"), now()
         self.conn.execute("INSERT INTO conversations(id, project_id, title, created_at, updated_at) VALUES(?,?,?,?,?)",

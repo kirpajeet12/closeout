@@ -469,6 +469,62 @@
   .strip { margin: 14px 0 0; color: var(--ink-2); font-size: 14px; display: flex; flex-wrap: wrap; align-items: center; }
   .strip i { font-style: normal; color: var(--mute); margin: 0 9px; }
   .strip a { color: var(--ink); text-decoration: underline; text-decoration-color: var(--line-2); text-underline-offset: 3px; }
+  /* ---- drawings review: the set read before the walk, bought sheet by sheet with the price shown first ---- */
+  .drw { margin-top: 26px; }
+  .drw > .hd { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-bottom: 12px; }
+  .drw > .hd h3 { margin: 0; font-size: 19px; letter-spacing: -.012em; }
+  .drw > .hd p { margin: 0; color: var(--mute); font-size: 13.5px; }
+  .drw-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 12px; }
+  .drw-card { background: var(--card); border: 1px solid var(--line-2); border-radius: 18px; padding: 16px 18px 16px; display: flex; flex-direction: column; gap: 10px; min-height: 148px; position: relative; }
+  .drw-card.on { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink); }
+  .drw-card .top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+  .drw-card .top b { font-size: 16px; letter-spacing: -.01em; }
+  .drw-card .top small { color: var(--mute); font-size: 12.5px; white-space: nowrap; }
+  .drw-card .st { font-size: 13.5px; color: var(--ink-2); line-height: 1.45; flex: 1; }
+  .drw-card .st em { font-style: normal; color: var(--mute); }
+  .drw-card .counts { display: flex; gap: 6px; flex-wrap: wrap; }
+  .drw-card .acts { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 2px; }
+  .drw-card .acts .btn { min-height: 40px; padding: 8px 14px; font-size: 14px; }
+  .drw-card .acts .btn b { font-weight: 600; } .drw-card .acts .btn span { opacity: .7; font-weight: 500; margin-left: 6px; }
+  .drw-card .acts .lnk { background: none; border: 0; color: var(--ink-2); text-decoration: underline; text-decoration-color: var(--line-2); text-underline-offset: 3px; cursor: pointer; font: inherit; font-size: 13.5px; padding: 0; }
+  .kchip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 700; letter-spacing: .02em; white-space: nowrap; }
+  .kchip.check_on_site { color: var(--needs); background: var(--needs-bg); } .kchip.ask_designer { color: #1b4fb8; background: #e4ecfb; } .kchip.note { color: var(--unclear); background: var(--unclear-bg); }
+  .kchip.gap { color: #8a1c1c; background: #f9e3e3; }
+  .drw-ask { margin-top: 14px; border-radius: 20px; background: var(--ink); color: #fff; padding: 20px 22px 22px; box-shadow: 0 24px 60px -30px rgba(0,0,0,.55); display: grid; grid-template-columns: 1fr auto; gap: 18px; align-items: center; }
+  .drw-ask h3 { margin: 0; font-size: 19px; letter-spacing: -.01em; }
+  .drw-ask p { margin: 6px 0 0; font-size: 14px; color: rgba(255,255,255,.72); max-width: 620px; line-height: 1.5; }
+  .drw-ask .price { display: flex; align-items: baseline; gap: 10px; margin-top: 12px; }
+  .drw-ask .price b { font-size: 30px; letter-spacing: -.02em; line-height: 1; } .drw-ask .price span { font-size: 13px; color: rgba(255,255,255,.6); }
+  .drw-ask .acts { display: flex; flex-direction: column; gap: 8px; min-width: 190px; }
+  .drw-ask .acts .btn { background: rgba(255,255,255,.08); color: #fff; border-color: rgba(255,255,255,.18); justify-content: center; }
+  .drw-ask .acts .btn.hot { background: var(--hot); border-color: var(--hot); }
+  .drw-run { margin-top: 14px; border-radius: 20px; background: var(--ink); color: #fff; padding: 18px 22px 20px; }
+  .drw-run .row { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
+  .drw-run h3 { margin: 0; font-size: 17px; } .drw-run .row span { font-size: 13.5px; color: rgba(255,255,255,.65); }
+  .drw-run .bar { height: 6px; border-radius: 999px; background: rgba(255,255,255,.14); margin-top: 12px; overflow: hidden; }
+  .drw-run .bar i { display: block; height: 100%; background: var(--hot); border-radius: 999px; transition: width .4s ease; }
+  .drw-run .sofar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 10px; font-size: 13px; color: rgba(255,255,255,.72); }
+  .drw-run .sofar button { background: none; border: 1px solid rgba(255,255,255,.22); color: #fff; border-radius: 999px; padding: 5px 12px; font: inherit; font-size: 12.5px; cursor: pointer; }
+  .drw-out { margin-top: 14px; background: var(--card); border: 1px solid var(--line-2); border-radius: 20px; overflow: hidden; }
+  .drw-out .sum { padding: 20px 22px 18px; border-bottom: 1px solid var(--line); }
+  .drw-out .sum .k { font-size: 11.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--mute); margin-bottom: 8px; display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .drw-out .sum .k span { font-weight: 500; letter-spacing: 0; text-transform: none; }
+  .drw-out .sum p { margin: 0; font-size: 15.5px; line-height: 1.55; max-width: 760px; }
+  .drw-out .gaps { padding: 14px 22px 16px; border-bottom: 1px solid var(--line); background: #fbf4f4; }
+  .drw-out .gaps h4, .drw-out .sh h4 { margin: 0 0 8px; font-size: 14px; display: flex; align-items: center; gap: 10px; }
+  .drw-out .gaps ul, .drw-out .sh ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  .drw-out .fnd { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: start; font-size: 14px; line-height: 1.45; }
+  .drw-out .fnd .kchip { margin-top: 2px; }
+  .drw-out .fnd .w { color: var(--ink); } .drw-out .fnd .where { color: var(--mute); font-size: 12.5px; margin-left: 6px; white-space: nowrap; }
+  .drw-out .fnd .why { display: block; color: var(--mute); font-size: 12.5px; margin-top: 1px; }
+  .drw-out .sh { padding: 14px 22px 16px; border-bottom: 1px solid var(--line); }
+  .drw-out .sh h4 { cursor: pointer; } .drw-out .sh h4 b { font-family: var(--mono); font-size: 13px; background: var(--paper); border: 1px solid var(--line-2); border-radius: 8px; padding: 2px 8px; }
+  .drw-out .sh h4 span { font-weight: 500; color: var(--ink-2); } .drw-out .sh h4 i { font-style: normal; color: var(--mute); margin-left: auto; font-size: 12.5px; }
+  .drw-out .sh p.s { margin: 0 0 10px; font-size: 13.5px; color: var(--ink-2); }
+  .drw-out .sh.skip { color: var(--mute); font-size: 13.5px; }
+  .drw-out .foot { padding: 12px 22px 14px; font-size: 12.5px; color: var(--mute); display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .drw-out .foot button { background: none; border: 0; color: var(--mute); text-decoration: underline; cursor: pointer; font: inherit; font-size: 12.5px; padding: 0; }
+  @media (max-width: 720px) { .drw-ask { grid-template-columns: 1fr; } .drw-ask .acts { flex-direction: row; } .drw-ask .acts .btn { flex: 1; } }
   .ask { margin-top: 28px; padding: 0; border-radius: 16px; background: var(--card); border: 1px solid var(--line-2); overflow: hidden; }
   .ask summary { list-style: none; cursor: pointer; display: grid; grid-template-columns: 1fr auto; column-gap: 14px; align-items: center; padding: 14px 18px; }
   .ask summary::-webkit-details-marker { display: none; }
@@ -995,12 +1051,14 @@ function renderDrawings() {
   pr.sheets.forEach(sh => (byDisc[sh.discipline_name || sh.discipline] = byDisc[sh.discipline_name || sh.discipline] || []).push(sh));
   $("#tab").innerHTML = pr.sheets.length ? `
     ${renderStrip(pr, byDisc)}
+    ${renderDrawingsReview(pr)}
     ${renderHierarchy(pr)}
     <p class="empty" style="margin-top:18px">Tap a sheet to open it. To record a deficiency on it, start a field review first.</p>
     ${renderAsk(pr)}`
   : projectDrop("Add the project drawings", "Upload one zip of the project folder, or drop the folder here. Closeout files the sets, reads every current sheet and lists what is missing.");
   $("#tab").querySelectorAll(".sheet").forEach(s => s.onclick = () => location.hash = pHash(slug, "/field/" + s.dataset.id));
   const pb = $("#askPrint"); if (pb) pb.onclick = () => print();
+  wireDrawingsReview();
   wireDrop($("#dropPrj"), "drawings", slug); renderStatus();
 }
 
@@ -1203,6 +1261,160 @@ function renderStrip(pr, byDisc) {
   ].filter(Boolean);
   return `<p class="strip">${bits.join('<i>·</i>')}</p>`;
 }
+/* ---- Drawings review: Closeout reads one discipline's set before the walk. The price is shown first and nothing is
+   bought until "Read the set" is pressed; then one sheet at a time, so the cost so far is always on screen and a review
+   that stops half way continues where it was instead of paying again. ---- */
+const drw = { est: {}, confirm: null, run: null, open: null };
+const usd = v => v == null ? "" : v < 0.005 ? "under a cent" : "$" + (v < 0.1 ? v.toFixed(2) : v.toFixed(2));
+const drwWhen = iso => iso ? new Date(iso).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "";
+function drwSets(pr) {
+  const by = {};
+  pr.sheets.forEach(sh => (by[sh.discipline] = by[sh.discipline] || []).push(sh));
+  const order = (pr.disciplines || []).map(d => d.code);
+  return Object.keys(by).sort((a, b) => (order.indexOf(a) + 1 || 99) - (order.indexOf(b) + 1 || 99)).map(code => ({ code, name: DISC_NAMES[code] || code, sheets: by[code] }));
+}
+function drwReviews(code) { return (state.p.drawings_reviews || []).filter(r => r.discipline === code); }
+function drwCounts(rv) {
+  const c = { check_on_site: 0, ask_designer: 0, note: 0 };
+  (rv.sheets || []).forEach(s => (s.findings || []).forEach(f => c[f.kind] = (c[f.kind] || 0) + 1));
+  return c;
+}
+function drwEstimate(code) {
+  if (drw.est[code] || drw.est["_" + code]) return drw.est[code];
+  drw.est["_" + code] = true;
+  fetch(pUrl(state.slug, `/drawings/estimate?discipline=${encodeURIComponent(code)}`)).then(r => r.ok ? r.json() : null).then(j => {
+    if (!j) return; drw.est[code] = j; delete drw.est["_" + code];
+    { const rt = route(); if (rt.page === "project" && rt.tab === "drawings" && !drw.run) renderDrawings(); }
+  }).catch(() => {});
+  return null;
+}
+function renderDrawingsReview(pr) {
+  const sets = drwSets(pr);
+  if (!sets.length) return "";
+  const cards = sets.map(set => {
+    const rvs = drwReviews(set.code), latest = rvs[0], est = drwEstimate(set.code);
+    const price = est ? `<span>about ${usd(est.usd)}</span>` : "";
+    const running = drw.run && drw.run.code === set.code;
+    let status, acts;
+    if (running) {
+      status = `Reading now…`; acts = "";
+    } else if (latest && latest.status === "reading") {
+      const left = latest.sheets.filter(s => s.status !== "done").length, done = latest.sheets.length - left;
+      status = `${done} of ${latest.sheets.length} sheet${latest.sheets.length === 1 ? "" : "s"} read so far <em>· ${usd(latest.cost_usd)} spent</em>`;
+      acts = `<button class="btn primary" data-continue="${latest.id}"><b>Continue</b><span>${left} sheet${left === 1 ? "" : "s"} left</span></button>
+              <button class="lnk" data-open="${latest.id}">See what was read</button>`;
+    } else if (latest) {
+      const c = drwCounts(latest);
+      status = `Read ${esc(drwWhen(latest.finished_at || latest.created_at))} <em>· ${usd(latest.cost_usd)}</em>
+        <div class="counts">${c.check_on_site ? `<span class="kchip check_on_site">${c.check_on_site} to check on site</span>` : ""}${c.ask_designer ? `<span class="kchip ask_designer">${c.ask_designer} to ask the designer</span>` : ""}${latest.gaps.length ? `<span class="kchip gap">${latest.gaps.length} gap${latest.gaps.length === 1 ? "" : "s"} in the set</span>` : ""}${!c.check_on_site && !c.ask_designer && !latest.gaps.length ? `<span class="kchip note">nothing flagged</span>` : ""}</div>`;
+      acts = `<button class="btn primary" data-open="${latest.id}">${drw.open === latest.id ? "Hide the findings" : "Open the findings"}</button>
+              <button class="lnk" data-start="${set.code}">Read again${est ? ` · about ${usd(est.usd)}` : ""}</button>`;
+    } else {
+      status = `Not read yet. Closeout looks at every sheet and lists what to check on site and what to ask the designer, before you walk.`;
+      acts = `<button class="btn primary" data-start="${set.code}"><b>Read ${set.sheets.length} sheet${set.sheets.length === 1 ? "" : "s"}</b>${price}</button>`;
+    }
+    return `<div class="drw-card ${drw.confirm === set.code || running ? "on" : ""}">
+      <div class="top"><b>${esc(set.name)}</b><small>${set.sheets.length} current sheet${set.sheets.length === 1 ? "" : "s"}</small></div>
+      <div class="st">${status}</div>
+      <div class="acts">${acts}</div></div>`;
+  }).join("");
+  let panel = "";
+  if (drw.run) panel = renderDrwRun();
+  else if (drw.confirm) panel = renderDrwConfirm(sets.find(s => s.code === drw.confirm));
+  else if (drw.open) { const rv = (state.p.drawings_reviews || []).find(r => r.id === drw.open); panel = rv ? renderDrwOut(rv) : ""; }
+  return `<section class="drw">
+    <div class="hd"><h3>Before the walk</h3><p>Closeout reads a set sheet by sheet. Paid per sheet, never without your say.</p></div>
+    <div class="drw-cards">${cards}</div>${panel}</section>`;
+}
+function renderDrwConfirm(set) {
+  const est = drw.est[set.code], cont = drw.confirm_review;
+  const n = cont ? cont.sheets.filter(s => s.status !== "done").length : set.sheets.length;
+  const scale = cont ? n / Math.max(1, set.sheets.length) : 1;
+  const usdMid = est ? est.usd * scale : null, lo = est ? est.usd_low * scale : null, hi = est ? est.usd_high * scale : null;
+  return `<div class="drw-ask" id="drwask">
+    <div>
+      <h3>${cont ? `Continue reading the ${esc(set.name)} set?` : `Read the ${esc(set.name)} set?`}</h3>
+      <p>Closeout looks at ${cont ? `the ${n} sheet${n === 1 ? "" : "s"} it has not read yet` : `each of the ${n} sheet${n === 1 ? "" : "s"}`} with the grid, the printed notes and what it read earlier, and writes down what to check on site and what to ask the designer. It takes a minute or two per sheet; you can keep working. Nothing is sent to anyone.</p>
+      <div class="price">${est ? `<b>about ${usd(usdMid)}</b><span>between ${usd(lo)} and ${usd(hi)} · charged to the office's account · shown as it adds up</span>` : `<b>…</b><span>working out the price</span>`}</div>
+    </div>
+    <div class="acts">
+      <button class="btn hot primary" id="drwgo" ${est ? "" : "disabled"}>${cont ? "Continue" : "Read the set"}</button>
+      <button class="btn" id="drwno">Not now</button>
+    </div></div>`;
+}
+function renderDrwRun() {
+  const r = drw.run, pct = Math.round(100 * r.done / Math.max(1, r.n));
+  return `<div class="drw-run">
+    <div class="row"><h3>${r.cur ? `Reading ${esc(r.cur.sheet_number || "p." + r.cur.page)} · ${esc(r.cur.title || "")}` : r.finishing ? "Writing the summary of the set" : "Starting"}</h3><span>${r.done} of ${r.n} sheet${r.n === 1 ? "" : "s"}</span></div>
+    <div class="bar"><i style="width:${pct}%"></i></div>
+    <div class="sofar"><span>${usd(r.cost)} so far${r.failed ? ` · ${r.failed} sheet${r.failed === 1 ? "" : "s"} could not be read` : ""}</span>${r.stop ? `<span>Stopping after this sheet</span>` : `<button id="drwstop">Stop after this sheet</button>`}</div></div>`;
+}
+function renderDrwOut(rv) {
+  const name = DISC_NAMES[rv.discipline] || rv.discipline, c = drwCounts(rv);
+  const fnd = f => `<li class="fnd"><span class="kchip ${esc(f.kind)}">${esc({ check_on_site: "Check on site", ask_designer: "Ask the designer", note: "Note" }[f.kind] || f.kind)}</span><div><span class="w">${esc(f.what)}</span>${f.where ? `<span class="where">${esc(f.where)}</span>` : ""}${f.why ? `<span class="why">${esc(f.why)}</span>` : ""}</div></li>`;
+  const sheets = rv.sheets.map(s => s.status !== "done"
+    ? `<div class="sh skip"><h4 data-sheet="${s.sheet_id}"><b>${esc(s.sheet_number || "p." + s.page)}</b><span>${esc(s.title || "")}</span><i>${s.status === "failed" ? "could not be read" : "not read yet"}</i></h4></div>`
+    : `<div class="sh"><h4 data-sheet="${s.sheet_id}"><b>${esc(s.sheet_number || "p." + s.page)}</b><span>${esc(s.title || "")}</span><i>${s.findings.length ? `${s.findings.length} finding${s.findings.length === 1 ? "" : "s"}` : "nothing flagged"} · open ›</i></h4>
+       ${s.summary ? `<p class="s">${esc(s.summary)}</p>` : ""}${s.findings.length ? `<ul>${s.findings.map(fnd).join("")}</ul>` : ""}</div>`).join("");
+  return `<div class="drw-out" id="drwout">
+    <div class="sum"><div class="k">${esc(name)} set · ${rv.status === "done" ? `read ${esc(drwWhen(rv.finished_at))}` : "still being read"}<span>${c.check_on_site} to check on site · ${c.ask_designer} to ask the designer · ${c.note} note${c.note === 1 ? "" : "s"}</span></div>
+      <p>${esc(rv.summary || "The set summary is written when the last sheet is read.")}</p></div>
+    ${rv.gaps.length ? `<div class="gaps"><h4><span class="kchip gap">Gaps in the set</span></h4><ul>${rv.gaps.map(g => `<li class="fnd"><span class="kchip gap">Missing</span><div><span class="w">${esc(g.what)}</span>${g.why ? `<span class="why">${esc(g.why)}</span>` : ""}</div></li>`).join("")}</ul></div>` : ""}
+    ${sheets}
+    <div class="foot"><span>Closeout's reading of the drawings. Not an engineering determination. Cost ${usd(rv.cost_usd)}.</span><button data-remove="${rv.id}">Remove this reading</button></div></div>`;
+}
+function wireDrawingsReview() {
+  const root = $("#tab"); if (!root.querySelector(".drw")) return;
+  root.querySelectorAll("[data-start]").forEach(b => b.onclick = () => { drw.confirm = b.dataset.start; drw.confirm_review = null; drw.open = null; drwEstimate(drw.confirm); renderDrawings(); const a = $("#drwask"); if (a) a.scrollIntoView({ behavior: "smooth", block: "center" }); });
+  root.querySelectorAll("[data-continue]").forEach(b => b.onclick = () => { const rv = (state.p.drawings_reviews || []).find(r => r.id === b.dataset.continue); drw.confirm = rv.discipline; drw.confirm_review = rv; drw.open = null; drwEstimate(rv.discipline); renderDrawings(); });
+  root.querySelectorAll("[data-open]").forEach(b => b.onclick = () => { drw.open = drw.open === b.dataset.open ? null : b.dataset.open; drw.confirm = null; renderDrawings(); const o = $("#drwout"); if (o) o.scrollIntoView({ behavior: "smooth", block: "start" }); });
+  const no = $("#drwno"); if (no) no.onclick = () => { drw.confirm = null; drw.confirm_review = null; renderDrawings(); };
+  const go = $("#drwgo"); if (go) go.onclick = () => runDrawingsReview(drw.confirm, drw.confirm_review);
+  const stop = $("#drwstop"); if (stop) stop.onclick = () => { if (drw.run) { drw.run.stop = true; renderDrawings(); } };
+  root.querySelectorAll(".drw-out [data-sheet]").forEach(h => h.onclick = () => location.hash = pHash(state.slug, "/field/" + h.dataset.sheet));
+  root.querySelectorAll("[data-remove]").forEach(b => b.onclick = async () => {
+    const r = await fetch(pUrl(state.slug, `/drawings/reviews/${b.dataset.remove}`), { method: "DELETE" });
+    if (!r.ok) { toast("Could not remove it", true); return; }
+    drw.open = null; toast("Reading removed"); await load();
+  });
+}
+async function runDrawingsReview(code, existing) {
+  let rv = existing;
+  if (!rv) {
+    const r = await fetch(pUrl(state.slug, "/drawings/reviews"), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ discipline: code }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { toast(j.detail || "Could not start", true); return; }
+    rv = j.review;
+  }
+  const todo = rv.sheets.filter(s => s.status !== "done");
+  drw.confirm = null; drw.confirm_review = null; drw.open = null;
+  drw.run = { id: rv.id, code, n: todo.length, done: 0, cur: null, cost: rv.cost_usd || 0, failed: 0, stop: false };
+  renderDrawings();
+  for (const s of todo) {
+    if (drw.run.stop) break;
+    drw.run.cur = s; renderDrawings();
+    try {
+      const r = await fetch(pUrl(state.slug, `/drawings/reviews/${rv.id}/sheets/${s.sheet_id}`), { method: "POST" });
+      const j = await r.json().catch(() => ({}));
+      if (r.ok) drw.run.cost = j.cost_usd; else { drw.run.failed++; toast(j.detail || `Could not read ${s.sheet_number}`, true); }
+    } catch (e) { drw.run.failed++; toast(`Lost the connection on ${s.sheet_number}`, true); }
+    drw.run.done++;
+  }
+  const stopped = drw.run.stop, read = drw.run.done - drw.run.failed;
+  if (!stopped && read) {
+    drw.run.cur = null; drw.run.finishing = true; renderDrawings();
+    try {
+      const r = await fetch(pUrl(state.slug, `/drawings/reviews/${rv.id}/finish`), { method: "POST" });
+      const j = await r.json().catch(() => ({}));
+      if (r.ok) { drw.run.cost = j.review.cost_usd; drw.open = rv.id; toast(`${DISC_NAMES[code] || code} set read · ${usd(j.review.cost_usd)}`); }
+      else toast(j.detail || "Could not write the set summary; press Continue to try again", true);
+    } catch (e) { toast("Lost the connection on the set summary; press Continue to try again", true); }
+  } else if (stopped) toast(`Stopped · ${usd(drw.run.cost)} so far · press Continue when ready`);
+  else toast("No sheet could be read; check the connection and press Continue", true);
+  drw.run = null;
+  await load();
+}
+
 function renderAsk(pr) {
   const need = docsNeeded(pr);
   const blds = buildings().length, discs = (pr.disciplines || []).length;

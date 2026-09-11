@@ -25,7 +25,7 @@ from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse, Response, StreamingResponse
 from pydantic import BaseModel
 
-from . import ask as ask_mod, documents as documents_mod, pipeline, plans as plans_mod, project as project_mod, review as review_mod, revisions as revisions_mod
+from . import ask as ask_mod, documents as documents_mod, drawings as drawings_mod, pipeline, plans as plans_mod, project as project_mod, review as review_mod, revisions as revisions_mod
 from .config import SETTINGS, Settings
 from .ingest import _exif, _heic_to_jpeg
 from .packet import build_packet, packet_markdown
@@ -143,6 +143,10 @@ class SpeakBody(BaseModel):
 
 class LiveBody(BaseModel):
     sdp: str   # the browser's WebRTC offer; the answer comes back the same way
+
+
+class DrawingsReviewIn(BaseModel):
+    discipline: str = "EL"
 
 
 class DocsReviewIn(BaseModel):
@@ -490,7 +494,8 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
                 "units": coverage_mod.buildings(prj),
                 "docs_review": prj.get("docs_review"), "docs_scope": prj.get("docs_scope") or [],
                 "occupancy_docs": [list(row) for row in documents_mod.OCCUPANCY_DOCS],
-                "filings": st.filings(pid), "filing_history": st.filing_history(pid)}
+                "filings": st.filings(pid), "filing_history": st.filing_history(pid),
+                "drawings_reviews": st.drawings_reviews(pid)}
 
     @app.get("/api/sheets/{sheet_id}/image")
     def sheet_image(sheet_id: str):
@@ -593,6 +598,67 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         st.set_docs_review(prj["id"], review)
         documents_mod.record_placements(st, prj["id"], out.get("placed") or [])
         return {"docs_review": review, "filings": st.filings(prj["id"])}
+
+    # --- drawings review: read one discipline's set before the walk, bought sheet by sheet --------------------------
+    def _drawings_review(st: Store, prj: dict, review_id: str) -> dict:
+        rv = st.drawings_review(review_id)
+        if not rv or rv["project_id"] != prj["id"]:
+            raise HTTPException(404, "no such drawings review")
+        return rv
+
+    @app.get("/api/projects/{slug}/drawings/estimate")
+    def drawings_estimate(slug: str, discipline: str = "EL") -> dict:
+        """What reading this discipline's current sheets will cost, before anything is bought."""
+        st = store()
+        prj = _project(st, slug)
+        return drawings_mod.estimate(st, prj["id"], discipline.upper(), settings)
+
+    @app.post("/api/projects/{slug}/drawings/reviews")
+    def drawings_start(slug: str, body: DrawingsReviewIn = DrawingsReviewIn()) -> dict:
+        """Open a review of one discipline's set. Costs nothing until a sheet is read."""
+        st = store()
+        prj = _project(st, slug)
+        try:
+            return {"review": drawings_mod.start(st, prj["id"], body.discipline.upper(), settings)}
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+
+    @app.post("/api/projects/{slug}/drawings/reviews/{review_id}/sheets/{sheet_id}")
+    def drawings_sheet(slug: str, review_id: str, sheet_id: str) -> dict:
+        """Read one sheet: one paid call. Returns the review with that sheet's findings and the cost so far."""
+        st = store()
+        prj = _project(st, slug)
+        _drawings_review(st, prj, review_id)
+        try:
+            out = drawings_mod.review_sheet(st, review_id, sheet_id, settings)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        except Exception as e:  # noqa: BLE001
+            raise HTTPException(502, f"that sheet could not be read ({type(e).__name__}); continue to try it again")
+        return {**out, "review": st.drawings_review(review_id)}
+
+    @app.post("/api/projects/{slug}/drawings/reviews/{review_id}/finish")
+    def drawings_finish(slug: str, review_id: str) -> dict:
+        """One short call over every sheet's findings: gaps in the set and its summary. Closes the review."""
+        st = store()
+        prj = _project(st, slug)
+        rv = _drawings_review(st, prj, review_id)
+        if rv["status"] == "done":
+            return {"review": rv}
+        try:
+            return {"review": drawings_mod.finish(st, review_id, settings)}
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        except Exception as e:  # noqa: BLE001
+            raise HTTPException(502, f"the set summary could not be written ({type(e).__name__}); try finish again")
+
+    @app.delete("/api/projects/{slug}/drawings/reviews/{review_id}")
+    def drawings_delete(slug: str, review_id: str) -> dict:
+        st = store()
+        prj = _project(st, slug)
+        _drawings_review(st, prj, review_id)
+        st.delete_drawings_review(review_id)
+        return {"ok": True}
 
     @app.get("/api/projects/{slug}/filing")
     def filing(slug: str) -> dict:
