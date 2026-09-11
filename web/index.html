@@ -325,6 +325,21 @@
   .ugrp { margin: 4px 0 6px } .ugrp h4 { margin: 16px 0 6px; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink); display: flex; gap: 10px; align-items: baseline } .ugrp h4 small { font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--mute); font-size: 12px }
   .stagepick, .ustrip, .cov, .ulog { margin-top: 18px; border-radius: 18px; background: var(--card); border: 1px solid var(--line); padding: 16px 18px 18px; }
   .handoff .pk .ustrip { margin: 4px 0 12px; padding: 12px 14px 14px; background: var(--paper); }
+  .finishask { margin-top: 18px; border-radius: 20px; background: var(--ink); color: #fff; padding: 20px 22px 22px; box-shadow: 0 24px 60px -30px rgba(0,0,0,.55); }
+  .finishask .fq { display: flex; gap: 14px; align-items: flex-start; }
+  .finishask .fq + .fq { margin-top: 16px; }
+  .finishask .fq .n { flex: 0 0 26px; width: 26px; height: 26px; border-radius: 50%; background: var(--hot); color: #fff; font-size: 13px; font-weight: 700; display: grid; place-items: center; margin-top: 1px; }
+  .finishask .fq h3 { margin: 0; font-size: 18px; letter-spacing: -.01em; }
+  .finishask .fq p { margin: 4px 0 0; font-size: 14px; color: rgba(255,255,255,.7); max-width: 560px; }
+  .finishask .fq .acts { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+  .finishask .fq .acts .btn { background: rgba(255,255,255,.08); color: #fff; border-color: rgba(255,255,255,.18); }
+  .finishask .fq .acts .btn.primary { background: var(--hot); border-color: var(--hot); }
+  .finishask .ustrip { margin: 14px 0 0 40px; background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.12); }
+  .finishask .ustrip .bh h3 { color: rgba(255,255,255,.55); } .finishask .ustrip .bh > span { color: rgba(255,255,255,.6); }
+  .finishask .ustrip .ubld b { color: #fff; }
+  .finishask .ustrip .u { background: rgba(255,255,255,.08); color: #fff; border-color: rgba(255,255,255,.16); }
+  .finishask .ustrip .u.on { background: #fff; color: var(--ink); border-color: #fff; }
+  @media (max-width: 640px) { .finishask .ustrip { margin-left: 0; } .finishask .fq { flex-wrap: wrap; } .finishask .fq .acts { margin-left: 40px; width: 100%; justify-content: flex-start; } }
   .stagepick .bh, .ustrip .bh, .cov .bh, .ulog .bh { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
   .stagepick .bh h3, .ustrip .bh h3, .cov .bh h3, .ulog .bh h3 { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: .14em; color: var(--mute); font-weight: 600; }
   .stagepick .bh > span, .ustrip .bh > span, .cov .bh > span, .ulog .bh > span { font-size: 13px; color: var(--mute); }
@@ -679,7 +694,7 @@ const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt
 const when = s => { const d = new Date(s); return isNaN(d) ? String(s ?? "") : d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }); };
 const fileUrl = (id, page) => `/api/evidence/${id}/file` + (page ? `#page=${page}` : "");
 const isImg = name => /\.(jpe?g|png|heic|heif|webp)$/i.test(name || "");
-const state = { home: null, p: null, slug: null, es: null, run: { kind: "idle", text: "", done: 0, total: 0 }, fieldDisc: null, filing: null, viewer: null, shot: null, openReview: null, finishing: null, drafting: null, mapping: null, docsAsking: false, filters: { bld: "", disc: "", rv: "" }, folder: [], pinMode: "", brief: {}, briefOpen: {}, starting: null, cov: {}, unitLog: null, stagesEdit: null };
+const state = { home: null, p: null, slug: null, es: null, run: { kind: "idle", text: "", done: 0, total: 0 }, fieldDisc: null, filing: null, viewer: null, shot: null, openReview: null, finishing: null, confirmFinish: null, drafting: null, mapping: null, docsAsking: false, filters: { bld: "", disc: "", rv: "" }, folder: [], pinMode: "", brief: {}, briefOpen: {}, starting: null, cov: {}, unitLog: null, stagesEdit: null };
 
 function toast(msg, err) { const t = $("#toast"); t.textContent = msg; t.className = "toast show" + (err ? " err" : ""); setTimeout(() => t.className = "toast", 3200); }
 function route() {
@@ -1532,10 +1547,10 @@ function renderField() {
         <div class="rv">${a ? `<span><i class="live"></i><b>${esc(a.title)}</b> in progress</span>` : `<span style="color:var(--mute)">${p.reviews.filter(r => r.discipline === d.code).length ? p.reviews.filter(r => r.discipline === d.code).length + " done" : "Not started"}</span>`}</div></div>`; }).join("")}</div>
     <div class="fr-head">
       <div><h2>${esc(cur.name)}${rv ? ` · ${esc(rv.title)}${rv.stage ? ` · ${esc(rv.stage)}` : ""}` : ""}</h2><p>${rv ? `Started ${esc(when(rv.started_at))} · ${items.length} deficienc${items.length === 1 ? "y" : "ies"} so far. Open a sheet, tap where the problem is, take the photo.` : done.length ? `${done.length} review${done.length === 1 ? "" : "s"} finished. Start the next one to add more deficiencies.` : "Nothing recorded yet for this discipline."}</p></div>
-      ${state.finishing === (rv && rv.id) && rv ? `<div class="thinking"><span class="dot"></span><span>Packaging ${items.length} deficienc${items.length === 1 ? "y" : "ies"} and drafting the message to the contractor…</span></div>` : rv ? `<span class="frbtns"><a class="btn quiet" href="${pUrl(slug, "/reviews/" + encodeURIComponent(rv.id) + "/report")}" target="_blank" rel="noopener">Report so far</a><button class="btn" id="finishRv">Finish ${esc(rv.title.toLowerCase())}</button></span>` : state.starting && state.starting.code === cur.code ? "" : `<button class="btn primary" id="startRv">Start field review ${done.length + 1}</button>`}
+      ${state.finishing === (rv && rv.id) && rv ? `<div class="thinking"><span class="dot"></span><span>Packaging ${items.length} deficienc${items.length === 1 ? "y" : "ies"} and drafting the message to the contractor…</span></div>` : rv ? `<span class="frbtns"><a class="btn quiet" href="${pUrl(slug, "/reviews/" + encodeURIComponent(rv.id) + "/report")}" target="_blank" rel="noopener">Report so far</a>${state.confirmFinish === rv.id ? "" : `<button class="btn" id="finishRv">Finish ${esc(rv.title.toLowerCase())}</button>`}</span>` : state.starting && state.starting.code === cur.code ? "" : `<button class="btn primary" id="startRv">Start field review ${done.length + 1}</button>`}
     </div>
     ${!rv && state.starting && state.starting.code === cur.code ? renderStartPanel(cur, done) : ""}
-    ${rv ? renderUnitsStrip(rv, true) : ""}
+    ${rv && state.confirmFinish === rv.id ? `<section class="finishask"><div class="fq"><span class="n">1</span><div><h3>Which units did you walk?</h3><p>Before ${esc(rv.title.toLowerCase())} is finished. Ticked from where you recorded deficiencies; add the ones you walked without finding anything.</p></div></div>${renderUnitsStrip(rv, true, "Walked in this review")}<div class="fq"><span class="n">2</span><div><h3>Finish and package</h3><p>The list is frozen for the contractor and the covering message is drafted. ${(rv.units || []).length ? `${(rv.units || []).length} unit${(rv.units || []).length === 1 ? " goes" : "s go"} on the report as walked.` : "No units marked yet."}</p></div><span class="acts"><button class="btn" id="finishNo">Not yet</button><button class="btn primary" id="finishGo">Finish ${esc(rv.title.toLowerCase())}</button></span></div></section>` : rv ? renderUnitsStrip(rv, true) : ""}
     ${rv ? "" : renderBrief(cur)}
     ${STAGES_ON ? renderCoverage(cur) + renderUnitLog(cur) : ""}
     ${(() => { const show = state.finishing ? null : state.openReview ? done.find(x => x.id === state.openReview) : (!rv && done.length ? done[done.length - 1] : null); return show ? renderHandoff(show) : ""; })()}
@@ -1550,7 +1565,9 @@ function renderField() {
   $("#tab").querySelectorAll("tr.row[data-id]").forEach(r => r.onclick = () => location.hash = pHash(slug, "/item/" + encodeURIComponent(r.dataset.id)));
   $("#tab").querySelectorAll("tr.row[data-rv]").forEach(r => r.onclick = () => { state.openReview = r.dataset.rv; renderField(); window.scrollTo({ top: 0, behavior: "smooth" }); });
   const st = $("#startRv"); if (st) st.onclick = () => { if (!STAGES_ON) return startReview(cur.code, ""); state.starting = { code: cur.code, stage: "", other: false }; renderField(); };
-  const fi = $("#finishRv"); if (fi) fi.onclick = () => finishReview(rv);
+  const fi = $("#finishRv"); if (fi) fi.onclick = () => { if (!hasUnits()) return finishReview(rv); state.confirmFinish = rv.id; renderField(); const ask = $("#tab").querySelector(".finishask"); if (ask) ask.scrollIntoView({ behavior: "smooth", block: "center" }); };
+  const fg = $("#finishGo"); if (fg) fg.onclick = () => { state.confirmFinish = null; finishReview(rv); };
+  const fn = $("#finishNo"); if (fn) fn.onclick = () => { state.confirmFinish = null; renderField(); };
   if (!rv) wireBrief(cur); wireStart(cur); wireUnitsStrip(); if (STAGES_ON) wireCoverage(cur);
   const si = $("#shotIn"); if (si) si.onchange = () => { const f = si.files[0]; if (!f) return; beginShot(cur.code, f); };
   if (shot && shot.disc === cur.code) wireWhere(cur, rv);
@@ -1902,11 +1919,12 @@ function renderByUnit(items) {
   if (keys.length === 1 && keys[0] === "") return rows(items);
   return keys.map(k => `<div class="ugrp"><h4>${esc(k || "Site and general")}<small>${esc(k ? where[k] || "" : "no unit")}${k && where[k] ? " · " : ""}${groups[k].length}</small></h4>${rows(groups[k])}</div>`).join("");
 }
-function renderUnitsStrip(rv, editable) {
+function hasUnits() { return (state.p.units || []).some(b => b.units.length); }
+function renderUnitsStrip(rv, editable, head) {
   const blds = state.p.units || []; if (!blds.some(b => b.units.length)) return "";
   const counts = {}; findingsIn(rv.id).forEach(d => { const k = shortUnit(d.unit); if (k) counts[k] = (counts[k] || 0) + 1; });
   const stages = stagesFor(rv.discipline), units = rv.units || [];
-  return `<section class="ustrip" data-rv="${esc(rv.id)}"><div class="bh"><h3>Units walked${rv.stage ? ` · ${esc(rv.stage)}` : ""}</h3><span>${rv.units_edited ? "As you set it." : units.length ? "Read from where the deficiencies were recorded." : "Nothing recorded yet."}${editable ? " Tap a unit to mark it walked, or not." : ""}</span>${rv.units_edited && editable ? `<button class="lnk" data-ureset>Back to what the deficiencies say</button>` : ""}</div>
+  return `<section class="ustrip" data-rv="${esc(rv.id)}"><div class="bh"><h3>${head ? esc(head) : `Units walked${rv.stage ? ` · ${esc(rv.stage)}` : ""}`}</h3><span>${rv.units_edited ? "As you set it." : units.length ? "Ticked from where you recorded deficiencies." : "Nothing recorded yet."}${editable ? " Tap a unit to mark it walked, or not." : ""}</span>${rv.units_edited && editable ? `<button class="lnk" data-ureset>Back to what the deficiencies say</button>` : ""}</div>
     ${STAGES_ON && !rv.stage && editable ? `<div class="setstage"><span>Which walk is this?</span><div class="chips small">${stages.map(x => `<button class="chip" data-setstage="${esc(x)}">${esc(x)}</button>`).join("")}</div></div>` : ""}
     <div class="ublds">${blds.map(b => `<div class="ubld"><b>${esc(b.name)}</b><div class="us">${b.units.map(u => { const on = units.includes(u), n = counts[shortUnit(u)] || 0; return `<button class="u ${on ? "on" : ""}" data-unit="${esc(u)}" ${editable ? "" : "disabled"} title="${esc(u)}">${esc(shortUnit(u))}${n ? `<i>${n}</i>` : ""}</button>`; }).join("")}</div></div>`).join("")}</div></section>`;
 }
