@@ -18,6 +18,7 @@ import re
 import subprocess
 import sys
 import traceback
+from datetime import datetime, timezone
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -515,6 +516,7 @@ def continue_project_run(store: Store, run_id: str, settings: Settings = SETTING
         for k, v in json.loads(j.get("usage_json") or "{}").items():
             usage[k] = usage.get(k, 0) + int(v)
     store.finish_run(run_id, "failed" if failed else "done", usage)
+    _file_the_folder(store, project_id, settings, progress)
     out_dir = settings.data_dir / "projects" / prj["slug"]
     out_dir.mkdir(parents=True, exist_ok=True)
     view = project_view(store, project_id)
@@ -523,6 +525,33 @@ def continue_project_run(store: Store, run_id: str, settings: Settings = SETTING
                                "usage": usage, "json": str(out_dir / "project.json")})
     return {"run_id": run_id, "project_id": project_id, "status": "failed" if failed else "done",
             "failed_jobs": [j["id"] for j in failed], "usage": usage}
+
+
+def _file_the_folder(store: Store, project_id: str, settings: Settings, progress: Progress) -> None:
+    """The last step of an import: one call over the whole folder files the letters and forms into the building and
+    discipline folders and lists what is still missing, so a new project opens already arranged. A failure here is
+    recorded and the import still counts as done; the Documents tab's "Check the folder" button does the same thing."""
+    from . import documents as documents_mod  # local import: documents.py does not import this module
+
+    view = project_view(store, project_id)
+    if not view or not view["sheets"]:
+        return
+    run_id = store.create_run(project_id, "", settings.model_id, kind="documents")
+    progress("job_start", {"job_id": run_id, "kind": "documents", "label": "the folder", "attempt": 1})
+    try:
+        out = documents_mod.review_documents(store, project_id, view, settings=settings)
+    except Exception as e:  # noqa: BLE001 - the import is not failed by this step
+        err = f"{type(e).__name__}: {e}"
+        log.error("folder check failed: %s\n%s", err, traceback.format_exc())
+        store.finish_run(run_id, "failed", {"error": err[:1000]})
+        progress("job_failed", {"job_id": run_id, "kind": "documents", "label": "the folder", "error": err})
+        return
+    store.finish_run(run_id, "done", out["usage"])
+    store.set_docs_review(project_id, {**out, "run_id": run_id, "model_id": settings.model_id,
+                                       "at": datetime.now(timezone.utc).isoformat(timespec="seconds")})
+    documents_mod.record_placements(store, project_id, out.get("placed") or [])
+    progress("job_done", {"job_id": run_id, "kind": "documents", "label": "the folder", "usage": out["usage"],
+                          "placed": len(out.get("placed") or []), "missing": len(out.get("missing") or [])})
 
 
 # --- read model --------------------------------------------------------------

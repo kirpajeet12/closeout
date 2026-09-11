@@ -1943,8 +1943,8 @@ function follow(runId, onDone) {
       case "project_scanned": state.run.text = `Found ${d.documents} documents. Rendering the current sheets…`; break;
       case "sheet_rendered": state.run.text = `Rendering ${d.discipline} page ${d.page} of ${d.of}…`; break;
       case "jobs_created": state.run.total = d.match_jobs || d.sheet_jobs || 0; state.run.done = 0; state.run.text = `Reading ${state.run.total} ${d.sheet_jobs ? "sheets" : "files"}…`; break;
-      case "job_start": if (d.kind === "draft") state.run.text = `Drafting the message for ${d.item_id}…`; else if (d.kind === "project_summary") state.run.text = "Summarising the project…"; else state.run.text = `Reading ${d.label || d.filename}…`; break;
-      case "job_done": if (d.kind !== "draft" && d.kind !== "project_summary") state.run.done++; break;
+      case "job_start": if (d.kind === "draft") state.run.text = `Drafting the message for ${d.item_id}…`; else if (d.kind === "project_summary") state.run.text = "Summarising the project…"; else if (d.kind === "documents") state.run.text = "Filing the folder by building and discipline…"; else state.run.text = `Reading ${d.label || d.filename}…`; break;
+      case "job_done": if (d.kind !== "draft" && d.kind !== "project_summary" && d.kind !== "documents") state.run.done++; break;
       case "job_failed": state.run.text = `Could not read ${d.label || d.filename || d.item_id}: ${d.error}`; break;
       case "completeness": state.run.text = "Checking what each item still needs…"; break;
       case "packet": case "project_ready": case "run_error":
