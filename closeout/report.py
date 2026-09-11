@@ -11,7 +11,7 @@ import re
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
-from . import revisions
+from . import coverage, revisions
 from .review import DISCIPLINES
 from .store import Store
 
@@ -67,11 +67,22 @@ def review_report(store: Store, project_id: str, review_id: str, office: str = "
         counts[i["status"]] = counts.get(i["status"], 0) + 1
     walked = rv["started_at"]
     stamp = (rv.get("finished_at") or walked or "")[:10].replace("-", "")
+    rv = coverage.decorate_reviews(store, prj, [rv])[0]
+    per_unit = {}
+    for i in items:
+        key = coverage.short_unit(i["unit"]) if i["unit"] else ""
+        per_unit[key] = per_unit.get(key, 0) + 1
+    units_walked = [{"key": b["key"], "name": b["name"],
+                     "units": [{"label": u, "short": coverage.short_unit(u), "walked": u in rv["units"], "items": per_unit.get(coverage.short_unit(u), 0)} for u in b["units"]]}
+                    for b in coverage.buildings(prj)]
     return {
         "project": {"name": prj.get("name", ""), "slug": slug, "type": (prj.get("model") or {}).get("building_type", "")},
         "review": {"id": review_id, "title": rv["title"], "discipline": rv["discipline"], "sequence": rv["sequence"],
                    "discipline_name": DISCIPLINES.get(rv["discipline"], rv["discipline"]), "status": rv["status"],
-                   "started_at": walked, "finished_at": rv.get("finished_at")},
+                   "started_at": walked, "finished_at": rv.get("finished_at"), "stage": rv.get("stage") or ""},
+        "units_walked": units_walked, "units_edited": rv["units_edited"],
+        "walked": [coverage.short_unit(u) for u in rv["units"]],
+        "not_walked": [coverage.short_unit(u) for b in units_walked for u in [x["label"] for x in b["units"] if not x["walked"]]],
         "office": office, "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "name": f"FieldReview_{_safe(prj.get('name') or slug)}_{stamp}_{rv['discipline']}{rv['sequence']}",
         "drawings": drawings, "current_set": current,
@@ -85,11 +96,12 @@ def report_html(data: dict) -> str:
     e = html.escape
     rv, pr = data["review"], data["project"]
     live = rv["status"] != "finished"
-    meta = [("Discipline", rv["discipline_name"]), ("Review", rv["title"]), ("Walked", _day(rv["started_at"])),
+    meta = [("Discipline", rv["discipline_name"]), ("Review", rv["title"] + (" · " + rv["stage"] if rv.get("stage") else "")), ("Walked", _day(rv["started_at"])),
             ("Finished", _day(rv["finished_at"]) if rv["finished_at"] else "In progress"),
             ("Drawings reviewed", f"{data['current_set']['file']} · issued {data['current_set']['dated'] or 'undated'}" if data["current_set"] else "No current set on file"),
             ("Report date", _day(data["generated_at"]))]
     cards = []
+    groups: list[tuple[str, list[str]]] = []
     for i in data["items"]:
         where = " · ".join(x for x in (i["unit"], i["level"], i["space"]) if x) or i["location"]
         pics = ""
@@ -106,9 +118,19 @@ def report_html(data: dict) -> str:
   {pics}
   <dl><dt>Where</dt><dd>{e(i["location"])}</dd><dt>To close</dt><dd>{e(i["evidence_required"])}</dd>{("<dt>Note</dt><dd>" + e(i["note"]) + "</dd>") if i["note"] else ""}{("<dt>Decision</dt><dd>" + e(i["status"]) + (" · " + e(i["status_note"]) if i["status_note"] else "") + (" · " + _day(i["status_at"]) if i["status_at"] else "") + "</dd>") if i["status"] != OPEN else ""}</dl>
 </article>''')
+        gkey = i["unit"] or ""
+        grp = next((g for g in groups if g[0] == gkey), None)
+        if grp is None:
+            grp = (gkey, [])
+            groups.append(grp)
+        grp[1].append(cards[-1])
+    groups.sort(key=lambda g: g[0] == "")            # named units first, site-wide items last; otherwise the order the units were met
+    grouped = "".join(f'<h2 class="unit">{e(g or "Site and general")}</h2>{"".join(cs)}' for g, cs in groups) if len(groups) > 1 or (groups and groups[0][0]) else "".join(cards)
     n = data["count"]
     summary = [f'{n} deficienc{"y" if n == 1 else "ies"}', f'{data["photos"]} photo{"" if data["photos"] == 1 else "s"}']
-    if data["units"]:
+    if data.get("walked"):
+        summary.append("Walked " + ", ".join(data["walked"]))
+    elif data["units"]:
         summary.append("Units " + ", ".join(u.replace("Unit ", "") for u in data["units"]))
     if data["sheets_used"]:
         summary.append("Sheets " + ", ".join(data["sheets_used"]))
@@ -128,7 +150,8 @@ def report_html(data: dict) -> str:
     <dl class="meta">{"".join(f"<div><dt>{e(k)}</dt><dd>{e(v)}</dd></div>" for k, v in meta)}</dl>
     <p class="sum">{" · ".join(e(s) for s in summary)}</p>
   </header>
-  <section class="items">{"".join(cards) if cards else '<p class="none">Nothing was recorded during this walk.</p>'}</section>
+  {_units_section(data)}
+  <section class="items">{grouped if cards else '<p class="none">Nothing was recorded during this walk.</p>'}</section>
   <section class="docs"><h2>Drawings on file for {e(rv["discipline_name"].lower())}</h2>
     {("<table><thead><tr><th>File</th><th>Issued</th><th>Pages</th><th></th></tr></thead><tbody>" + drawings + "</tbody></table>") if drawings else "<p class='none'>No drawings on file for this discipline.</p>"}
   </section>
@@ -164,6 +187,13 @@ h1{margin:0;font-size:34px;letter-spacing:-.02em;line-height:1.05}h1 .tag{displa
 .pics{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:16px 0 4px}.pics figure{margin:0}.pics img{width:100%;height:240px;object-fit:cover;border-radius:10px;background:var(--wash);border:1px solid var(--line)}
 figcaption{font-size:12px;color:var(--mute);margin-top:6px}
 .item dl{display:grid;grid-template-columns:auto 1fr;gap:6px 16px;margin:14px 0 0;font-size:14px}.item dt{color:var(--mute);white-space:nowrap}.item dd{margin:0}
+.units{margin:0 0 26px;padding:18px 20px;border:1px solid var(--line);border-radius:14px;background:var(--wash);break-inside:avoid;page-break-inside:avoid}
+.units h2{font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute);margin:0 0 12px}
+.bld{display:grid;grid-template-columns:150px 1fr;gap:10px;align-items:start;padding:6px 0}.bld b{font-size:13px;color:var(--ink2);font-weight:600;padding-top:5px}
+.us{display:flex;flex-wrap:wrap;gap:6px}.u{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:999px;border:1px dashed var(--mute);color:var(--mute);font-size:13px;background:#fff}
+.u.on{border:1.5px solid var(--ink);color:var(--ink);font-weight:600}.u i{font-style:normal;font-size:11px;background:var(--ink);color:#fff;border-radius:999px;padding:1px 6px}
+.uline{margin:12px 0 0;font-size:13px;color:var(--ink2)}.uline small{color:var(--mute)}
+h2.unit{font-size:15px;margin:10px 0 -6px;padding:0 2px;color:var(--ink2);letter-spacing:.01em}
 .docs{margin-top:36px}.docs h2,.sign h2{font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute);margin:0 0 10px}
 table{width:100%;border-collapse:collapse;font-size:14px}td:nth-child(2),td:nth-child(3),td:nth-child(4){white-space:nowrap}th{text-align:left;font-weight:600;color:var(--ink2);border-bottom:1px solid var(--line);padding:6px 8px 6px 0}td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line);overflow-wrap:anywhere}
 .none{color:var(--mute)}
@@ -176,6 +206,22 @@ footer{display:flex;justify-content:space-between;gap:12px;margin-top:16px;paddi
 @media print{body{background:#fff}.bar{display:none}main{max-width:none;margin:0;padding:0;box-shadow:none}.pics img{height:200px}}
 @media (max-width:720px){main{padding:28px 20px;margin:0}.meta{grid-template-columns:1fr 1fr}.pics{grid-template-columns:1fr}.sign{grid-template-columns:1fr 1fr}.bar{padding:10px 14px}.bar span{display:none}}
 """
+
+
+def _units_section(data: dict) -> str:
+    """Which units this walk covered, building by building. Read from the deficiencies unless the reviewer edited it."""
+    e = html.escape
+    blds = data.get("units_walked") or []
+    if not any(b["units"] for b in blds):
+        return ""
+    rows = []
+    for b in blds:
+        chips = "".join(f'<span class="u {"on" if u["walked"] else ""}">{e(u["short"])}{(f"<i>{u["items"]}</i>") if u["items"] else ""}</span>' for u in b["units"])
+        rows.append(f'<div class="bld"><b>{e(b["name"])}</b><div class="us">{chips}</div></div>')
+    walked, not_walked = data.get("walked") or [], data.get("not_walked") or []
+    line = (f'Walked: {", ".join(walked)}.' if walked else "No unit recorded as walked.") + (f' Not this time: {", ".join(not_walked)}.' if not_walked else " Every unit covered.")
+    src = "As edited by the reviewer." if data.get("units_edited") else "Read from where the deficiencies were recorded; the reviewer can change it on the Field tab."
+    return f'<section class="units"><h2>Units walked{(" · " + e(data["review"]["stage"])) if data["review"].get("stage") else ""}</h2>{"".join(rows)}<p class="uline">{e(line)} <small>{e(src)}</small></p></section>'
 
 
 def _safe(s: str) -> str:

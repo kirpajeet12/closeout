@@ -319,6 +319,41 @@
   .brief .bt[data-open] { cursor: pointer; } .brief .bt[data-open]:hover { border-color: var(--ink); }
   .brief .bd { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
   .brief .bd .lead, .brief .bd .who { margin: 0 0 10px; font-size: 13.5px; color: var(--ink-2); } .brief .bd .who { margin: 10px 0 0; }
+  .stagepick, .ustrip, .cov, .ulog { margin-top: 18px; border-radius: 18px; background: var(--card); border: 1px solid var(--line); padding: 16px 18px 18px; }
+  .handoff .pk .ustrip { margin: 4px 0 12px; padding: 12px 14px 14px; background: var(--paper); }
+  .stagepick .bh, .ustrip .bh, .cov .bh, .ulog .bh { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+  .stagepick .bh h3, .ustrip .bh h3, .cov .bh h3, .ulog .bh h3 { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: .14em; color: var(--mute); font-weight: 600; }
+  .stagepick .bh > span, .ustrip .bh > span, .cov .bh > span, .ulog .bh > span { font-size: 13px; color: var(--mute); }
+  .lnk { border: 0; background: none; color: var(--link); font: inherit; font-size: 13px; padding: 0; cursor: pointer; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { border: 1.5px solid var(--line-2); background: var(--paper); border-radius: 14px; padding: 9px 16px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; display: inline-flex; flex-direction: column; align-items: flex-start; gap: 1px; color: var(--ink); text-align: left; }
+  .chip small { font-size: 11px; font-weight: 500; color: var(--mute); letter-spacing: .02em; }
+  .chip.on { border-color: var(--ink); background: var(--ink); color: #fff; } .chip.on small { color: rgba(255,255,255,.72); }
+  .chip.done:not(.on) { border-color: var(--ready); } .chip.done:not(.on) small { color: var(--ready); } .chip.part:not(.on) { border-color: var(--needs); } .chip.part:not(.on) small { color: var(--needs); }
+  .chips.small .chip { padding: 6px 12px; font-size: 13px; border-radius: 999px; }
+  .stagepick input, .stedit textarea { width: 100%; margin-top: 12px; font: inherit; font-size: 15px; border: 1px solid var(--line-2); border-radius: 10px; padding: 10px 12px; background: #fff; }
+  .stedit { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); } .stedit label { display: block; font-size: 13px; color: var(--mute); } .stedit textarea { min-height: 120px; resize: vertical; line-height: 1.5; margin-top: 8px; }
+  .stagepick .acts, .stedit .acts { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 14px; }
+  .setstage { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: -2px 0 14px; font-size: 13px; color: var(--needs); font-weight: 600; }
+  .ublds { display: flex; flex-direction: column; gap: 8px; }
+  .ubld { display: grid; grid-template-columns: 150px 1fr; gap: 10px; align-items: start; } .ubld b { font-size: 13px; color: var(--ink-2); padding-top: 7px; }
+  .us { display: flex; flex-wrap: wrap; gap: 6px; }
+  .u { display: inline-flex; align-items: center; gap: 6px; padding: 7px 13px; border-radius: 999px; border: 1.5px dashed var(--line-2); background: var(--paper); color: var(--mute); font: inherit; font-size: 13.5px; cursor: pointer; }
+  .u.on { border-style: solid; border-color: var(--ink); color: var(--ink); font-weight: 600; background: #fff; }
+  .u i { font-style: normal; font-size: 11px; background: var(--ink); color: #fff; border-radius: 999px; padding: 1px 6px; } .u:disabled { cursor: default; }
+  .covwrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .cov table { border-collapse: separate; border-spacing: 0; width: 100%; font-size: 13px; }
+  .cov thead th { text-align: left; padding: 6px 10px 8px; vertical-align: bottom; border-bottom: 1px solid var(--line); font-weight: 600; }
+  .cov thead th span { display: block; } .cov thead th small { display: block; font-weight: 500; color: var(--mute); font-size: 11px; }
+  .cov thead th.done span { color: var(--ready); } .cov thead th.part span { color: var(--needs); }
+  .cov tr.bld td { padding: 14px 10px 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--mute); font-weight: 600; border: 0; }
+  .cov th.unit { text-align: left; padding: 8px 10px; font-weight: 600; cursor: pointer; white-space: nowrap; border-bottom: 1px solid var(--line); } .cov th.unit:hover span { text-decoration: underline; }
+  .cov th.unit i { font-style: normal; font-weight: 500; font-size: 11px; color: var(--mute); margin-left: 8px; } .cov th.unit i.open { color: var(--needs); }
+  .cov td { padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; min-width: 130px; }
+  .cov td.no { color: var(--line-2); text-align: center; } .cov td.yes b { color: var(--ready); } .cov td.now b { color: var(--hot); }
+  .cov td small { display: block; color: var(--mute); font-size: 11.5px; } .cov .note { margin: 10px 0 0; font-size: 13px; color: var(--mute); }
+  .ulog .bh .x { margin-left: auto; border: 0; background: none; color: var(--mute); font-size: 13px; padding: 0; cursor: pointer; }
+  @media (max-width: 600px) { .ubld { grid-template-columns: 1fr; gap: 4px; } }
   .brief .chg { display: grid; grid-template-columns: 64px 1fr; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line); }
   .brief .chg:first-of-type { border-top: 0; } .brief .chg > b { font-size: 14px; } .brief .chg .t { font-size: 14px; font-weight: 600; } .brief .chg em { color: var(--mute); font-style: normal; font-weight: 400; font-size: 13px; }
   .brief .chg ul { margin: 4px 0 0; padding-left: 18px; font-size: 13.5px; color: var(--ink-2); } .brief .chg small, .brief .bd > small { display: block; margin-top: 4px; font-size: 12px; color: var(--mute); }
@@ -640,7 +675,7 @@ const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt
 const when = s => { const d = new Date(s); return isNaN(d) ? String(s ?? "") : d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }); };
 const fileUrl = (id, page) => `/api/evidence/${id}/file` + (page ? `#page=${page}` : "");
 const isImg = name => /\.(jpe?g|png|heic|heif|webp)$/i.test(name || "");
-const state = { home: null, p: null, slug: null, es: null, run: { kind: "idle", text: "", done: 0, total: 0 }, fieldDisc: null, viewer: null, shot: null, openReview: null, finishing: null, drafting: null, mapping: null, docsAsking: false, filters: { bld: "", disc: "", rv: "" }, folder: [], pinMode: "", brief: {}, briefOpen: {} };
+const state = { home: null, p: null, slug: null, es: null, run: { kind: "idle", text: "", done: 0, total: 0 }, fieldDisc: null, viewer: null, shot: null, openReview: null, finishing: null, drafting: null, mapping: null, docsAsking: false, filters: { bld: "", disc: "", rv: "" }, folder: [], pinMode: "", brief: {}, briefOpen: {}, starting: null, cov: {}, unitLog: null, stagesEdit: null };
 
 function toast(msg, err) { const t = $("#toast"); t.textContent = msg; t.className = "toast show" + (err ? " err" : ""); setTimeout(() => t.className = "toast", 3200); }
 function route() {
@@ -684,7 +719,7 @@ async function load() {
   } else {
     const res = await fetch(pUrl(r.slug));
     if (!res.ok) { state.p = null; state.slug = r.slug; render(); return; }
-    state.p = await res.json(); state.slug = r.slug;
+    state.p = await res.json(); state.slug = r.slug; state.cov = {};
     if (state.p.active_run_id && !state.es) follow(state.p.active_run_id);
   }
   render();
@@ -861,7 +896,7 @@ function renderList() {
     ${all.length ? `<div class="filt">
       <select id="fBld" class="${f.bld ? "on" : ""}"><option value="">Every building</option>${blds.map(b => `<option value="${esc(b.key)}" ${f.bld === b.key ? "selected" : ""}>${esc(b.name)}</option>`).join("")}</select>
       <select id="fDisc" class="${f.disc ? "on" : ""}"><option value="">Every discipline</option>${codes.map(c => `<option value="${esc(c)}" ${f.disc === c ? "selected" : ""}>${esc(DISC_NAMES[c] || c)}</option>`).join("")}</select>
-      <select id="fRv" class="${f.rv ? "on" : ""}"><option value="">Every field review</option>${p.reviews.map(r => `<option value="${esc(r.id)}" ${f.rv === r.id ? "selected" : ""}>${esc(r.discipline)} · ${esc(r.title)}${r.status === "active" ? " · in progress" : ""}</option>`).join("")}</select>
+      <select id="fRv" class="${f.rv ? "on" : ""}"><option value="">Every field review</option>${p.reviews.filter(r => reviewFits(r, f)).map(r => `<option value="${esc(r.id)}" ${f.rv === r.id ? "selected" : ""}>${esc(r.discipline)} · ${esc(r.title)}${r.status === "active" ? " · in progress" : ""}</option>`).join("")}</select>
       ${filtering ? `<button class="btn" id="fClear">Clear</button>` : ""}<span class="n">${list.length} of ${all.length}</span></div>` : ""}
     ${list.length ? `<table class="deflist"><thead><tr><th>Item</th><th>Deficiency</th><th>Status</th><th>Your call</th><th></th></tr></thead><tbody>
       ${list.map(i => { const s = status(i); return `<tr class="row" data-id="${esc(i.item.item_id)}">
@@ -879,7 +914,7 @@ function renderList() {
       ${p.packet ? `<span>${p.packet.evidence_index.length} files on record</span>` : ""}
     </footer>`;
   $("#tab").querySelectorAll("tr.row").forEach(r => r.onclick = () => location.hash = pHash(slug, "/item/" + encodeURIComponent(r.dataset.id)));
-  [["fBld", "bld"], ["fDisc", "disc"], ["fRv", "rv"]].forEach(([id, k]) => { const el = $("#" + id); if (el) el.onchange = () => { state.filters[k] = el.value; renderList(); }; });
+  [["fBld", "bld"], ["fDisc", "disc"], ["fRv", "rv"]].forEach(([id, k]) => { const el = $("#" + id); if (el) el.onchange = () => { state.filters[k] = el.value; const rv = p.reviews.find(x => x.id === state.filters.rv); if (rv && !reviewFits(rv, state.filters)) state.filters.rv = ""; renderList(); }; });
   const fc = $("#fClear"); if (fc) fc.onclick = () => { state.filters = { bld: "", disc: "", rv: "" }; renderList(); };
   wireDrop($("#dropReg"), "register", slug);
   renderStatus();
@@ -1476,10 +1511,14 @@ function renderField() {
       <div class="disc ${d.code === cur.code ? "on" : ""}" data-code="${esc(d.code)}"><span class="code">${esc(d.code)}</span><h2>${esc(d.name)}</h2><span class="n">${d.sheets.length} sheet${d.sheets.length === 1 ? "" : "s"} · ${n} deficienc${n === 1 ? "y" : "ies"}</span>
         <div class="rv">${a ? `<span><i class="live"></i><b>${esc(a.title)}</b> in progress</span>` : `<span style="color:var(--mute)">${p.reviews.filter(r => r.discipline === d.code).length ? p.reviews.filter(r => r.discipline === d.code).length + " done" : "Not started"}</span>`}</div></div>`; }).join("")}</div>
     <div class="fr-head">
-      <div><h2>${esc(cur.name)}${rv ? ` · ${esc(rv.title)}` : ""}</h2><p>${rv ? `Started ${esc(when(rv.started_at))} · ${items.length} deficienc${items.length === 1 ? "y" : "ies"} so far. Open a sheet, tap where the problem is, take the photo.` : done.length ? `${done.length} review${done.length === 1 ? "" : "s"} finished. Start the next one to add more deficiencies.` : "Nothing recorded yet for this discipline."}</p></div>
-      ${state.finishing === (rv && rv.id) && rv ? `<div class="thinking"><span class="dot"></span><span>Packaging ${items.length} deficienc${items.length === 1 ? "y" : "ies"} and drafting the message to the contractor…</span></div>` : rv ? `<span class="frbtns"><a class="btn quiet" href="${pUrl(slug, "/reviews/" + encodeURIComponent(rv.id) + "/report")}" target="_blank" rel="noopener">Report so far</a><button class="btn" id="finishRv">Finish ${esc(rv.title.toLowerCase())}</button></span>` : `<button class="btn primary" id="startRv">Start field review ${done.length + 1}</button>`}
+      <div><h2>${esc(cur.name)}${rv ? ` · ${esc(rv.title)}${rv.stage ? ` · ${esc(rv.stage)}` : ""}` : ""}</h2><p>${rv ? `Started ${esc(when(rv.started_at))} · ${items.length} deficienc${items.length === 1 ? "y" : "ies"} so far. Open a sheet, tap where the problem is, take the photo.` : done.length ? `${done.length} review${done.length === 1 ? "" : "s"} finished. Start the next one to add more deficiencies.` : "Nothing recorded yet for this discipline."}</p></div>
+      ${state.finishing === (rv && rv.id) && rv ? `<div class="thinking"><span class="dot"></span><span>Packaging ${items.length} deficienc${items.length === 1 ? "y" : "ies"} and drafting the message to the contractor…</span></div>` : rv ? `<span class="frbtns"><a class="btn quiet" href="${pUrl(slug, "/reviews/" + encodeURIComponent(rv.id) + "/report")}" target="_blank" rel="noopener">Report so far</a><button class="btn" id="finishRv">Finish ${esc(rv.title.toLowerCase())}</button></span>` : state.starting && state.starting.code === cur.code ? "" : `<button class="btn primary" id="startRv">Start field review ${done.length + 1}</button>`}
     </div>
+    ${!rv && state.starting && state.starting.code === cur.code ? renderStartPanel(cur, done) : ""}
+    ${rv ? renderUnitsStrip(rv, true) : ""}
     ${renderBrief(cur)}
+    ${renderCoverage(cur)}
+    ${renderUnitLog(cur)}
     ${(() => { const show = state.finishing ? null : state.openReview ? done.find(x => x.id === state.openReview) : (!rv && done.length ? done[done.length - 1] : null); return show ? renderHandoff(show) : ""; })()}
     ${shot && shot.disc === cur.code && shot.pick ? `<p class="pickhint"><span>Which sheet does this belong on?</span> Tap it; the photo comes with you.</p>` : ""}
     ${renderGalleryGroups(cur)}
@@ -1491,9 +1530,9 @@ function renderField() {
   const mb = $("#mapBtn"); if (mb) mb.onclick = () => mapFloors(JSON.parse(mb.dataset.list).map(id => p.project.sheets.find(x => x.id === id)));
   $("#tab").querySelectorAll("tr.row[data-id]").forEach(r => r.onclick = () => location.hash = pHash(slug, "/item/" + encodeURIComponent(r.dataset.id)));
   $("#tab").querySelectorAll("tr.row[data-rv]").forEach(r => r.onclick = () => { state.openReview = r.dataset.rv; renderField(); window.scrollTo({ top: 0, behavior: "smooth" }); });
-  const st = $("#startRv"); if (st) st.onclick = () => startReview(cur.code);
+  const st = $("#startRv"); if (st) st.onclick = () => { state.starting = { code: cur.code, stage: "", other: false }; renderField(); };
   const fi = $("#finishRv"); if (fi) fi.onclick = () => finishReview(rv);
-  wireBrief(cur);
+  wireBrief(cur); wireStart(cur); wireUnitsStrip(); wireCoverage(cur);
   const si = $("#shotIn"); if (si) si.onchange = () => { const f = si.files[0]; if (!f) return; beginShot(cur.code, f); };
   if (shot && shot.disc === cur.code) wireWhere(cur, rv);
   wireHandoff();
@@ -1578,7 +1617,8 @@ function renderHandoff(r) {
   const items = pkg ? pkg.items : findingsIn(r.id).map(d => ({ item_id: d.item_id, location: d.location, description: d.description, evidence_required: d.evidence_required, sheet: d.sheet, photo: !!d.reference_photo }));
   const photos = items.filter(i => i.photo).length, busy = state.drafting === r.id;
   return `<section class="handoff" data-rv="${esc(r.id)}">
-    <div class="hd"><div><h3>${esc(r.title)} · ${esc(disc)} · finished</h3><p>${esc(when(r.finished_at || r.started_at))} · ${items.length} deficienc${items.length === 1 ? "y" : "ies"} · ${photos} photo${photos === 1 ? "" : "s"} · this is what the contractor gets</p></div><div class="hdbtns"><a class="btn" href="${pUrl(state.slug, "/reviews/" + encodeURIComponent(r.id) + "/report")}" target="_blank" rel="noopener">Open the report</a><button class="x" data-close>close</button></div></div>
+    <div class="hd"><div><h3>${esc(r.title)}${r.stage ? ` · ${esc(r.stage)}` : ""} · ${esc(disc)} · finished</h3><p>${esc(when(r.finished_at || r.started_at))} · ${items.length} deficienc${items.length === 1 ? "y" : "ies"} · ${photos} photo${photos === 1 ? "" : "s"} · this is what the contractor gets</p></div><div class="hdbtns"><a class="btn" href="${pUrl(state.slug, "/reviews/" + encodeURIComponent(r.id) + "/report")}" target="_blank" rel="noopener">Open the report</a><button class="x" data-close>close</button></div></div>
+    <div class="pk">${renderUnitsStrip(r, true)}</div>
     ${items.length ? `<div class="pk">${items.map(i => `<div class="row" data-id="${esc(i.item_id)}"><span class="id">${esc(i.item_id)}</span><div>${esc(i.description)}<small>${esc(i.location)} · sheet ${esc(i.sheet || "?")} · send to close: ${esc(i.evidence_required)}</small></div></div>`).join("")}</div>` : `<div class="pk"><div class="row" style="grid-template-columns:1fr"><span>Nothing was recorded in this review, so there is nothing to send.</span></div></div>`}
     <div class="ms">
       ${busy ? `<div class="thinking"><span class="dot"></span><span>Writing the covering message from these ${items.length} item${items.length === 1 ? "" : "s"}…</span></div>`
@@ -1791,13 +1831,100 @@ async function mapFloors(list) {
   state.mapping = null; toast(`${ok} of ${list.length} plan sheet${list.length === 1 ? "" : "s"} boxed · open one and check the floors`, ok < list.length);
   await load();
 }
-async function startReview(code) {
-  const r = await fetch(pUrl(state.slug, "/reviews"), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ discipline: code }) });
+async function startReview(code, stage) {
+  const r = await fetch(pUrl(state.slug, "/reviews"), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ discipline: code, stage: stage || "" }) });
   const j = await r.json().catch(() => ({}));
   if (!r.ok) { toast(j.detail || "Could not start", true); return null; }
   toast(j.resumed ? `Continuing ${j.review.title}` : `${j.review.title} started`);
   await load();
   return j.review;
+}
+
+/* ---- stages and units: which walks this discipline needs, which units each walk covered. Read, not generated. ---- */
+const shortUnit = s => String(s || "").replace(/\s*\(.*$/, "").trim();
+function stagesFor(code) { return (state.p.stages || {})[code] || ["Rough-in", "Final"]; }
+function reviewFits(r, f) {
+  if (f.disc && r.discipline !== f.disc) return false;
+  if (f.bld && r.units && r.units.length) { const b = (state.p.units || []).find(x => x.key === f.bld); if (b && !r.units.some(u => b.units.includes(u))) return false; }
+  return true;
+}
+function renderStartPanel(cur, done) {
+  const s = state.starting, stages = stagesFor(cur.code), cov = (state.cov[cur.code] || {}).data, st = x => cov ? cov.stage_state.find(y => y.stage === x) : null;
+  const other = s.other || (s.stage && !stages.includes(s.stage));
+  return `<section class="stagepick"><div class="bh"><h3>What are we reviewing today?</h3><span>Pick the walk this review is for. The report and the grid below are filed under it.</span></div>
+    <div class="chips">${stages.map(x => { const k = st(x); return `<button class="chip ${s.stage === x ? "on" : ""} ${k && k.done ? "done" : k && k.started ? "part" : ""}" data-stage="${esc(x)}">${esc(x)}<small>${k && k.done ? "done" : k && k.started ? `${k.units_covered} of ${k.units_total} units so far` : "not started"}</small></button>`; }).join("")}<button class="chip ${other ? "on" : ""}" data-stage="__other">Something else<small>name it</small></button></div>
+    ${other ? `<input id="stageOther" placeholder="Name the walk, e.g. Service entrance" value="${esc(s.stage && !stages.includes(s.stage) ? s.stage : "")}">` : ""}
+    <div class="acts"><button class="btn primary" id="startGo">Start field review ${done.length + 1}${s.stage ? ` · ${esc(s.stage)}` : ""}</button><button class="btn" id="startNo">Not now</button><button class="lnk" id="stagesEdit">${state.stagesEdit === cur.code ? "Close the list" : "Edit the list of walks"}</button></div>
+    ${state.stagesEdit === cur.code ? `<div class="stedit"><label>The walks ${esc(cur.name.toLowerCase())} needs on this project, one per line, in the order they happen</label><textarea id="stagesTa">${esc(stages.join("\n"))}</textarea><div class="acts"><button class="btn primary" id="stagesSave">Save the list</button></div></div>` : ""}
+  </section>`;
+}
+function wireStart(cur) {
+  const s = state.starting; if (!s || s.code !== cur.code) return;
+  $("#tab").querySelectorAll(".stagepick .chip[data-stage]").forEach(c => c.onclick = () => { const v = c.dataset.stage; if (v === "__other") { s.other = true; s.stage = ""; } else { s.other = false; s.stage = v; } renderField(); const o = $("#stageOther"); if (o) o.focus(); });
+  const o = $("#stageOther"); if (o) o.oninput = () => { s.stage = o.value.trim(); };
+  const go = $("#startGo"); if (go) go.onclick = async () => { const stage = o ? o.value.trim() : s.stage; if (!stage) return toast("Pick the walk first, or name one", true); state.starting = null; await startReview(cur.code, stage); };
+  const no = $("#startNo"); if (no) no.onclick = () => { state.starting = null; state.stagesEdit = null; renderField(); };
+  const ed = $("#stagesEdit"); if (ed) ed.onclick = () => { state.stagesEdit = state.stagesEdit === cur.code ? null : cur.code; renderField(); };
+  const sv = $("#stagesSave"); if (sv) sv.onclick = async () => {
+    const list = $("#stagesTa").value.split("\n").map(x => x.trim()).filter(Boolean);
+    const r = await fetch(pUrl(state.slug, "/stages"), { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ discipline: cur.code, stages: list }) });
+    const j = await r.json().catch(() => ({})); if (!r.ok) return toast(j.detail || "Could not save the list", true);
+    state.stagesEdit = null; if (s.stage && !list.includes(s.stage)) s.stage = ""; toast("List saved"); await load();
+  };
+}
+function renderUnitsStrip(rv, editable) {
+  const blds = state.p.units || []; if (!blds.some(b => b.units.length)) return "";
+  const counts = {}; findingsIn(rv.id).forEach(d => { const k = shortUnit(d.unit); if (k) counts[k] = (counts[k] || 0) + 1; });
+  const stages = stagesFor(rv.discipline), units = rv.units || [];
+  return `<section class="ustrip" data-rv="${esc(rv.id)}"><div class="bh"><h3>Units walked${rv.stage ? ` · ${esc(rv.stage)}` : ""}</h3><span>${rv.units_edited ? "As you set it." : units.length ? "Read from where the deficiencies were recorded." : "Nothing recorded yet."}${editable ? " Tap a unit to mark it walked, or not." : ""}</span>${rv.units_edited && editable ? `<button class="lnk" data-ureset>Back to what the deficiencies say</button>` : ""}</div>
+    ${!rv.stage && editable ? `<div class="setstage"><span>Which walk is this?</span><div class="chips small">${stages.map(x => `<button class="chip" data-setstage="${esc(x)}">${esc(x)}</button>`).join("")}</div></div>` : ""}
+    <div class="ublds">${blds.map(b => `<div class="ubld"><b>${esc(b.name)}</b><div class="us">${b.units.map(u => { const on = units.includes(u), n = counts[shortUnit(u)] || 0; return `<button class="u ${on ? "on" : ""}" data-unit="${esc(u)}" ${editable ? "" : "disabled"} title="${esc(u)}">${esc(shortUnit(u))}${n ? `<i>${n}</i>` : ""}</button>`; }).join("")}</div></div>`).join("")}</div></section>`;
+}
+function wireUnitsStrip() {
+  $("#tab").querySelectorAll(".ustrip").forEach(box => {
+    const rv = state.p.reviews.find(x => x.id === box.dataset.rv); if (!rv) return;
+    box.querySelectorAll(".u[data-unit]").forEach(b => b.onclick = () => { const u = b.dataset.unit, units = rv.units || [], list = units.includes(u) ? units.filter(x => x !== u) : [...units, u]; patchReview(rv.id, { units: list }); });
+    box.querySelectorAll("[data-setstage]").forEach(b => b.onclick = () => patchReview(rv.id, { stage: b.dataset.setstage }));
+    const rs = box.querySelector("[data-ureset]"); if (rs) rs.onclick = () => patchReview(rv.id, { units_reset: true });
+  });
+}
+async function patchReview(id, body) {
+  const r = await fetch(pUrl(state.slug, "/reviews/" + encodeURIComponent(id)), { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) return toast(j.detail || "Could not save", true);
+  await load();
+}
+async function loadCoverage(code) {
+  const slug = state.slug, c = state.cov[code]; if (c && (c.loading || (c.data && c.slug === slug))) return;
+  state.cov[code] = { loading: true, slug };
+  try { const r = await fetch(pUrl(slug, `/field/${encodeURIComponent(code)}/coverage`)); if (!r.ok) throw new Error("Could not read the grid"); state.cov[code] = { data: await r.json(), slug }; }
+  catch (e) { state.cov[code] = { error: e.message || "Could not read the grid", slug }; }
+  if (state.p && state.slug === slug && state.fieldDisc === code && location.hash.endsWith("/field")) renderField();
+}
+function renderCoverage(cur) {
+  const c = state.cov[cur.code]; if (!c || c.loading || c.error) return "";
+  const d = c.data; if (!d.buildings.some(b => b.units.length)) return "";
+  const stages = d.stages;
+  const head = d.stage_state.map(x => `<th class="${x.done ? "done" : x.started ? "part" : ""}"><span>${esc(x.stage)}</span><small>${x.done ? "done" : x.started ? `${x.units_covered} of ${x.units_total} units` : "pending"}</small></th>`).join("");
+  const rows = d.buildings.map(b => `<tr class="bld"><td colspan="${stages.length + 1}">${esc(b.name)}</td></tr>` + b.units.map(u => `<tr><th class="unit" data-unit="${esc(u.label)}"><span>${esc(u.short)}</span>${u.open ? `<i class="open">${u.open} open</i>` : u.items ? `<i>${u.items} closed</i>` : ""}</th>${stages.map(x => { const w = u.cells[x] || []; if (!w.length) return `<td class="no">·</td>`; const last = w[w.length - 1]; return `<td class="${last.status === "active" ? "now" : "yes"}"><b>${last.status === "active" ? "Walking now" : "Walked"}</b><small>${esc(last.title.replace("Field review", "Review"))}${last.finished_at ? ` · ${esc(when(last.finished_at))}` : ""}${last.items ? ` · ${last.items} item${last.items === 1 ? "" : "s"}` : ""}${w.length > 1 ? ` · ${w.length} walks` : ""}</small></td>`; }).join("")}</tr>`).join("")).join("");
+  return `<section class="cov"><div class="bh"><h3>Where ${esc(cur.name.toLowerCase())} stands</h3><span>Every unit against every walk. Tap a unit for its log.${d.general_items ? ` ${d.general_items} item${d.general_items === 1 ? "" : "s"} recorded site-wide, in no unit.` : ""}</span></div>
+    <div class="covwrap"><table><thead><tr><th></th>${head}</tr></thead><tbody>${rows}</tbody></table></div>
+    ${d.unstaged.length ? `<p class="note">${d.unstaged.length} walk${d.unstaged.length === 1 ? " has" : "s have"} no stage yet, so ${d.unstaged.length === 1 ? "it does" : "they do"} not show here. Open ${d.unstaged.length === 1 ? "it" : "each"} under earlier reviews to say which.</p>` : ""}</section>`;
+}
+function renderUnitLog(cur) {
+  const ul = state.unitLog; if (!ul || ul.code !== cur.code) return "";
+  const p = state.p, latest = {}; p.decisions.forEach(d => latest[d.item_id] = d);
+  const list = p.register.filter(d => d.discipline === cur.code && shortUnit(d.unit) === shortUnit(ul.unit));
+  const rvs = p.reviews.filter(r => r.discipline === cur.code && (r.units || []).includes(ul.unit));
+  return `<section class="ulog"><div class="bh"><h3>${esc(shortUnit(ul.unit))} · ${esc(cur.name.toLowerCase())}</h3><span>${rvs.length ? `Walked in ${rvs.map(r => `${esc(r.title.toLowerCase())}${r.stage ? ` (${esc(r.stage.toLowerCase()) })` : ""}`).join(", ")}.` : "Not walked yet."}</span><button class="x" data-uclose>close</button></div>
+    ${list.length ? `<table class="findings"><tbody>${list.map(d => { const c = latest[d.item_id], call = c ? CALL[c.decision] : "", r = p.reviews.find(x => x.id === d.review_id); return `<tr class="row" data-id="${esc(d.item_id)}"><td class="id">${esc(d.item_id)}</td><td><div class="what">${esc(d.description)}</div><div class="where">${esc([d.level, d.space].filter(Boolean).join(" · ") || d.location)}${r ? ` · ${esc(r.title.toLowerCase())}` : ""}${d.sheet ? ` · sheet ${esc(d.sheet)}` : ""}</div></td><td class="call">${esc(call || "")}</td><td class="go">›</td></tr>`; }).join("")}</tbody></table>` : `<p class="empty" style="margin:6px 0 0">Nothing recorded in this unit.</p>`}</section>`;
+}
+function wireCoverage(cur) {
+  const c = state.cov[cur.code];
+  if (!c || (!c.loading && c.slug !== state.slug)) loadCoverage(cur.code);
+  $("#tab").querySelectorAll(".cov th.unit[data-unit]").forEach(t => t.onclick = () => { const u = t.dataset.unit; state.unitLog = state.unitLog && state.unitLog.unit === u && state.unitLog.code === cur.code ? null : { code: cur.code, unit: u }; renderField(); const el = $("#tab").querySelector(".ulog"); if (el) el.scrollIntoView({ behavior: "smooth", block: "nearest" }); });
+  const x = $("#tab").querySelector(".ulog [data-uclose]"); if (x) x.onclick = () => { state.unitLog = null; renderField(); };
+  $("#tab").querySelectorAll(".ulog tr.row[data-id]").forEach(r => r.onclick = () => location.hash = pHash(state.slug, "/item/" + encodeURIComponent(r.dataset.id)));
 }
 
 /* ---- sheet viewer: pan, zoom, tap to pin --------------------------------- */

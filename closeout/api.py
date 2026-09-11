@@ -31,6 +31,7 @@ from .ingest import _exif, _heic_to_jpeg
 from .packet import build_packet, packet_markdown
 from . import report as report_mod
 from . import brief as brief_mod
+from . import coverage as coverage_mod
 from .store import Store
 
 log = logging.getLogger("closeout.api")
@@ -84,6 +85,18 @@ class Decision(BaseModel):
 class NewReview(BaseModel):
     discipline: str
     title: str = ""
+    stage: str = ""
+
+
+class ReviewPatch(BaseModel):
+    stage: str | None = None
+    units: list[str] | None = None      # the units walked; [] = none; omit = leave as is
+    units_reset: bool = False           # back to what the deficiencies say
+
+
+class StagesPatch(BaseModel):
+    discipline: str
+    stages: list[str]
 
 
 class SheetView(BaseModel):
@@ -467,7 +480,9 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
                 "runs": runs, "latest_run_id": latest, "active_run_id": active if any(r["id"] == active for r in runs) else None,
                 "packet": build_packet(st, latest) if latest else None, "batches": batches,
                 "messages": st.all_drafts(pid), "decisions": st.decisions(pid), "model_id": settings.model_id,
-                "reviews": st.reviews(pid), "shares": st.shares(pid), "office": settings.office,
+                "reviews": coverage_mod.decorate_reviews(st, prj, st.reviews(pid)), "shares": st.shares(pid), "office": settings.office,
+                "stages": {code: coverage_mod.stages_for(prj, code) for code in sorted({*(prj.get("stages") or {}), *(r["discipline"] for r in st.reviews(pid)), *(d["discipline"] for d in st.documents(pid) if d.get("kind") == "drawing" and d.get("discipline"))})},
+                "units": coverage_mod.buildings(prj),
                 "docs_review": prj.get("docs_review"), "docs_scope": prj.get("docs_scope") or [],
                 "occupancy_docs": [list(row) for row in documents_mod.OCCUPANCY_DOCS],
                 "filings": st.filings(pid), "filing_history": st.filing_history(pid)}
@@ -702,8 +717,50 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
             raise HTTPException(400, f"unknown discipline '{body.discipline}'")
         for r in st.reviews(prj["id"]):
             if r["discipline"] == code and r["status"] == "active":
-                return {"review": r, "resumed": True}
-        return {"review": st.create_review(prj["id"], code, body.title.strip()), "resumed": False}
+                return {"review": coverage_mod.decorate_reviews(st, prj, [r])[0], "resumed": True}
+        r = st.create_review(prj["id"], code, body.title.strip(), stage=body.stage)
+        return {"review": coverage_mod.decorate_reviews(st, prj, [r])[0], "resumed": False}
+
+    @app.patch("/api/projects/{slug}/reviews/{review_id}")
+    def patch_review(slug: str, review_id: str, body: ReviewPatch) -> dict:
+        """The reviewer's own words on the walk: which stage it was, which units were covered."""
+        st = store()
+        prj = _project(st, slug)
+        r = st.review(review_id)
+        if not r or r["project_id"] != prj["id"]:
+            raise HTTPException(404, "no such review")
+        if body.stage is not None:
+            st.set_review_stage(review_id, body.stage[:80])
+        if body.units_reset:
+            st.set_review_units(review_id, None)
+        elif body.units is not None:
+            known = coverage_mod.unit_labels(prj)
+            bad = [u for u in body.units if u not in known]
+            if bad:
+                raise HTTPException(400, f"not a unit of this project: {', '.join(bad[:3])}")
+            st.set_review_units(review_id, [u for u in known if u in body.units])
+        return {"review": coverage_mod.decorate_reviews(st, prj, [st.review(review_id)])[0]}
+
+    @app.patch("/api/projects/{slug}/stages")
+    def patch_stages(slug: str, body: StagesPatch) -> dict:
+        """The office's list of walks for one discipline on this project, in order."""
+        st = store()
+        prj = _project(st, slug)
+        code = body.discipline.strip().upper()
+        if code not in project_mod.DISCIPLINES:
+            raise HTTPException(400, f"unknown discipline '{body.discipline}'")
+        stages = [x.strip()[:60] for x in body.stages if x.strip()]
+        if not stages:
+            raise HTTPException(400, "give at least one stage")
+        st.set_stages(prj["id"], code, stages)
+        return {"discipline": code, "stages": coverage_mod.stages_for(st.project(prj["id"]), code)}
+
+    @app.get("/api/projects/{slug}/field/{disc}/coverage")
+    def field_coverage(slug: str, disc: str) -> dict:
+        """Units × stages for one discipline: which walks covered which unit, what is still pending. Read, not generated."""
+        st = store()
+        prj = _project(st, slug)
+        return coverage_mod.coverage(st, prj, disc.upper())
 
     @app.get("/api/projects/{slug}/plans/todo")
     def plans_todo(slug: str) -> dict:

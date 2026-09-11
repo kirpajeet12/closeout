@@ -270,6 +270,9 @@ class Store:
                                 ("runs", "project_id", "TEXT NOT NULL DEFAULT ''"),
                                 ("decisions", "project_id", "TEXT NOT NULL DEFAULT ''"),
                                 ("reviews", "package_json", "TEXT"),
+                                ("reviews", "stage", "TEXT NOT NULL DEFAULT ''"),
+                                ("reviews", "units_json", "TEXT"),
+                                ("projects", "stages_json", "TEXT"),
                                 ("drafts", "review_id", "TEXT NOT NULL DEFAULT ''"),
                                 ("sheets", "views_json", "TEXT NOT NULL DEFAULT '[]'"),
                                 ("projects", "docs_review_json", "TEXT"),
@@ -365,15 +368,25 @@ class Store:
         self.conn.commit()
 
     # --- field reviews ----------------------------------------------------
-    def create_review(self, project_id: str, discipline: str, title: str = "") -> dict:
+    def create_review(self, project_id: str, discipline: str, title: str = "", stage: str = "") -> dict:
         r = self.conn.execute("SELECT COALESCE(MAX(sequence), 0) AS n FROM reviews WHERE project_id=? AND discipline=?",
                               (project_id, discipline)).fetchone()
         seq = int(r["n"]) + 1
         rid = new_id("rev")
-        self.conn.execute("INSERT INTO reviews(id, project_id, discipline, sequence, title, status, started_at) VALUES(?,?,?,?,?,'active',?)",
-                          (rid, project_id, discipline, seq, title or f"Field review {seq}", now()))
+        self.conn.execute("INSERT INTO reviews(id, project_id, discipline, sequence, title, status, started_at, stage) VALUES(?,?,?,?,?,'active',?,?)",
+                          (rid, project_id, discipline, seq, title or f"Field review {seq}", now(), stage.strip()))
         self.conn.commit()
         return self.review(rid)
+
+    def set_review_stage(self, review_id: str, stage: str) -> None:
+        """What this walk was for (rough-in, final …). Free text; the project's stage list is the usual pick."""
+        self.conn.execute("UPDATE reviews SET stage=? WHERE id=?", (stage.strip(), review_id))
+        self.conn.commit()
+
+    def set_review_units(self, review_id: str, units: list[str] | None) -> None:
+        """The units the reviewer says were walked. None = not edited: the recorded deficiencies decide."""
+        self.conn.execute("UPDATE reviews SET units_json=? WHERE id=?", (json.dumps(list(units)) if units is not None else None, review_id))
+        self.conn.commit()
 
     def review(self, review_id: str) -> dict | None:
         r = self.conn.execute("SELECT * FROM reviews WHERE id=?", (review_id,)).fetchone()
@@ -387,6 +400,9 @@ class Store:
         d = dict(r)
         raw = d.pop("package_json", None)
         d["package"] = json.loads(raw) if raw else None
+        units = d.pop("units_json", None)
+        d["units_set"] = json.loads(units) if units else None
+        d["stage"] = d.get("stage") or ""
         return d
 
     def finish_review(self, review_id: str) -> None:
@@ -732,7 +748,16 @@ class Store:
         d["model"] = json.loads(d.pop("model_json") or "{}")
         d["docs_review"] = json.loads(d.pop("docs_review_json", None) or "null")
         d["docs_scope"] = json.loads(d.pop("docs_scope_json", None) or "[]")
+        d["stages"] = json.loads(d.pop("stages_json", None) or "{}")
         return d
+
+    def set_stages(self, project_id: str, discipline: str, stages: list[str]) -> None:
+        """The office's list of walks for one discipline on this project, in order. Replaces the default list."""
+        r = self.conn.execute("SELECT stages_json FROM projects WHERE id=?", (project_id,)).fetchone()
+        cur = json.loads((r["stages_json"] if r else None) or "{}")
+        cur[discipline] = [s.strip() for s in stages if s.strip()]
+        self.conn.execute("UPDATE projects SET stages_json=?, updated_at=? WHERE id=?", (json.dumps(cur), now(), project_id))
+        self.conn.commit()
 
     def set_docs_scope(self, project_id: str, names: list[str]) -> None:
         """Checklist rows the engineer marked not in scope for this project (by exact name)."""
