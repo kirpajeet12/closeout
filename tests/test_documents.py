@@ -37,8 +37,8 @@ class FakeDocsAgent:
 
 @pytest.fixture
 def client(tmp_path, monkeypatch):
-    monkeypatch.setattr(pipeline, "make_model", lambda settings, fast=False: None)
-    monkeypatch.setattr(documents, "make_model", lambda settings, fast=False: None)
+    monkeypatch.setattr(pipeline, "make_model", lambda settings, fast=False, max_tokens=None: None)
+    monkeypatch.setattr(documents, "make_model", lambda settings, fast=False, max_tokens=None: None)
     monkeypatch.setattr(documents, "Agent", FakeDocsAgent)
     FakeDocsAgent.calls, FakeDocsAgent.prompts = [], []
     settings = Settings(data_dir=tmp_path / "data", model_id="fake-model")

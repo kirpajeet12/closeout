@@ -382,7 +382,7 @@ def review_documents(store: Store, project_id: str, view: dict, already: list[st
     buildings = {b["name"] for b in tree["buildings"]}
     files = {d["rel_path"].split("/")[-1] for d in view.get("documents") or []}
     ctx = DocsContext()
-    agent = Agent(model=model or make_model(settings), tools=make_docs_tools(ctx, disciplines, buildings, files, already),
+    agent = Agent(model=model or make_model(settings, max_tokens=8000), tools=make_docs_tools(ctx, disciplines, buildings, files, already),
                   system_prompt=DOCS_SYSTEM, callback_handler=None)
     result = agent([{"text": folder_text(view, tree, already)},
                     {"text": "Record each gap with record_missing, confirm any checklist rows with record_on_file, then call record_summary once."}])

@@ -33,9 +33,11 @@ class Settings:
 SETTINGS = Settings()
 
 
-def make_model(settings: Settings = SETTINGS, fast: bool = False):
-    """Return a Strands model object for the configured provider."""
+def make_model(settings: Settings = SETTINGS, fast: bool = False, max_tokens: int | None = None):
+    """Return a Strands model object for the configured provider. max_tokens raises the answer length for calls that
+    record many things in one turn (the folder check); the default suits a sheet reading."""
     model_id = settings.fast_model_id if fast else settings.model_id
+    limit = max(settings.max_tokens, max_tokens or 0)
     if settings.provider == "anthropic":
         from strands.models.anthropic import AnthropicModel
 
@@ -44,9 +46,9 @@ def make_model(settings: Settings = SETTINGS, fast: bool = False):
             raise RuntimeError("CLOSEOUT_MODEL_PROVIDER=anthropic but ANTHROPIC_API_KEY is not set")
         # Anthropic ids are not the Bedrock ids; allow override, default to Sonnet 4.6 direct.
         direct_id = os.environ.get("CLOSEOUT_ANTHROPIC_MODEL_ID", "claude-sonnet-4-6")
-        return AnthropicModel(client_args={"api_key": key}, model_id=direct_id, max_tokens=settings.max_tokens)
+        return AnthropicModel(client_args={"api_key": key}, model_id=direct_id, max_tokens=limit)
     if settings.provider == "bedrock":
         from strands.models import BedrockModel
 
-        return BedrockModel(model_id=model_id, region_name=settings.region, max_tokens=settings.max_tokens)
+        return BedrockModel(model_id=model_id, region_name=settings.region, max_tokens=limit)
     raise RuntimeError(f"Unknown CLOSEOUT_MODEL_PROVIDER: {settings.provider}")
