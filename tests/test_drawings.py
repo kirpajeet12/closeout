@@ -121,3 +121,17 @@ def test_half_done_review_continues_and_a_sheet_that_read_nothing_is_marked_fail
     assert client.post(f"/api/projects/{slug}/drawings/reviews/drw_nope/finish").status_code == 404
     assert client.delete(f"/api/projects/{slug}/drawings/reviews/{rv['id']}").json() == {"ok": True}
     assert client.get(f"/api/projects/{slug}").json()["drawings_reviews"] == []
+
+
+def test_usage_totals_every_run_by_its_model(client, tmp_path):
+    slug = _seed(client, tmp_path)
+    assert client.get("/api/usage").json()["total_usd"] == 0
+    rv = client.post(f"/api/projects/{slug}/drawings/reviews", json={"discipline": "EL"}).json()["review"]
+    FakeDrawingsAgent.calls = [{"tool": "record_sheet_summary", "summary": "Site plan."}]
+    client.post(f"/api/projects/{slug}/drawings/reviews/{rv['id']}/sheets/{rv['sheets'][0]['sheet_id']}")
+    client.post(f"/api/projects/{slug}/drawings/reviews/{rv['id']}/finish")
+    u = client.get("/api/usage").json()
+    assert u["runs"] == 1 and u["total_usd"] == pytest.approx(0.04, abs=0.01)
+    assert u["by_kind"]["drawings"]["name"] == "Drawings readings" and u["by_kind"]["drawings"]["runs"] == 1
+    assert u["recent"][0]["kind"] == "drawings" and u["recent"][0]["usd"] == pytest.approx(0.042, abs=0.001)
+    assert client.get("/api/projects").json()["usage"]["runs"] == 1

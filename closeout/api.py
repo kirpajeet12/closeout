@@ -25,7 +25,7 @@ from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse, Response, StreamingResponse
 from pydantic import BaseModel
 
-from . import ask as ask_mod, documents as documents_mod, drawings as drawings_mod, pipeline, plans as plans_mod, project as project_mod, review as review_mod, revisions as revisions_mod
+from . import ask as ask_mod, documents as documents_mod, drawings as drawings_mod, usage as usage_mod, pipeline, plans as plans_mod, project as project_mod, review as review_mod, revisions as revisions_mod
 from .config import SETTINGS, Settings
 from .ingest import _exif, _heic_to_jpeg
 from .packet import build_packet, packet_markdown
@@ -405,7 +405,12 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         with lock:
             active = state["active"]
         return {"model_id": settings.model_id, "active_run_id": active,
-                "projects": [project_card(st, p, active) for p in st.projects()]}
+                "projects": [project_card(st, p, active) for p in st.projects()], "usage": usage_mod.summary(st)}
+
+    @app.get("/api/usage")
+    def usage() -> dict:
+        """What the reading and answering has cost so far, run by run, for the office's home page."""
+        return usage_mod.summary(store())
 
     @app.post("/api/projects/blank")
     def new_project(body: NewProject) -> dict:
