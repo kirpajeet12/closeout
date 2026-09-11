@@ -25,7 +25,7 @@ from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse, Response, StreamingResponse
 from pydantic import BaseModel
 
-from . import ask as ask_mod, documents as documents_mod, pipeline, plans as plans_mod, project as project_mod, review as review_mod
+from . import ask as ask_mod, documents as documents_mod, pipeline, plans as plans_mod, project as project_mod, review as review_mod, revisions as revisions_mod
 from .config import SETTINGS, Settings
 from .ingest import _exif, _heic_to_jpeg
 from .packet import build_packet, packet_markdown
@@ -148,6 +148,11 @@ class FilingIn(BaseModel):
 
 class FilingUndoIn(BaseModel):
     file: str
+
+
+class RevisionCompareIn(BaseModel):
+    old_document_id: str
+    new_document_id: str
 
 
 class NewProject(BaseModel):
@@ -301,6 +306,7 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
     pending: list[RunFeed] = []  # feeds whose run_id is not known yet (ingest still running)
     lock = threading.Lock()
     state = {"active": None}  # run_id of the run currently executing, if any
+    compare_cache: dict[tuple, dict] = {}
 
     def store() -> Store:
         return pipeline.open_store(settings)
@@ -589,6 +595,36 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         if before is None:
             raise HTTPException(404, "nothing to undo for that file")
         return {"filing": before, "filings": st.filings(prj["id"]), "history": st.filing_history(prj["id"])}
+
+    @app.get("/api/projects/{slug}/revisions")
+    def revisions(slug: str) -> dict:
+        """Every issue of every drawing set, oldest first per discipline, so a later issue can be compared with the one before."""
+        st = store()
+        prj = _project(st, slug)
+        return {"issues": revisions_mod.issues(st.documents(prj["id"]))}
+
+    @app.post("/api/projects/{slug}/revisions/compare")
+    def compare_revisions(slug: str, body: RevisionCompareIn) -> dict:
+        """What changed between two issues of the same discipline's set: sheets added, removed, renumbered, and the printed
+        words that differ on the sheets both issues hold. Plain code over the text layer; nothing is sent to a model."""
+        st = store()
+        prj = _project(st, slug)
+        docs = st.documents(prj["id"])
+        old = next((d for d in docs if d["id"] == body.old_document_id), None)
+        new = next((d for d in docs if d["id"] == body.new_document_id), None)
+        if not old or not new:
+            raise HTTPException(404, "no such document")
+        if old["kind"] != "drawing" or new["kind"] != "drawing" or old["discipline"] != new["discipline"]:
+            raise HTTPException(400, "compare two issues of the same discipline's drawing set")
+        root = Path(prj["source_root"] or "").resolve()
+        for d in (old, new):
+            f = (root / d["rel_path"]).resolve()
+            if not prj["source_root"] or not f.is_relative_to(root) or not f.is_file():
+                raise HTTPException(404, "file missing from the project folder")
+        key = (prj["id"], old["id"], old["sha256"], new["id"], new["sha256"])
+        if key not in compare_cache:  # a big set takes seconds to read; the files do not change under their hash
+            compare_cache[key] = revisions_mod.compare_documents(root, old, new, docs)
+        return compare_cache[key]
 
     @app.post("/api/projects/{slug}/documents/answer")
     def answer_document_question(slug: str, body: DocsAnswerIn) -> dict:

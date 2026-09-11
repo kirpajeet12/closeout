@@ -143,7 +143,26 @@
   .occ .it i { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--line-2); display: inline-block; position: relative; top: 1px; } .occ .it.on i { background: var(--ready); border-color: var(--ready); }
   .occ .it span { display: block; font-size: 12px; color: var(--mute); word-break: break-word; } .occ .it.on span { color: var(--ready); }
   .occ .it:not(.on) b { font-weight: 500; }
-  @media (max-width: 760px) { .files .frow, .rev .r { grid-template-columns: 1fr; gap: 2px; } }
+  .rev .r .cmpbtn { align-self: start; justify-self: end; border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 999px; padding: 5px 12px; font: 600 12px/1.2 var(--sans); cursor: pointer; white-space: nowrap; }
+  .rev .r .cmpbtn:hover, .rev .r .cmpbtn.on { border-color: var(--ink); } .rev .r .cmpbtn.on { background: var(--ink); color: var(--card); }
+  .rev .r:has(.cmpbtn) { grid-template-columns: 96px 1fr auto; }
+  .rev .cmp { grid-column: 1 / -1; margin: 6px 0 4px; padding: 16px 18px 12px; border-radius: 12px; background: var(--paper); border: 1px solid var(--line); display: grid; gap: 14px; }
+  .rev .cmp .wait { margin: 0; color: var(--mute); font-size: 13px; }
+  .rev .cmp .head { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: baseline; } .rev .cmp .head b { font-size: 14px; } .rev .cmp .head > div > span { color: var(--mute); font-size: 12px; margin-left: 8px; }
+  .rev .cmp .counts { display: flex; gap: 6px; flex-wrap: wrap; } .rev .cmp .counts span { font: 600 12px/1 var(--sans); padding: 5px 9px; border-radius: 999px; background: var(--card); border: 1px solid var(--line); color: var(--mute); }
+  .rev .cmp .counts .added { color: #0b6b3a; border-color: #bfe3cf; background: #ecf8f0; } .rev .cmp .counts .removed { color: #9a2f22; border-color: #f0c9c2; background: #fdf1ee; }
+  .rev .cmp .counts .renumbered, .rev .cmp .counts .changed { color: #8a5a00; border-color: #f2ddad; background: #fff6e3; }
+  .rev .cmp .grp h5 { margin: 0 0 6px; font-size: 13px; display: flex; gap: 8px; align-items: baseline; } .rev .cmp .grp h5 small { color: var(--mute); font-weight: 500; }
+  .rev .cmp .grp ul { margin: 0; padding-left: 18px; font-size: 13px; } .rev .cmp .grp li { margin: 2px 0; } .rev .cmp .grp p { margin: 0; font-size: 13px; color: var(--mute); }
+  .rev .cmp .sh { color: var(--ink); text-decoration: none; font-family: var(--mono); font-size: 12px; font-weight: 700; } .rev .cmp .sh i { font-style: normal; font-family: var(--sans); font-weight: 500; margin-left: 6px; } .rev .cmp .sh:hover { text-decoration: underline; }
+  .rev .cmp .sheet { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin: 6px 0; }
+  .rev .cmp .sheet .top { display: flex; gap: 10px; flex-wrap: wrap; align-items: baseline; } .rev .cmp .sheet .top span { color: var(--mute); font-size: 12px; margin-left: auto; } .rev .cmp .sheet .top em, .rev .cmp .grp li em { color: #8a5a00; font-style: normal; font-size: 12px; }
+  .rev .cmp .sheet .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 8px; } .rev .cmp .sheet h6 { margin: 0 0 4px; font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: var(--mute); }
+  .rev .cmp .sheet ul { padding-left: 16px; font-family: var(--mono); font-size: 11.5px; line-height: 1.45; word-break: break-word; } .rev .cmp .sheet .cols > div:first-child li { color: #0b6b3a; } .rev .cmp .sheet .cols > div:last-child li { color: #9a2f22; text-decoration: line-through; text-decoration-color: #f0c9c2; }
+  .rev .cmp .sheet .more, .rev .cmp .sheet .redrawn { margin: 8px 0 0; font-size: 12px; color: var(--mute); } .rev .cmp .sheet .redrawn a { color: var(--ink); }
+  .rev .cmp .inline { color: var(--ink) !important; } .rev .cmp .who ul { list-style: none; padding: 0; } .rev .cmp .who li { padding: 6px 10px; border-left: 3px solid #f2ddad; background: #fff6e3; border-radius: 0 8px 8px 0; margin: 6px 0; } .rev .cmp .who li span { color: var(--mute); font-size: 12px; }
+  .rev .cmp .basis { margin: 0; font-size: 12px; color: var(--mute); border-top: 1px solid var(--line); padding-top: 10px; }
+  @media (max-width: 760px) { .files .frow, .rev .r, .rev .r:has(.cmpbtn) { grid-template-columns: 1fr; gap: 2px; } .rev .r .cmpbtn { justify-self: start; margin-top: 4px; } .rev .cmp .sheet .cols { grid-template-columns: 1fr; } }
 
   /* project page */
   .phead { display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; padding: 30px 0 0; }
@@ -1109,6 +1128,8 @@ function renderDocs() {
   wireDrop($("#dropPrj"), "drawings", slug); renderStatus();
   const ab = $("#askDocs"); if (ab) ab.onclick = askDocs;
   wireExplorer();
+  $$("button[data-cmp-new]").forEach(b => b.onclick = () => { const c = state.cmp || {};
+    if (c.new === b.dataset.cmpNew && c.old === b.dataset.cmpOld) { state.cmp = null; renderDocs(); } else runCompare(b.dataset.cmpOld, b.dataset.cmpNew); });
   $$(".qs input").forEach(inp => { const b = inp.parentElement.querySelector("button"); inp.oninput = () => { b.hidden = inp.value === ((state.p.docs_review.questions[+inp.dataset.q] || {}).answer || ""); };
     b.onclick = async () => { const r = await fetch(pUrl(slug, "/documents/answer"), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ index: +inp.dataset.q, answer: inp.value }) }); const j = await r.json().catch(() => ({}));
       if (!r.ok) return toast(j.detail || "Could not save the answer", true); state.p.docs_review = j.docs_review; b.hidden = true; toast("Answer saved"); }; });
@@ -1163,17 +1184,61 @@ function renderRevisions(pr) {
   const drawings = (pr.documents || []).filter(d => d.kind === "drawing"), by = {};
   for (const d of drawings) {
     const key = d.discipline + "|" + (d.dated || "") + "|" + baseName(d).toLowerCase();
-    const e = by[key] = by[key] || { code: d.discipline, dated: d.dated, name: baseName(d), notes: [], current: false, copies: 0 };
-    e.copies++; e.current = e.current || !!d.is_current;
+    const e = by[key] = by[key] || { id: d.id, code: d.discipline, dated: d.dated, name: baseName(d), notes: [], current: false, copies: 0, pages: d.pages };
+    e.copies++; if (d.is_current) { e.current = true; e.id = d.id; }
     const n = issueNote(d); if (n && !e.notes.includes(n)) e.notes.push(n);
   }
   const discs = {};
   Object.values(by).forEach(e => (discs[e.code] = discs[e.code] || []).push(e));
   const codes = Object.keys(discs).sort((a, b) => (a in DISC_NAMES ? 0 : 1) - (b in DISC_NAMES ? 0 : 1) || a.localeCompare(b));
+  const cmp = state.cmp || {};
   return `<div class="rev">${codes.map(code => { const rows = discs[code].sort((a, b) => (b.dated || "") < (a.dated || "") ? -1 : 1);
     return `<div class="disc"><h4>${esc(groupName(code))}<small>${rows.length} issue${rows.length === 1 ? "" : "s"}</small></h4>
-      ${rows.map(e => `<div class="r ${e.current ? "cur" : ""}"><time>${esc(e.dated || "undated")}</time><div><b>${esc(e.notes.join(" · ") || (e.current ? "Current set" : "Issue"))}${e.current ? ` <em style="color:var(--ready);font-style:normal;font-size:12px">current</em>` : ""}</b><span>${esc(e.name)}${e.copies > 1 ? ` · filed ${e.copies} times` : ""}</span></div></div>`).join("")}
+      ${rows.map((e, i) => { const prev = rows[i + 1], open = prev && cmp.new === e.id && cmp.old === prev.id;
+        return `<div class="r ${e.current ? "cur" : ""}"><time>${esc(e.dated || "undated")}</time><div><b>${esc(e.notes.join(" · ") || (e.current ? "Current set" : "Issue"))}${e.current ? ` <em style="color:var(--ready);font-style:normal;font-size:12px">current</em>` : ""}</b><span>${esc(e.name)}${e.copies > 1 ? ` · filed ${e.copies} times` : ""}</span></div>
+          ${prev ? `<button class="cmpbtn ${open ? "on" : ""}" data-cmp-new="${esc(e.id)}" data-cmp-old="${esc(prev.id)}">${open ? "Close" : "Compare with the issue before"}</button>` : ""}</div>
+          ${open ? renderCompare(cmp, e, prev) : ""}`; }).join("")}
     </div>`; }).join("")}</div>`;
+}
+/* What changed between two issues, from the words printed on the sheets. Plain code on the server; nothing is sent to a model. */
+function renderCompare(cmp, e, prev) {
+  if (cmp.busy) return `<div class="cmp"><p class="wait">Reading both issues, sheet by sheet…</p></div>`;
+  if (cmp.error) return `<div class="cmp"><p class="wait">${esc(cmp.error)}</p></div>`;
+  const r = cmp.result; if (!r) return "";
+  const slug = state.slug, fileUrl = (id, page) => pUrl(slug, "/documents/" + encodeURIComponent(id) + "/file") + (page ? "#page=" + page : "");
+  const label = s => (s.number ? esc(s.number) : "page " + s.page) + (s.title ? ` <i>${esc(s.title)}</i>` : (s.number ? "" : " <i>no sheet number printed</i>"));
+  const sheetLink = (s, id) => `<a class="sh" href="${esc(fileUrl(id, s.page))}" target="_blank" rel="noopener">${label(s)}</a>`;
+  const counts = [["added", r.added.length], ["removed", r.removed.length], ["renumbered", r.renumbered.length], ["changed", r.changed.length], ["unchanged", r.unchanged.length]].filter(([, n]) => n);
+  const list = (title, rows, id, extra) => rows.length ? `<div class="grp"><h5>${title}<small>${rows.length}</small></h5><ul>${rows.map(s => `<li>${sheetLink(s, id)}${extra ? extra(s) : ""}</li>`).join("")}</ul></div>` : "";
+  const changed = r.changed.length ? `<div class="grp"><h5>Changed<small>${r.changed.length}</small></h5>${r.changed.map(s => {
+      const pct = Math.round((s.alike || 0) * 100), redrawn = (s.alike || 0) < 0.15;
+      return `<div class="sheet"><div class="top">${sheetLink(s, r.new.id)}${s.was && s.was !== s.number ? `<em>was ${esc(s.was)}</em>` : ""}<span>${redrawn ? "almost none of the printed words match the earlier sheet" : `about ${pct}% of the printed words are the same`}</span></div>
+        ${redrawn ? `<p class="redrawn">Read this one as a new sheet: the earlier one is open for comparison <a href="${esc(fileUrl(r.old.id, s.page))}" target="_blank" rel="noopener">here</a>.</p>` : ""}
+        <div class="cols"><div><h6>Now says</h6>${s.now_says.length ? `<ul>${s.now_says.map(l => `<li>${esc(l)}</li>`).join("")}</ul>` : `<p>nothing new</p>`}</div>
+        <div><h6>No longer says</h6>${s.no_longer_says.length ? `<ul>${s.no_longer_says.map(l => `<li>${esc(l)}</li>`).join("")}</ul>` : `<p>nothing dropped</p>`}</div></div>
+        ${s.more ? `<p class="more">and ${s.more} more line${s.more === 1 ? "" : "s"} that differ. Open both sheets to read them side by side.</p>` : ""}</div>`; }).join("")}</div>` : "";
+  const who = r.who_else.length ? `<div class="grp who"><h5>Who else needs to know</h5><p>Their current set is older than this issue, so it may not show what changed here.</p><ul>${r.who_else.map(w => `<li><b>${esc(w.name)}</b> set issued ${esc(w.dated)} · <span>${esc(w.file)}</span></li>`).join("")}</ul></div>`
+    : `<div class="grp who"><h5>Who else needs to know</h5><p>Every other discipline's current set is dated after this issue.</p></div>`;
+  return `<div class="cmp">
+    <div class="head"><div><b>${esc(r.old.dated || "earlier")} → ${esc(r.new.dated || "this issue")}</b><span>${r.old.sheets} sheet${r.old.sheets === 1 ? "" : "s"} → ${r.new.sheets}</span></div>
+      <div class="counts">${counts.length ? counts.map(([k, n]) => `<span class="${k}">${n} ${k}</span>`).join("") : `<span>nothing differs</span>`}</div></div>
+    ${list("Added", r.added, r.new.id)}${list("Removed", r.removed, r.old.id)}
+    ${list("Renumbered", r.renumbered, r.new.id, s => ` <em>was ${esc(s.was)}</em>`)}
+    ${changed}
+    ${r.unchanged.length ? `<div class="grp"><h5>Unchanged<small>${r.unchanged.length}</small></h5><p class="inline">${r.unchanged.map(s => sheetLink(s, r.new.id)).join(", ")}</p></div>` : ""}
+    ${who}
+    <p class="basis">${esc(r.basis)} A moved fixture whose label did not change will not show here.</p>
+  </div>`;
+}
+async function runCompare(oldId, newId) {
+  state.cmp = { old: oldId, new: newId, busy: true }; renderDocs();
+  try {
+    const r = await fetch(pUrl(state.slug, "/revisions/compare"), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ old_document_id: oldId, new_document_id: newId }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.detail || "Could not compare the two issues");
+    state.cmp = { old: oldId, new: newId, result: j };
+  } catch (e) { state.cmp = { old: oldId, new: newId, error: e.message }; }
+  renderDocs();
 }
 /* The office's own list of what the coordinating professional collects before final occupancy (from the QA tracker), served
    by the API so there is one copy. Matched by file name against the folder, plus the rows the agent confirmed by exact file
