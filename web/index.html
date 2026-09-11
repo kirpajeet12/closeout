@@ -1074,11 +1074,13 @@ function docsNeeded(pr) {
 /* One quiet line above the drawings instead of a description and four cards: the drawings are the point of this tab. */
 function renderStrip(pr, byDisc) {
   const blds = buildings().length, discs = Object.keys(byDisc).length;
+  const older = new Set(pr.documents.filter(d => d.kind === "drawing" && !d.is_current).map(d => d.discipline + "|" + (d.dated || "") + "|" + baseName(d).toLowerCase())).size;
   const bits = [
     pr.units.length ? `${pr.units.length} unit${pr.units.length === 1 ? "" : "s"}` : "",
     blds ? `${blds} building${blds === 1 ? "" : "s"}` : "",
     `${pr.sheets.length} current sheet${pr.sheets.length === 1 ? "" : "s"} across ${discs} discipline${discs === 1 ? "" : "s"}`,
     `<a href="${pHash(state.slug, "/docs")}">${pr.documents.length} file${pr.documents.length === 1 ? "" : "s"} in the folder</a>`,
+    older ? `<a href="${pHash(state.slug, "/docs")}">${older} older issue${older === 1 ? "" : "s"} kept on Documents</a>` : "",
   ].filter(Boolean);
   return `<p class="strip">${bits.join('<i>·</i>')}</p>`;
 }
