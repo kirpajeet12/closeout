@@ -192,6 +192,18 @@ CREATE TABLE IF NOT EXISTS filings (
   at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS filings_by_file ON filings(project_id, file, at);
+CREATE TABLE IF NOT EXISTS document_log (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL,
+  file TEXT NOT NULL,             -- file base name, the same key the filings use
+  kind TEXT NOT NULL,             -- received | updated | current | superseded | removed
+  note TEXT NOT NULL DEFAULT '',
+  rel_path TEXT NOT NULL DEFAULT '',
+  sha256 TEXT NOT NULL DEFAULT '',
+  dated TEXT,
+  at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS document_log_by_file ON document_log(project_id, file, at);
 CREATE TABLE IF NOT EXISTS drawings_reviews (
   id TEXT PRIMARY KEY,
   project_id TEXT NOT NULL,
@@ -908,6 +920,51 @@ class Store:
 
     def documents(self, project_id: str) -> list[dict]:
         return [dict(r) for r in self.conn.execute("SELECT * FROM documents WHERE project_id=? ORDER BY discipline, dated, rel_path", (project_id,))]
+
+    # --- document log: what happened to each file, drop after drop -----------------------------------
+    # Import replaces the document rows, so the log is what remembers that a file arrived, changed or went away.
+
+    def log_document_changes(self, project_id: str, before: list[dict], after: list[dict]) -> list[dict]:
+        """Compare the folder as it was with the folder as it came in, keyed on the file name, and write one line per
+        change: received (a new name), updated (the same name with different contents), current / superseded (a drawing
+        set becoming, or ceasing to be, the one to walk with) and removed (a name no longer in the folder)."""
+        def by_name(docs):
+            out: dict[str, list[dict]] = {}
+            for d in docs:
+                out.setdefault(d["rel_path"].split("/")[-1], []).append(d)
+            return out
+        old, new = by_name(before), by_name(after)
+        at, events = now(), []
+        def put(file, kind, note, d=None):
+            events.append({"id": new_id("dlog"), "project_id": project_id, "file": file, "kind": kind, "note": note,
+                           "rel_path": (d or {}).get("rel_path", ""), "sha256": (d or {}).get("sha256", ""), "dated": (d or {}).get("dated"), "at": at})
+        for file in sorted(new, key=str.lower):
+            docs, prev = new[file], old.get(file, [])
+            shas, prev_shas = {d["sha256"] for d in docs}, {d["sha256"] for d in prev}
+            lead = next((d for d in docs if d.get("is_current")), docs[0])
+            was_current, is_current = any(d.get("is_current") for d in prev), any(d.get("is_current") for d in docs)
+            if not prev:
+                put(file, "received", "new in the folder", lead)
+            elif shas - prev_shas:
+                put(file, "updated", "the same file name came in with different contents", lead)
+            if is_current and not was_current:
+                put(file, "current", "now the set to walk with", lead)
+            elif was_current and not is_current:
+                put(file, "superseded", "a newer issue is the set to walk with now", lead)
+        for file in sorted(set(old) - set(new), key=str.lower):
+            put(file, "removed", "no longer in the folder", old[file][0])
+        for e in events:
+            self.conn.execute("INSERT INTO document_log(id, project_id, file, kind, note, rel_path, sha256, dated, at) VALUES(?,?,?,?,?,?,?,?,?)",
+                              (e["id"], e["project_id"], e["file"], e["kind"], e["note"], e["rel_path"], e["sha256"], e["dated"], e["at"]))
+        self.conn.commit()
+        return events
+
+    def document_log(self, project_id: str, file: str | None = None) -> list[dict]:
+        if file is None:
+            rows = self.conn.execute("SELECT * FROM document_log WHERE project_id=? ORDER BY at, rowid", (project_id,))
+        else:
+            rows = self.conn.execute("SELECT * FROM document_log WHERE project_id=? AND file=? ORDER BY at, rowid", (project_id, file))
+        return [dict(r) for r in rows]
 
     # --- filings: where a file sits in the project folder tree, and who put it there -------------------
     # Every change is a new row; the newest row per file is the current filing, the rest is its history.

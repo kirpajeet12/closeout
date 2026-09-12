@@ -500,7 +500,7 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
                 "units": coverage_mod.buildings(prj),
                 "docs_review": prj.get("docs_review"), "docs_scope": prj.get("docs_scope") or [],
                 "occupancy_docs": [list(row) for row in documents_mod.OCCUPANCY_DOCS],
-                "filings": st.filings(pid), "filing_history": st.filing_history(pid),
+                "filings": st.filings(pid), "filing_history": st.filing_history(pid), "document_log": st.document_log(pid),
                 "drawings_reviews": st.drawings_reviews(pid)}
 
     @app.get("/api/sheets/{sheet_id}/image")

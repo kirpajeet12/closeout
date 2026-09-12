@@ -88,3 +88,37 @@ def test_import_renders_indexes_and_reads(folder, tmp_path, monkeypatch):
     assert events[-1] == "project_ready" and "sheet_rendered" in events
     assert json.loads((settings.data_dir / "projects/sample/project.json").read_text())["name"] == "12 Sample St"
     assert "Kitchen" in project.sheet_text_for_agent(store)
+
+
+def test_every_file_keeps_a_log_across_drops(folder, tmp_path, monkeypatch):
+    """The folder is dropped twice. The log per file name says what came in, what changed, which set is the one to walk
+    with now, and what left the folder; the project payload carries it for the file's own folder on the Documents tab."""
+    from fastapi.testclient import TestClient
+    from closeout import api
+    settings = Settings(data_dir=tmp_path / "data", model_id="fake")
+    store = Store(settings.data_dir / "closeout.db")
+    monkeypatch.setattr(project, "make_model", lambda s: None)
+    project.import_project(store, folder, "sample", settings, read_with_model=False)
+    log = store.document_log(store.project_by_slug("sample")["id"])
+    kinds = {(e["file"], e["kind"]) for e in log}
+    assert ("set.pdf", "received") in kinds and ("set.pdf", "current") in kinds
+    assert ("Design Intake Letter.pdf", "received") in kinds and ("Design Intake Letter.pdf", "current") not in kinds
+    assert all(e["kind"] in ("received", "current") for e in log)
+    # a newer AR issue arrives, the letter is re-saved with new contents, the old AR issue is cleaned out of the folder
+    _pdf(folder / "AR/250601_newest/set.pdf", [["NEWEST SET", "SHEET NUMBER", "1"]])
+    _pdf(folder / "BCH/250201_client/Design Intake Letter.pdf", [["Dear client", "revised"]], size=letter)
+    for f in (folder / "AR/250101_old").iterdir():
+        f.unlink()
+    (folder / "AR/250101_old").rmdir()
+    project.import_project(store, folder, "sample", settings, read_with_model=False)
+    pid = store.project_by_slug("sample")["id"]
+    later = store.document_log(pid)[len(log):]
+    assert {(e["file"], e["kind"]) for e in later} == {("set.pdf", "updated"), ("Design Intake Letter.pdf", "updated")}
+    assert [e["kind"] for e in store.document_log(pid, "set.pdf")] == ["received", "current", "updated"]
+    assert next(e for e in later if e["file"] == "set.pdf")["rel_path"] == "AR/250601_newest/set.pdf"
+    # the untouched EL set writes nothing the second time
+    assert not [e for e in later if "EL" in e["file"]]
+    client = TestClient(api.create_app(settings))
+    detail = client.get("/api/projects/sample").json()
+    assert len(detail["document_log"]) == len(log) + 2
+    assert detail["document_log"][0]["kind"] == "received"

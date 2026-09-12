@@ -635,6 +635,25 @@
   .xrow.ghost .scope { color: var(--ink-2); }
   .outscope { margin: 8px 4px 0; } .outscope summary { cursor: pointer; font-size: 13px; color: var(--mute); padding: 6px 6px; } .xrow.out { opacity: .55; } .xrow.out b { text-decoration: line-through; font-weight: 500; }
   .folderpane .none { padding: 12px 10px; font-size: 13px; color: var(--mute); margin: 0; }
+  .filefolder { padding: 6px 4px 4px; }
+  .filefolder .fhead { display: grid; grid-template-columns: auto 1fr; gap: 14px 16px; align-items: start; padding: 10px 6px 16px; }
+  .filefolder .fhead .fi.big { width: 34px; height: 44px; border-width: 2px; border-radius: 4px; margin-top: 4px; }
+  .filefolder .fhead h3 { margin: 0 0 4px; font-size: 20px; letter-spacing: -.01em; line-height: 1.2; overflow-wrap: anywhere; }
+  .filefolder .fhead p { margin: 0; font-size: 13px; color: var(--mute); } .filefolder .fhead p.where { margin-top: 6px; color: var(--ink-2); }
+  .filefolder .facts { grid-column: 1 / -1; display: flex; gap: 8px; flex-wrap: wrap; }
+  .filefolder .facts .btn { font: inherit; font-size: 13px; padding: 8px 14px; border-radius: 999px; cursor: pointer; border: 1px solid var(--line-2); background: #fff; color: var(--ink); text-decoration: none; }
+  .filefolder .facts .btn.primary { background: var(--ink); color: #fff; border-color: var(--ink); } .filefolder.moving .facts button.btn { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .filefolder .mvpanel { margin-left: 6px; }
+  .filefolder h4.grp { margin: 14px 6px 6px; font-size: 13px; font-weight: 600; letter-spacing: .02em; color: var(--ink-2); text-transform: uppercase; display: flex; gap: 8px; align-items: baseline; }
+  .filefolder h4.grp small { font-family: var(--mono); font-size: 11px; color: var(--mute); font-weight: 500; }
+  .flog { list-style: none; margin: 0; padding: 0 6px; border-left: 2px solid var(--line-2); margin-left: 12px; }
+  .flog li { display: grid; grid-template-columns: 112px 1fr; gap: 12px; padding: 7px 0 7px 14px; position: relative; font-size: 13px; }
+  .flog li::before { content: ""; position: absolute; left: -7px; top: 13px; width: 10px; height: 10px; border-radius: 50%; background: var(--card); border: 2px solid var(--ink-2); }
+  .flog li:first-child::before { background: var(--ink); border-color: var(--ink); }
+  .flog time { font-family: var(--mono); font-size: 11px; color: var(--mute); padding-top: 2px; }
+  .flog b { display: block; font-weight: 500; color: var(--ink); } .flog b em { font-style: normal; font-weight: 700; } .flog small { display: block; font-size: 12px; color: var(--mute); margin-top: 1px; }
+  .fissues .xrow.filerow { grid-template-columns: 1fr auto; } .fissues .xrow.filerow .tag { margin-right: 6px; } .fissues .xrow.filerow.me { background: var(--paper); }
+  @media (max-width: 600px) { .flog li { grid-template-columns: 1fr; gap: 2px; } }
   @media (min-width: 900px) { .explorer { grid-template-columns: 280px 1fr; } .treepane { display: block; padding: 10px 8px; border-right: 1px solid var(--line-2); background: var(--paper); } .folderpane { padding: 8px 14px 14px; } }
   .viewer .floors .pinf { display: flex; gap: 6px; margin-left: auto; padding-left: 10px; border-left: 1px solid #2b2d31; }
   .viewer .floors .pinf button { background: transparent; border: 1px solid #3a3d42; color: #b9bcc2; } .viewer .floors .pinf button.on { background: #fff; color: var(--ink); border-color: #fff; }
@@ -1205,7 +1224,7 @@ function folderTree(pr) {
   const copies = {}; (pr.documents || []).forEach(d => { const k = baseName(d) + "|" + (d.dated || ""); copies[k] = (copies[k] || 0) + 1; });
   const seenDoc = new Set(), docs = (pr.documents || []).filter(d => { const k = baseName(d) + "|" + (d.dated || ""); if (seenDoc.has(k)) return false; seenDoc.add(k); return true; });
   const folder = (key, name, meta, opts = {}) => ({ key, name, meta, kind: "folder", folders: [], items: [], ...opts });
-  const fileItem = d => { const pl = placed.get(baseName(d)) || {}; return { kind: "file", id: d.id, file: baseName(d), name: pl.name || baseName(d), renamed: !!pl.name, who: pl.building || pl.discipline || pl.name ? pl.who : "", meta: [d.kind === "drawing" ? (d.is_current ? "current set" : "older issue") : d.kind === "document" ? "letter or form" : "file", d.dated ? "issued " + d.dated : "", d.pages ? d.pages + " p." : "", copies[baseName(d) + "|" + (d.dated || "")] > 1 ? copies[baseName(d) + "|" + (d.dated || "")] + " copies in the folder" : "", pl.name ? "file: " + baseName(d) : ""].filter(Boolean).join(" · "), path: d.rel_path, current: d.kind === "drawing" && d.is_current }; };
+  const fileItem = d => { const pl = placed.get(baseName(d)) || {}; return { kind: "file", key: "f:" + baseName(d), id: d.id, file: baseName(d), disc: d.discipline, dkind: d.kind, inSet: !!d.in_set, dated: d.dated || "", name: pl.name || baseName(d), renamed: !!pl.name, who: pl.building || pl.discipline || pl.name ? pl.who : "", meta: [d.kind === "drawing" ? (d.is_current ? "current set" : "older issue") : d.kind === "document" ? "letter or form" : "file", d.dated ? "issued " + d.dated : "", d.pages ? d.pages + " p." : "", copies[baseName(d) + "|" + (d.dated || "")] > 1 ? copies[baseName(d) + "|" + (d.dated || "")] + " copies in the folder" : "", pl.name ? "file: " + baseName(d) : ""].filter(Boolean).join(" · "), path: d.rel_path, current: d.kind === "drawing" && d.is_current }; };
   const ghost = (m, who) => ({ kind: "ghost", name: m.what, meta: m.why, who });
   // the CRP checklist, section by section
   const crp = folder("crp", "Documents before occupancy", "the CRP's checklist, section by section", { crp: true });
@@ -1244,15 +1263,17 @@ function folderTree(pr) {
   root.placed = placed; root.docs = docs;
   return root;
 }
-function findFolder(root, path) { let f = root; for (const k of path) { const n = f.folders.find(x => x.key === k); if (!n) return root; f = n; } return f; }
+/* A path step is a sub-folder, or a file: every file has a folder of its own (the file, its history, the other issues of its set). */
+function childOf(f, k) { const n = f.folders.find(x => x.key === k); if (n) return n; const i = f.items.find(x => x.kind === "file" && x.key === k); return i ? { key: k, name: i.name, meta: i.meta, kind: "folder", folders: [], items: [], filef: true, file: i, parent: f } : null; }
+function findFolder(root, path) { let f = root; for (const k of path) { const n = childOf(f, k); if (!n) return root; f = n; } return f; }
 function renderExplorer(pr) {
   const root = folderTree(pr), cur = findFolder(root, state.folder), placed = root.placed, docs = root.docs, dn = c => DISC_NAMES[c] || c;
   if (cur === root) state.folder = [];
-  const crumbs = [root]; { let f = root; for (const k of state.folder) { f = f.folders.find(x => x.key === k); crumbs.push(f); } }
+  const crumbs = [root]; { let f = root; for (const k of state.folder) { f = childOf(f, k); crumbs.push(f); } }
   const cnt = f => f.sec ? `${f.got}/${f.need}` : `${f.n}${f.ghosts ? ` <em>+${f.ghosts}</em>` : ""}`;
   const tree = (f, depth) => `<div class="node ${f === cur ? "on" : ""} ${crumbs.includes(f) ? "open" : ""}" data-path="${esc(pathOf(f, root))}" style="--d:${depth}"><i class="fi ${f.site ? "site" : f.bld ? "bld" : f.crp || f.sec ? "crp" : f.root || f.prj ? "root" : ""}"></i><b>${esc(f.name)}</b><small>${cnt(f)}</small></div>${crumbs.includes(f) ? f.folders.map(c => tree(c, depth + 1)).join("") : ""}`;
   const hist = f => (state.p.filing_history || []).filter(h => h.file === f);
-  const fileRow = i => `<div class="xrow filerow ${i.current ? "cur" : ""} ${state.moving === i.file ? "moving" : ""}"><a class="open" href="${pUrl(state.slug, "/documents/" + encodeURIComponent(i.id) + "/file")}" target="_blank" rel="noopener"><i class="fi doc"></i><div><b>${esc(i.name)}</b><small>${esc(i.meta)}</small></div></a>${i.who === "closeout" ? `<span class="tag by">filed by Closeout</span>` : i.who === "engineer" ? `<span class="tag you">filed by you</span>` : ""}<a class="dl" href="${pUrl(state.slug, "/documents/" + encodeURIComponent(i.id) + "/file")}?download=1" aria-label="Download" title="Download">↓</a><button class="mv" data-move="${esc(i.file)}" aria-label="Move or rename">${state.moving === i.file ? "Close" : "Move…"}</button></div>${state.moving === i.file ? movePanel(i) : ""}`;
+  const fileRow = i => `<div class="xrow filerow ${i.current ? "cur" : ""} ${state.moving === i.file ? "moving" : ""}"><a class="open" data-path="${esc(pathOf(cur, root) ? pathOf(cur, root) + "|" + i.key : i.key)}" title="Open this file's folder"><i class="fi doc"></i><div><b>${esc(i.name)}</b><small>${esc(i.meta)}</small></div></a>${i.who === "closeout" ? `<span class="tag by">filed by Closeout</span>` : i.who === "engineer" ? `<span class="tag you">filed by you</span>` : ""}<a class="dl" href="${pUrl(state.slug, "/documents/" + encodeURIComponent(i.id) + "/file")}?download=1" aria-label="Download" title="Download">↓</a><button class="mv" data-move="${esc(i.file)}" aria-label="Move or rename">${state.moving === i.file ? "Close" : "Move…"}</button></div>${state.moving === i.file ? movePanel(i) : ""}`;
   const movePanel = i => { const pl = placed.get(i.file) || {}, h = hist(i.file), blds = buildings();
     return `<form class="mvpanel" data-file="${esc(i.file)}">
       <label><span>Building</span><select name="building"><option value="">Site · no building</option>${blds.map(b => `<option value="${esc(b.name)}" ${pl.building === b.name ? "selected" : ""}>${esc(b.name)}</option>`).join("")}</select></label>
@@ -1266,16 +1287,44 @@ function renderExplorer(pr) {
     : `<div class="xrow ghost"><i class="fi ghost"></i><div><b>${esc(i.name)}</b><small>${esc(i.meta)}</small></div><span class="who">not in the folder yet</span></div>`;
   const outRows = cur.items.filter(i => i.kind === "check" && i.out);
   const sub = f => `<div class="xrow folderrow" data-path="${esc(pathOf(f, root))}"><i class="fi ${f.site ? "site" : f.bld ? "bld" : f.crp || f.sec ? "crp" : f.prj ? "root" : ""}">${f.badge ? esc(f.badge) : ""}</i><div><b>${esc(f.name)}</b><small>${esc(f.meta || f.note || `${f.n} item${f.n === 1 ? "" : "s"}`)}</small></div><small class="n">${cnt(f)}</small><span class="chev">›</span></div>`;
+  const crumbPath = f => f.filef ? (pathOf(f.parent, root) ? pathOf(f.parent, root) + "|" + f.key : f.key) : pathOf(f, root);
+  const xcrumbs = `<div class="xcrumbs">${crumbs.map((f, i) => `<a data-path="${esc(crumbPath(f))}" class="${i === crumbs.length - 1 ? "on" : ""}">${esc(f.name)}</a>`).join(`<span>›</span>`)}</div>`;
+  if (cur.filef) return `<div class="explorer"><aside class="treepane">${tree(root, 0)}</aside><section class="folderpane">${xcrumbs}${renderFileFolder(cur.file, pr, placed, docs, movePanel, root)}</section></div>`;
   return `<div class="explorer">
     <aside class="treepane">${tree(root, 0)}</aside>
     <section class="folderpane">
-      <div class="xcrumbs">${crumbs.map((f, i) => `<a data-path="${esc(pathOf(f, root))}" class="${i === crumbs.length - 1 ? "on" : ""}">${esc(f.name)}</a>`).join(`<span>›</span>`)}</div>
+      ${xcrumbs}
       ${cur.note && !cur.items.length && !cur.folders.length ? `<p class="none">${esc(cur.note)}</p>` : ""}
       ${cur.folders.map(sub).join("")}
       ${cur.items.map(row).join("")}
       ${outRows.length ? `<details class="outscope"><summary>${outRows.length} not in scope for this project</summary>${outRows.map(i => `<div class="xrow out"><i class="fi doc"></i><div><b>${esc(i.name)}</b><small>removed from the count</small></div><label class="scope"><input type="checkbox" checked data-scope="${esc(i.name)}"> Not in scope</label></div>`).join("")}</details>` : ""}
       ${!cur.folders.length && !cur.items.length && !cur.note ? `<p class="none">Empty folder.</p>` : ""}
     </section>
+  </div>`;
+}
+/* One file's own folder: the file, then everything that happened to it (came in, changed, became or stopped being the set
+   to walk with, filed or renamed and by whom), then the other issues of the same set. All of it is plain bookkeeping. */
+function renderFileFolder(i, pr, placed, docs, movePanel, root) {
+  const locate = (f, key, acc) => { if (f.items.some(x => x.kind === "file" && x.key === key)) return [...acc, key].join("|"); for (const c of f.folders) { const r = locate(c, key, [...acc, c.key]); if (r) return r; } return null; };
+  const dn = c => DISC_NAMES[c] || c, pl = placed.get(i.file) || {}, url = pUrl(state.slug, "/documents/" + encodeURIComponent(i.id) + "/file");
+  const stamp = s => String(s || "").replace("T", " ").slice(0, 16);
+  const said = { received: "Came into the folder", updated: "Updated: the same file name came in with different contents", current: "Became the set to walk with",
+                 superseded: "Superseded: a newer issue is the set to walk with now", removed: "No longer in the folder" };
+  const lines = [
+    ...(state.p.document_log || []).filter(e => e.file === i.file).map(e => ({ at: e.at, who: "", what: said[e.kind] || e.note, sub: e.kind === "received" || e.kind === "updated" ? [e.dated ? "issued " + e.dated : "", e.rel_path ? "in " + e.rel_path.split("/").slice(0, -1).join("/") : ""].filter(Boolean).join(" · ") : "" })),
+    ...(state.p.filing_history || []).filter(h => h.file === i.file).map(h => ({ at: h.at, who: h.who === "closeout" ? "Closeout" : "You",
+        what: `${h.building || h.discipline ? `filed it under ${[h.building, h.discipline ? dn(h.discipline) : ""].filter(Boolean).join(" · ")}` : "put it back on the site"}${h.name ? `, shown as “${h.name}”` : ""}`, sub: "" }))
+  ].sort((a, b) => (b.at || "").localeCompare(a.at || ""));
+  const issues = i.dkind === "drawing" && i.inSet ? docs.filter(d => d.kind === "drawing" && d.in_set && d.discipline === i.disc).sort((a, b) => (b.dated || "").localeCompare(a.dated || "")) : [];
+  return `<div class="filefolder ${state.moving === i.file ? "moving" : ""}">
+    <div class="fhead"><i class="fi doc big"></i><div><h3>${esc(i.name)}</h3><p>${esc([pl.name ? "file: " + i.file : "", i.meta].filter(Boolean).join(" · "))}</p>
+      ${pl.building || pl.discipline ? `<p class="where">Filed under ${esc([pl.building, pl.discipline ? dn(pl.discipline) : ""].filter(Boolean).join(" · "))} by ${pl.who === "closeout" ? "Closeout" : "you"}.</p>` : `<p class="where">On the site, in its own discipline.</p>`}</div>
+      <div class="facts"><a class="btn primary" href="${url}" target="_blank" rel="noopener">Open</a><a class="btn" href="${url}?download=1">Download</a><button class="btn" data-move="${esc(i.file)}">${state.moving === i.file ? "Close" : "Move or rename"}</button></div></div>
+    ${state.moving === i.file ? movePanel(i) : ""}
+    <h4 class="grp">History<small>${lines.length}</small></h4>
+    ${lines.length ? `<ol class="flog">${lines.map(l => `<li><time>${esc(stamp(l.at))}</time><div><b>${l.who ? `<em>${esc(l.who)}</em> ` : ""}${esc(l.what)}</b>${l.sub ? `<small>${esc(l.sub)}</small>` : ""}</div></li>`).join("")}</ol>`
+      : `<p class="none">No history yet. From the next drop on, every change to this file is written here: when it came in, when it changed, when it was filed or moved.</p>`}
+    ${issues.length > 1 ? `<h4 class="grp">Issues of this set<small>${issues.length}</small></h4><div class="fissues">${issues.map(d => `<div class="xrow filerow ${d.is_current ? "cur" : ""} ${baseName(d) === i.file ? "me" : ""}"><a class="open" data-path="${esc(locate(root, "f:" + baseName(d), []) || "")}" title="Open this file's folder"><i class="fi doc"></i><div><b>${esc(baseName(d))}</b><small>${esc([d.dated ? "issued " + d.dated : "undated", d.is_current ? "current set" : "older issue", d.pages ? d.pages + " p." : ""].filter(Boolean).join(" · "))}</small></div></a>${baseName(d) === i.file ? `<span class="tag you">this file</span>` : `<a class="dl" href="${pUrl(state.slug, "/documents/" + encodeURIComponent(d.id) + "/file")}?download=1" aria-label="Download" title="Download">↓</a>`}</div>`).join("")}</div>` : ""}
   </div>`;
 }
 function pathOf(f, root) { const walk = (n, acc) => { if (n === f) return acc; for (const c of n.folders) { const r = walk(c, [...acc, c.key]); if (r) return r; } return null; }; return (walk(root, []) || []).join("|"); }

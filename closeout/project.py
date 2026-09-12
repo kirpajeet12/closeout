@@ -417,7 +417,9 @@ def import_project(store: Store, root: Path, slug: str, settings: Settings = SET
     if not docs:
         raise ValueError("no PDF files found in the dropped folder")
     project_id = store.upsert_project(slug, "New project", str(root))
+    before = store.documents(project_id)
     doc_ids = store.replace_documents(project_id, [d.__dict__ | {"path": str(d.path)} for d in docs])
+    store.log_document_changes(project_id, before, store.documents(project_id))
     for d, did in zip(docs, doc_ids):
         d.document_id = did
     current = [d for d in docs if d.is_current]
