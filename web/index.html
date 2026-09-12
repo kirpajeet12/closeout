@@ -83,6 +83,7 @@
   /* messages: the contractor link */
   .msg .link { margin-top: 14px; padding: 14px 16px; border-radius: 12px; background: var(--paper); border: 1px solid var(--line); display: flex; justify-content: space-between; gap: 14px; align-items: center; flex-wrap: wrap; }
   .msg .link.on { border-color: var(--ready); background: var(--ready-bg); }
+  .msg.mailbox { padding: 0; border: 0; background: none; box-shadow: none; } .msg.mailbox .link { margin-top: 18px; }
   .msg .link > div:first-child { flex: 1; min-width: 240px; } .msg .link b { display: block; font-size: 14px; }
   .msg .link small { display: block; color: var(--mute); font-size: 12px; margin-top: 4px; max-width: 60ch; }
   .msg .link input { width: 100%; margin-top: 6px; font: inherit; font-size: 13px; font-family: var(--mono); border: 1px solid var(--line-2); border-radius: 8px; padding: 7px 10px; background: #fff; color: var(--ink); }
@@ -91,7 +92,7 @@
   .msg .send > div:first-child { grid-column: 1 / -1; } .msg .send b { display: block; font-size: 14px; } .msg .send small { display: block; color: var(--mute); font-size: 12px; margin-top: 4px; max-width: 70ch; }
   .msg .send label { display: grid; gap: 4px; font-size: 12px; color: var(--mute); min-width: 0; }
   .msg .send input { font: inherit; font-size: 14px; padding: 8px 10px; border-radius: 9px; border: 1px solid var(--line-2); background: #fff; color: var(--ink); min-width: 0; }
-  .msg .send .btn { white-space: nowrap; }
+  .msg .send .btn { white-space: nowrap; } .msg .send .acts { display: flex; gap: 8px; align-items: center; }
   .msg .send select { font: inherit; font-size: 14px; padding: 8px 10px; border-radius: 9px; border: 1px solid var(--line-2); background: #fff; color: var(--ink); min-width: 0; }
   .msg .got { margin-top: 10px; padding: 12px 16px 6px; border-radius: 12px; border: 1px dashed var(--line-2); }
   .msg .got > b { display: block; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--mute); margin-bottom: 4px; }
@@ -1021,6 +1022,9 @@ function renderOffice() {
   renderStatus();
   const note = (location.hash.split("?")[1] || "").replace("mail=", "");
   if (note) { history.replaceState(null, "", "#/office"); toast(note === "connected" ? "Gmail connected" : note === "refused" ? "Google did not connect the mailbox" : "The mailbox could not be connected; try again", note !== "connected"); }
+  wireMailButtons(() => renderOffice());
+}
+function wireMailButtons(after) {
   $("#main").querySelectorAll("[data-mail]").forEach(b => b.onclick = async () => {
     b.disabled = true;
     const act = b.dataset.mail;
@@ -1029,7 +1033,7 @@ function renderOffice() {
     if (!r.ok) { b.disabled = false; return toast(j.detail || "Could not reach the mailbox", true); }
     if (act === "check") toast(j.check.new ? `${j.check.new} new email${j.check.new === 1 ? "" : "s"}, ${j.check.placed} filed${j.check.unplaced ? `, ${j.check.unplaced} for you to place` : ""}` : "Nothing new in the mailbox");
     else toast("Gmail disconnected");
-    state.mail = j; renderOffice();
+    state.mail = j; after();
   });
 }
 function mailBlock() {
@@ -1819,6 +1823,12 @@ function unplacedBlock() {
     ${list.map(x => `<div class="msg"><div class="top"><span>${esc(x.from_addr)}</span><span>${esc(when(x.at))}${x.files ? ` · ${x.files} file${x.files === 1 ? "" : "s"}` : ""}</span></div><h4>${esc(x.subject)}</h4><pre>${esc(x.text.slice(0, 800))}${x.text.length > 800 ? "…" : ""}</pre>
       <form class="send" data-place="${esc(x.id)}"><label><span>Belongs to</span><select ${finished.length ? "" : "disabled"}><option value="">Choose a review</option>${opts}</select></label><button type="submit" class="btn primary" ${finished.length ? "" : "disabled"}>Place it here</button></form></div>`).join("")}`;
 }
+function mailboxBlock() {
+  const p = state.p, gm = p.mail && p.mail.gmail;
+  if (gm) return `<div class="msg mailbox"><div class="link on"><div><b>Office mailbox · ${esc(gm)}</b><small>Each message goes out from here with the items report attached, and the contractor's replies are picked up and shown under the review they answer.</small></div><div class="acts"><button class="btn" data-mail="check">Look now</button><a class="btn quiet" href="#/office">Mailbox settings</a></div></div></div>`;
+  if (!p.mail || !p.mail.can_connect) return "";
+  return `<div class="msg mailbox"><div class="link"><div><b>Connect the office's Gmail</b><small>Then each message is emailed from the office mailbox with the items report attached, and the contractor's replies with photos are picked up here, under the review they answer.</small></div><div class="acts"><a class="btn primary" href="/api/mail/connect">Connect Gmail</a></div></div></div>`;
+}
 function renderMessages() {
   const p = state.p, slug = state.slug;
   const linkFor = rid => p.shares.find(x => x.review_id === rid && !x.revoked_at);
@@ -1838,14 +1848,15 @@ function renderMessages() {
     const got = (p.inbound || []).filter(x => x.review_id === m.review_id && x.status !== "unplaced");
     return `<div class="link on"><div><b>Contractor link · active</b><input readonly value="${esc(url)}" onclick="this.select()"><small>${ds.length ? `${ds.length} drop${ds.length === 1 ? "" : "s"} came back through it, last ${esc(when(ds[ds.length - 1].created_at))}.` : "Nothing has come back through it yet."}</small></div>
       <div class="acts"><button class="btn" data-copy="${esc(url)}">Copy link</button><a class="btn" href="${esc(url)}" target="_blank" rel="noopener">Open as the contractor</a><button class="btn quiet" data-revoke="${esc(sh.id)}">Turn off</button></div></div>
-    <form class="send" data-send="${esc(m.review_id)}"><div><b>${sends.length ? "Send it again" : "Send the message"}</b><small>${gm ? `Closeout emails it from ${esc(gm)}, with the link inside, the moment you press Send, and watches that thread for the contractor's reply. Nothing goes out on its own.` : direct ? "Closeout emails it from the office address, with the link inside, the moment you press Send. Nothing goes out on its own." : "Your mail app opens with the message and the link filled in; you press Send there. Closeout keeps a record of it here."}</small></div>
+    <form class="send" data-send="${esc(m.review_id)}"><div><b>${sends.length ? "Send it again" : "Send the message"}</b><small>${gm ? `Closeout emails it from ${esc(gm)} the moment you press Send, with the items report attached (each item with its photo and plan mark) and the link inside, and watches that thread for the contractor's reply. Nothing goes out on its own.` : direct ? "Closeout emails it from the office address the moment you press Send, with the items report attached (each item with its photo and plan mark) and the link inside. Nothing goes out on its own." : "Your mail app opens with the message and the link filled in; you press Send there. Attach the items report yourself if you want it with the email. Closeout keeps a record of it here."}</small></div>
       <label><span>Contractor's email</span><input type="email" name="to" placeholder="site@contractor.com" value="${esc(last ? last.to_addr : "")}" required autocomplete="email"></label>
-      <button type="submit" class="btn primary">${direct ? "Send by email" : "Open in your mail app"}</button>
-      ${sends.length ? `<ol class="sent">${[...sends].reverse().map(x => `<li><b>Sent to ${esc(x.to_addr)}</b><span>${esc(when(x.at))} · ${x.via === "gmail" ? `from ${esc(p.mail.gmail || "the office's Gmail")}` : x.via === "ses" ? "by Closeout" : "from your mail app"}</span></li>`).join("")}</ol>` : ""}</form>
+      <div class="acts"><a class="btn" href="${esc(pUrl(slug, `/reviews/${encodeURIComponent(m.review_id)}/items.pdf`))}" target="_blank" rel="noopener">Look at the report</a><button type="submit" class="btn primary">${direct ? "Send by email" : "Open in your mail app"}</button></div>
+      ${sends.length ? `<ol class="sent">${[...sends].reverse().map(x => `<li><b>Sent to ${esc(x.to_addr)}</b><span>${esc(when(x.at))} · ${x.via === "gmail" ? `from ${esc(p.mail.gmail || "the office's Gmail")}` : x.via === "ses" ? "by Closeout" : "from your mail app"}${x.report ? " · report attached" : ""}</span></li>`).join("")}</ol>` : ""}</form>
     ${got.length ? `<div class="got"><b>Received by email</b>${got.map(x => `<div class="in"><div class="top"><span>${esc(x.from_addr)}</span><span>${esc(when(x.at))}${x.files ? ` · ${x.files} file${x.files === 1 ? "" : "s"} ${x.status === "queued" ? "waiting to be filed" : "filed"}` : ""}</span></div><h5>${esc(x.subject)}</h5><pre>${esc(x.text.slice(0, 1200))}${x.text.length > 1200 ? "…" : ""}</pre></div>`).join("")}</div>` : ""}`;
   };
   const rows = [...p.batches].reverse();
   $("#tab").innerHTML = `
+    ${mailboxBlock()}
     ${p.messages.length ? p.messages.map(m => `
     <div class="msg"><div class="top"><span>${about(m)}</span><span>${esc(when(m.updated_at || m.created_at))}</span></div>
       <h4>${esc(m.subject)}</h4><pre>${esc(m.body)}</pre>${linkBlock(m)}</div>`).join("")
@@ -1863,6 +1874,7 @@ function renderMessages() {
         <td>${r ? `<span class="pill ${r.status === "done" ? "ready" : r.status === "failed" ? "needs" : "unclear"}">${r.status === "done" ? "Filed" : r.status === "failed" ? "Needs another try" : "Filing…"}</span> ${r.status === "failed" ? `<button class="btn" data-retry="${esc(r.id)}">Try again</button>` : ""} ${r.status === "done" ? `<a href="/api/runs/${r.id}/packet.md" target="_blank" style="margin-left:8px">Report</a>` : ""}` : ""}</td>
 </tr>`; }).join("")}
     </tbody></table>` : `<p class="empty">Nothing received yet.</p>`}`;
+  wireMailButtons(() => load());
   $("#tab").querySelectorAll("a[data-rv]").forEach(a => a.onclick = () => { const r = p.reviews.find(x => x.id === a.dataset.rv); if (r) { state.fieldDisc = r.discipline; state.openReview = r.id; } });
   $("#tab").querySelectorAll("[data-retry]").forEach(b => b.onclick = () => retry(b.dataset.retry));
   $("#tab").querySelectorAll("[data-share]").forEach(b => b.onclick = async () => {
@@ -1884,7 +1896,7 @@ function renderMessages() {
   });
   $("#tab").querySelectorAll("form[data-send]").forEach(f => f.onsubmit = async e => {
     e.preventDefault();
-    const rid = f.dataset.send, to = f.querySelector("input[name=to]").value.trim(), m = latestFor[rid], direct = !!(p.mail && p.mail.from);
+    const rid = f.dataset.send, to = f.querySelector("input[name=to]").value.trim(), m = latestFor[rid], direct = !!(p.mail && (p.mail.gmail || p.mail.from));
     if (!m) return toast("There is no message for this review yet", true);
     const btn = f.querySelector("button[type=submit]"); btn.disabled = true;
     if (!direct) window.open(`mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(m.subject)}&body=${encodeURIComponent(m.body)}`, "_self");

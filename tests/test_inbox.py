@@ -52,11 +52,11 @@ class FakeGmail:
     def profile(self):
         return self.address
 
-    def send(self, to, subject, body):
+    def send(self, to, subject, body, attachments=()):
         mid = f"m{len(FakeGmail.mailbox) + 1}"
-        raw = _raw(self.address, subject, body)
+        raw = gmail_mod.build_message(self.address, to, subject, body, attachments).as_bytes()
         FakeGmail.mailbox[mid] = {"raw": raw, "thread": f"t{mid}", "labels": ["SENT"]}
-        FakeGmail.sent.append({"to": to, "subject": subject, "body": body, "id": mid})
+        FakeGmail.sent.append({"to": to, "subject": subject, "body": body, "id": mid, "attachments": [(n, len(b), m) for n, b, m in attachments]})
         return {"id": mid, "thread_id": f"t{mid}"}
 
     def search(self, query, limit=50):

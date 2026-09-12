@@ -48,6 +48,19 @@ def access_token(settings: Settings, refresh_token: str) -> str:
     return r.json()["access_token"]
 
 
+def build_message(from_addr: str, to: str, subject: str, body: str, attachments: list[tuple[str, bytes, str]] = ()) -> EmailMessage:
+    """One plain-text email with files attached: (file name, bytes, mime type) each."""
+    msg = EmailMessage()
+    msg["To"] = to
+    msg["From"] = from_addr
+    msg["Subject"] = subject
+    msg.set_content(body)
+    for name, data, mime in attachments:
+        maintype, _, subtype = (mime or "application/octet-stream").partition("/")
+        msg.add_attachment(data, maintype=maintype, subtype=subtype or "octet-stream", filename=name)
+    return msg
+
+
 @dataclass
 class Incoming:
     """One message read from the mailbox, reduced to what filing needs."""
@@ -109,13 +122,9 @@ class Gmail:
     def profile(self) -> str:
         return self._get("profile").get("emailAddress", "")
 
-    def send(self, to: str, subject: str, body: str) -> dict:
-        """Send one plain-text message from the connected address. Returns {id, threadId}."""
-        msg = EmailMessage()
-        msg["To"] = to
-        msg["From"] = self.address
-        msg["Subject"] = subject
-        msg.set_content(body)
+    def send(self, to: str, subject: str, body: str, attachments: list[tuple[str, bytes, str]] = ()) -> dict:
+        """Send one plain-text message from the connected address, with any files attached. Returns {id, threadId}."""
+        msg = build_message(self.address, to, subject, body, attachments)
         raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
         out = self._post("messages/send", {"raw": raw})
         return {"id": out.get("id", ""), "thread_id": out.get("threadId", "")}

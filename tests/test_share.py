@@ -35,7 +35,7 @@ def test_link_needs_a_finished_review_and_lands_in_the_message(client, tmp_path)
     assert r.status_code == 200, r.text
     tok, url = r.json()["share"]["id"], r.json()["url"]
     assert url.endswith("/c/" + tok) and len(tok) >= 24
-    assert r.json()["message"]["body"].endswith("through this link: " + url)
+    assert r.json()["message"]["body"].endswith("through this page: " + url)
     # asking again gives the same link and does not add the line twice
     again = client.post(f"/api/projects/{slug}/reviews/{rev['id']}/share").json()
     assert again["share"]["id"] == tok and again["message"]["body"].count("/c/") == 1

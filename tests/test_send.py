@@ -72,7 +72,12 @@ def test_with_a_verified_sender_the_app_sends_through_ses_on_the_press(client, t
     call = FakeSES.calls[0]
     assert call["FromEmailAddress"] == "reviews@example.com" and call["Destination"] == {"ToAddresses": ["site@contractor.com"]}
     assert call["ReplyToAddresses"] == ["reviews@example.com"]
-    assert "/c/" in call["Content"]["Simple"]["Body"]["Text"]["Data"] and call["Content"]["Simple"]["Subject"]["Data"] == s["subject"]
+    import email as email_lib
+    from email import policy
+    raw = email_lib.message_from_bytes(call["Content"]["Raw"]["Data"], policy=policy.default)
+    assert raw["Subject"] == s["subject"] and "/c/" in raw.get_body(("plain",)).get_content()
+    pdfs = [part for part in raw.iter_attachments() if part.get_content_type() == "application/pdf"]
+    assert len(pdfs) == 1 and pdfs[0].get_filename() == s["report"]           # the items report goes with it
     # the engineer chose the mail app anyway: recorded as such, nothing sent by the app
     r = client.post(f"/api/projects/{slug}/reviews/{rev['id']}/send", json={"to": "site@contractor.com", "via": "mail-app"})
     assert r.status_code == 200 and r.json()["send"]["via"] == "mail-app" and len(FakeSES.calls) == 1

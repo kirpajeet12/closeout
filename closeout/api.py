@@ -30,6 +30,7 @@ from .config import SETTINGS, Settings
 from .ingest import _exif, _heic_to_jpeg
 from .packet import build_packet, packet_markdown
 from . import report as report_mod
+from . import notice as notice_mod
 from . import brief as brief_mod
 from . import coverage as coverage_mod
 from .store import Store, now
@@ -514,7 +515,7 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
                 "messages": st.all_drafts(pid), "decisions": st.decisions(pid), "model_id": settings.model_id,
                 "reviews": coverage_mod.decorate_reviews(st, prj, st.reviews(pid)), "shares": st.shares(pid), "office": settings.office,
                 "sends": st.sends(pid), "inbound": st.inbound_for_project(pid),
-                "mail": {"from": settings.mail_from, "gmail": (st.mail_account() or {}).get("address", "") if gmail_mod.configured(settings) else ""},
+                "mail": {"from": settings.mail_from, "gmail": (st.mail_account() or {}).get("address", "") if gmail_mod.configured(settings) else "", "can_connect": gmail_mod.configured(settings)},
                 "stages": {code: coverage_mod.stages_for(prj, code) for code in sorted({*(prj.get("stages") or {}), *(r["discipline"] for r in st.reviews(pid)), *(d["discipline"] for d in st.documents(pid) if d.get("kind") == "drawing" and d.get("discipline"))})},
                 "units": coverage_mod.buildings(prj),
                 "docs_review": prj.get("docs_review"), "docs_scope": prj.get("docs_scope") or [],
@@ -1146,7 +1147,7 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         crop, _whole = review_mod.pin_images(Path(sh["image_path"]), d["pin_x"], d["pin_y"])
         return Response(crop, media_type="image/jpeg")
 
-    LINK_LINE = "Send your photos and documents through this link: "
+    LINK_LINE = "Or send your photos through this page: "
 
     def _share_url(request: Request, token: str) -> str:
         base = str(request.base_url).rstrip("/")
@@ -1172,7 +1173,7 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         return {"share": share, "url": url, "message": st.draft_for_review(review_id)}
 
     @app.post("/api/projects/{slug}/reviews/{review_id}/send")
-    def send_review_message(slug: str, review_id: str, body: SendIn) -> dict:
+    def send_review_message(slug: str, review_id: str, body: SendIn, request: Request) -> dict:
         """The engineer sends the covering message to the contractor. Only on their press, one message at a time.
         With a verified sender configured the app sends it by email; otherwise the mail app sends it and this records that.
         Either way the contractor's link must already be in the message, so what comes back has a way home."""
@@ -1203,19 +1204,41 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
             via = "ses"
         else:
             via = "mail-app"
-        message_id = thread_id = ""
+        message_id = thread_id = report = ""
+        if via in ("gmail", "ses"):    # the items report travels with it: photos, plan marks, the page link
+            report, pdf = notice_mod.build_notice(st, prj["id"], review_id, settings.office, _share_url(request, share["id"]))
+            _keep_report(slug, report, pdf)
         try:
             if via == "gmail":
-                out = _gmail(account).send(to, subject, text)
+                out = _gmail(account).send(to, subject, text, [(report, pdf, "application/pdf")])
                 message_id, thread_id = out["id"], out["thread_id"]
             elif via == "ses":
-                message_id = mail_mod.send_email(settings, to, subject, text)
+                message_id = mail_mod.send_email(settings, to, subject, text, [(report, pdf, "application/pdf")])
         except Exception as e:  # the mail service refused; nothing recorded, the engineer sees why
             log.warning("send refused: %s", e)
             raise HTTPException(502, "the email could not be sent; the message is unchanged, try again or use your mail app")
-        sent = st.record_send(prj["id"], review_id, msg["id"], to, subject, text, via, message_id, thread_id)
+        sent = st.record_send(prj["id"], review_id, msg["id"], to, subject, text, via, message_id, thread_id, report)
         st.touch_project(prj["id"])
         return {"send": sent, "sends": st.sends(prj["id"])}
+
+    def _keep_report(slug: str, name: str, pdf: bytes) -> None:
+        """A copy of what was sent, in the project's data folder, so the record can be opened later."""
+        d = settings.data_dir / "projects" / slug / "reports"
+        d.mkdir(parents=True, exist_ok=True)
+        (d / name).write_bytes(pdf)
+
+    @app.get("/api/projects/{slug}/reviews/{review_id}/items.pdf", include_in_schema=False)
+    def review_items_pdf(slug: str, review_id: str, request: Request):
+        """The items report as it travels with the message: to look at before sending, or to attach by hand."""
+        st = store()
+        prj = _project(st, slug)
+        r = st.review(review_id)
+        if not r or r["project_id"] != prj["id"]:
+            raise HTTPException(404, "no such review")
+        share = st.share_for_review(review_id)
+        link = _share_url(request, share["id"]) if share and not share.get("revoked_at") else ""
+        name, pdf = notice_mod.build_notice(st, prj["id"], review_id, settings.office, link)
+        return Response(pdf, media_type="application/pdf", headers={"content-disposition": f'inline; filename="{name}"'})
 
     # --- the office's mailbox: connected once, read only where Closeout is expected ---------------------------------
     def _gmail(account: dict) -> gmail_mod.Gmail:

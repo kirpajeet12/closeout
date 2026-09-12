@@ -55,6 +55,7 @@ CREATE TABLE IF NOT EXISTS sends (
   body TEXT NOT NULL,
   via TEXT NOT NULL,              -- ses (the app sent it) | mail-app (handed to the engineer's mail app)
   message_id TEXT NOT NULL DEFAULT '',
+  report TEXT NOT NULL DEFAULT '',   -- file name of the items report that went with it, '' when none
   at TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS mail_accounts (
@@ -359,7 +360,8 @@ class Store:
                                 ("projects", "docs_review_json", "TEXT"),
                                 ("projects", "docs_scope_json", "TEXT"),
                                 ("batches", "via", "TEXT NOT NULL DEFAULT ''"),
-                                ("sends", "thread_id", "TEXT NOT NULL DEFAULT ''")):
+                                ("sends", "thread_id", "TEXT NOT NULL DEFAULT ''"),
+                                ("sends", "report", "TEXT NOT NULL DEFAULT ''")):
             if col not in self._cols(table):
                 self.conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {ddl}")
         if "project_id" not in self._cols("deficiencies"):
@@ -603,11 +605,11 @@ class Store:
         return self.share(token)
 
     def record_send(self, project_id: str, review_id: str, draft_id: str, to_addr: str, subject: str, body: str, via: str,
-                    message_id: str = "", thread_id: str = "") -> dict:
+                    message_id: str = "", thread_id: str = "", report: str = "") -> dict:
         """One row per message that left for the contractor, however it left."""
         sid = "send_" + uuid.uuid4().hex[:10]
-        self.conn.execute("INSERT INTO sends(id, project_id, review_id, draft_id, to_addr, subject, body, via, message_id, thread_id, at) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
-                          (sid, project_id, review_id, draft_id, to_addr, subject, body, via, message_id, thread_id, now()))
+        self.conn.execute("INSERT INTO sends(id, project_id, review_id, draft_id, to_addr, subject, body, via, message_id, thread_id, report, at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+                          (sid, project_id, review_id, draft_id, to_addr, subject, body, via, message_id, thread_id, report, now()))
         self.conn.commit()
         return self.send(sid)
 
