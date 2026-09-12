@@ -31,6 +31,13 @@ class Settings:
     # sending the covering message by email: a verified sender address on Amazon SES turns it on. Without one the
     # engineer's own mail app opens with the message filled in, and the app only records that it was handed over.
     mail_from: str = os.environ.get("CLOSEOUT_MAIL_FROM", "")
+    # connecting the office's Gmail: a Google OAuth client (web application) whose redirect is <site>/api/mail/callback.
+    # With it the engineer presses Connect on the Office page once; Closeout then sends from that address and reads
+    # only replies to its own messages plus mail labelled for it (the label name below).
+    google_client_id: str = os.environ.get("CLOSEOUT_GOOGLE_CLIENT_ID", "")
+    google_client_secret: str = os.environ.get("CLOSEOUT_GOOGLE_CLIENT_SECRET", "")
+    mail_label: str = os.environ.get("CLOSEOUT_MAIL_LABEL", "Closeout")
+    mail_check_seconds: int = int(os.environ.get("CLOSEOUT_MAIL_CHECK_SECONDS", "120"))
 
 
 SETTINGS = Settings()

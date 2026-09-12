@@ -69,6 +69,7 @@ class Facts:
     batches: list[dict]
     sheets: list[dict]
     sends: list[dict] = field(default_factory=list)
+    inbound: list[dict] = field(default_factory=list)
 
     def building_key(self, text: str) -> str:
         b = building_of(text)
@@ -120,7 +121,8 @@ def gather(store: Store, project_id: str) -> Facts:
     return Facts(view=view, buildings=site_tree(view)["buildings"], items=items, reviews=store.reviews(project_id),
                  documents=view.get("documents") or [], filings=store.filings(project_id),
                  drafts=store.all_drafts(project_id), shares=store.shares(project_id),
-                 batches=store.batches(project_id), sheets=view.get("sheets") or [], sends=store.sends(project_id))
+                 batches=store.batches(project_id), sheets=view.get("sheets") or [], sends=store.sends(project_id),
+                 inbound=store.inbound_for_project(project_id))
 
 
 def _state(i: dict) -> str:
@@ -407,7 +409,14 @@ def facts_text(facts: Facts, office: str) -> str:
     for s_ in facts.sends[-5:]:
         rv = next((r for r in facts.reviews if r["id"] == s_["review_id"]), None)
         lines.append(f"- sent {str(s_['at'])[:10]} to {s_['to_addr']} for {rv['title'] if rv else s_['review_id']}"
-                     f" ({'from the app' if s_['via'] == 'ses' else 'from the engineer\'s mail app'}); replies come back through the link")
+                     f" ({'from the office Gmail' if s_['via'] == 'gmail' else 'from the app' if s_['via'] == 'ses' else 'from the engineer\'s mail app'}); replies come back through the link")
+    emails = [i for i in facts.inbound if i.get("status") != "unplaced"]
+    if emails:
+        lines.append(f"EMAILS RECEIVED: {len(emails)} read from the office mailbox and filed to their reviews")
+        for i in emails[-5:]:
+            rv = next((r for r in facts.reviews if r["id"] == i["review_id"]), None)
+            lines.append(f"- {str(i['at'])[:10]} from {i['from_addr']} for {rv['title'] if rv else i['review_id']}: {i['subject'][:80]}"
+                         f" ({i['files']} files){'; text: ' + i['text'][:200].replace(chr(10), ' ') if i.get('text') else ''}")
     return "\n".join(lines)
 
 

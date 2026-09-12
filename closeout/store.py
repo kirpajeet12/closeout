@@ -57,6 +57,30 @@ CREATE TABLE IF NOT EXISTS sends (
   message_id TEXT NOT NULL DEFAULT '',
   at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS mail_accounts (
+  id TEXT PRIMARY KEY,
+  address TEXT NOT NULL,
+  refresh_token TEXT NOT NULL,     -- Google's long-lived token; never leaves this database
+  connected_at TEXT NOT NULL,
+  last_check TEXT NOT NULL DEFAULT '',
+  last_error TEXT NOT NULL DEFAULT ''
+);
+CREATE TABLE IF NOT EXISTS inbound (
+  id TEXT PRIMARY KEY,
+  gmail_id TEXT NOT NULL UNIQUE,
+  thread_id TEXT NOT NULL DEFAULT '',
+  project_id TEXT NOT NULL DEFAULT '',
+  review_id TEXT NOT NULL DEFAULT '',
+  from_addr TEXT NOT NULL,
+  subject TEXT NOT NULL,
+  text TEXT NOT NULL,
+  sent_at TEXT NOT NULL DEFAULT '',
+  files INTEGER NOT NULL DEFAULT 0,
+  folder TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL,            -- placed | queued (files wait for the desk) | unplaced (no review matched)
+  how TEXT NOT NULL DEFAULT '',    -- thread | link | engineer
+  at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS shares (
   id TEXT PRIMARY KEY,            -- the token in the contractor's link
   project_id TEXT NOT NULL,
@@ -334,7 +358,8 @@ class Store:
                                 ("sheets", "views_json", "TEXT NOT NULL DEFAULT '[]'"),
                                 ("projects", "docs_review_json", "TEXT"),
                                 ("projects", "docs_scope_json", "TEXT"),
-                                ("batches", "via", "TEXT NOT NULL DEFAULT ''")):
+                                ("batches", "via", "TEXT NOT NULL DEFAULT ''"),
+                                ("sends", "thread_id", "TEXT NOT NULL DEFAULT ''")):
             if col not in self._cols(table):
                 self.conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {ddl}")
         if "project_id" not in self._cols("deficiencies"):
@@ -578,13 +603,84 @@ class Store:
         return self.share(token)
 
     def record_send(self, project_id: str, review_id: str, draft_id: str, to_addr: str, subject: str, body: str, via: str,
-                    message_id: str = "") -> dict:
+                    message_id: str = "", thread_id: str = "") -> dict:
         """One row per message that left for the contractor, however it left."""
         sid = "send_" + uuid.uuid4().hex[:10]
-        self.conn.execute("INSERT INTO sends(id, project_id, review_id, draft_id, to_addr, subject, body, via, message_id, at) VALUES(?,?,?,?,?,?,?,?,?,?)",
-                          (sid, project_id, review_id, draft_id, to_addr, subject, body, via, message_id, now()))
+        self.conn.execute("INSERT INTO sends(id, project_id, review_id, draft_id, to_addr, subject, body, via, message_id, thread_id, at) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                          (sid, project_id, review_id, draft_id, to_addr, subject, body, via, message_id, thread_id, now()))
         self.conn.commit()
         return self.send(sid)
+
+    def sends_with_threads(self) -> list[dict]:
+        return [dict(r) for r in self.conn.execute("SELECT * FROM sends WHERE thread_id!='' ORDER BY at, rowid")]
+
+    def send_by_thread(self, thread_id: str) -> dict | None:
+        r = self.conn.execute("SELECT * FROM sends WHERE thread_id=? ORDER BY at DESC", (thread_id,)).fetchone()
+        return dict(r) if r else None
+
+    # --- the connected mailbox and what came in through it ---------------------------------------------------------
+    def mail_account(self) -> dict | None:
+        r = self.conn.execute("SELECT * FROM mail_accounts ORDER BY connected_at DESC").fetchone()
+        return dict(r) if r else None
+
+    def connect_mail(self, address: str, refresh_token: str) -> dict:
+        """One mailbox per office: connecting again replaces the old one."""
+        self.conn.execute("DELETE FROM mail_accounts")
+        self.conn.execute("INSERT INTO mail_accounts(id, address, refresh_token, connected_at) VALUES(?,?,?,?)",
+                          ("mail_" + uuid.uuid4().hex[:10], address, refresh_token, now()))
+        self.conn.commit()
+        return self.mail_account()
+
+    def disconnect_mail(self) -> None:
+        self.conn.execute("DELETE FROM mail_accounts")
+        self.conn.commit()
+
+    def touch_mail_check(self, error: str = "") -> None:
+        self.conn.execute("UPDATE mail_accounts SET last_check=?, last_error=?", (now(), error))
+        self.conn.commit()
+
+    def record_inbound(self, gmail_id: str, thread_id: str, project_id: str, review_id: str, from_addr: str, subject: str,
+                       text: str, sent_at: str, files: int, status: str, how: str) -> dict:
+        iid = "in_" + uuid.uuid4().hex[:10]
+        self.conn.execute("INSERT INTO inbound(id, gmail_id, thread_id, project_id, review_id, from_addr, subject, text, sent_at, files, status, how, at) "
+                          "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                          (iid, gmail_id, thread_id, project_id, review_id, from_addr, subject, text[:20000], sent_at, files, status, how, now()))
+        self.conn.commit()
+        return self.inbound(iid)
+
+    def inbound(self, inbound_id: str) -> dict | None:
+        r = self.conn.execute("SELECT * FROM inbound WHERE id=?", (inbound_id,)).fetchone()
+        return dict(r) if r else None
+
+    def inbound_by_gmail_id(self, gmail_id: str) -> dict | None:
+        r = self.conn.execute("SELECT * FROM inbound WHERE gmail_id=?", (gmail_id,)).fetchone()
+        return dict(r) if r else None
+
+    def inbound_for_project(self, project_id: str) -> list[dict]:
+        return [dict(r) for r in self.conn.execute("SELECT * FROM inbound WHERE project_id=? ORDER BY at, rowid", (project_id,))]
+
+    def inbound_unplaced(self) -> list[dict]:
+        return [dict(r) for r in self.conn.execute("SELECT * FROM inbound WHERE status='unplaced' ORDER BY at, rowid")]
+
+    def inbound_queued(self) -> list[dict]:
+        return [dict(r) for r in self.conn.execute("SELECT * FROM inbound WHERE status='queued' ORDER BY at, rowid")]
+
+    def set_inbound_folder(self, inbound_id: str, folder: str) -> None:
+        self.conn.execute("UPDATE inbound SET folder=? WHERE id=?", (folder, inbound_id))
+        self.conn.commit()
+
+    def set_inbound_status(self, inbound_id: str, status: str) -> None:
+        self.conn.execute("UPDATE inbound SET status=? WHERE id=?", (status, inbound_id))
+        self.conn.commit()
+
+    def place_inbound(self, inbound_id: str, project_id: str, review_id: str) -> dict | None:
+        row = self.inbound(inbound_id)
+        if not row:
+            return None
+        status = "queued" if row["files"] else "placed"
+        self.conn.execute("UPDATE inbound SET project_id=?, review_id=?, status=?, how='engineer' WHERE id=?", (project_id, review_id, status, inbound_id))
+        self.conn.commit()
+        return self.inbound(inbound_id)
 
     def send(self, send_id: str) -> dict | None:
         r = self.conn.execute("SELECT * FROM sends WHERE id=?", (send_id,)).fetchone()

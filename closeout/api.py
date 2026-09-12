@@ -25,7 +25,7 @@ from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse, Response, StreamingResponse
 from pydantic import BaseModel
 
-from . import ask as ask_mod, documents as documents_mod, mail as mail_mod, drawings as drawings_mod, usage as usage_mod, pipeline, plans as plans_mod, project as project_mod, review as review_mod, revisions as revisions_mod
+from . import ask as ask_mod, documents as documents_mod, gmail as gmail_mod, inbox as inbox_mod, mail as mail_mod, drawings as drawings_mod, usage as usage_mod, pipeline, plans as plans_mod, project as project_mod, review as review_mod, revisions as revisions_mod
 from .config import SETTINGS, Settings
 from .ingest import _exif, _heic_to_jpeg
 from .packet import build_packet, packet_markdown
@@ -169,6 +169,11 @@ class SendIn(BaseModel):
     via: str = ""              # "" = send from the app when a sender is configured; "mail-app" = it was handed to the mail app
     subject: str | None = None # the message as it stood when Send was pressed; None = the current draft
     body: str | None = None
+
+
+class PlaceIn(BaseModel):
+    slug: str
+    review_id: str
 
 
 class DisciplineIn(BaseModel):
@@ -508,7 +513,8 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
                 "packet": build_packet(st, latest) if latest else None, "batches": batches,
                 "messages": st.all_drafts(pid), "decisions": st.decisions(pid), "model_id": settings.model_id,
                 "reviews": coverage_mod.decorate_reviews(st, prj, st.reviews(pid)), "shares": st.shares(pid), "office": settings.office,
-                "sends": st.sends(pid), "mail": {"from": settings.mail_from},
+                "sends": st.sends(pid), "inbound": st.inbound_for_project(pid),
+                "mail": {"from": settings.mail_from, "gmail": (st.mail_account() or {}).get("address", "") if gmail_mod.configured(settings) else ""},
                 "stages": {code: coverage_mod.stages_for(prj, code) for code in sorted({*(prj.get("stages") or {}), *(r["discipline"] for r in st.reviews(pid)), *(d["discipline"] for d in st.documents(pid) if d.get("kind") == "drawing" and d.get("discipline"))})},
                 "units": coverage_mod.buildings(prj),
                 "docs_review": prj.get("docs_review"), "docs_scope": prj.get("docs_scope") or [],
@@ -1188,17 +1194,147 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         text = (body.body if body.body is not None else msg["body"]).strip()
         if "/c/" not in text:
             raise HTTPException(409, "the message must carry the contractor's link")
-        via = "mail-app" if body.via == "mail-app" or not mail_mod.can_send(settings) else "ses"
-        message_id = ""
-        if via == "ses":
-            try:
+        account = st.mail_account() if gmail_mod.configured(settings) else None
+        if body.via == "mail-app":
+            via = "mail-app"
+        elif account:
+            via = "gmail"
+        elif mail_mod.can_send(settings):
+            via = "ses"
+        else:
+            via = "mail-app"
+        message_id = thread_id = ""
+        try:
+            if via == "gmail":
+                out = _gmail(account).send(to, subject, text)
+                message_id, thread_id = out["id"], out["thread_id"]
+            elif via == "ses":
                 message_id = mail_mod.send_email(settings, to, subject, text)
-            except Exception as e:  # the mail service refused; nothing recorded, the engineer sees why
-                log.warning("send refused: %s", e)
-                raise HTTPException(502, "the email could not be sent; the message is unchanged, try again or use your mail app")
-        sent = st.record_send(prj["id"], review_id, msg["id"], to, subject, text, via, message_id)
+        except Exception as e:  # the mail service refused; nothing recorded, the engineer sees why
+            log.warning("send refused: %s", e)
+            raise HTTPException(502, "the email could not be sent; the message is unchanged, try again or use your mail app")
+        sent = st.record_send(prj["id"], review_id, msg["id"], to, subject, text, via, message_id, thread_id)
         st.touch_project(prj["id"])
         return {"send": sent, "sends": st.sends(prj["id"])}
+
+    # --- the office's mailbox: connected once, read only where Closeout is expected ---------------------------------
+    def _gmail(account: dict) -> gmail_mod.Gmail:
+        return gmail_mod.Gmail(settings, account["refresh_token"], account["address"])
+
+    def _mail_state(request: Request) -> str:
+        return hmac.new(_access_token().encode(), b"connect-gmail", hashlib.sha256).hexdigest()[:32]
+
+    def _redirect_uri(request: Request) -> str:
+        proto = request.headers.get("x-forwarded-proto") or request.url.scheme
+        host = request.headers.get("x-forwarded-host") or request.headers.get("host") or request.url.netloc
+        return f"{proto}://{host}/api/mail/callback"
+
+    def _run_batch(project_id: str, files: list[Path], label: str, root: Path, via: str) -> None:
+        """The filing desk for mail: same guard and same pipeline as a drop, tagged with where it came from."""
+        try:
+            feed = _reserve()
+        except HTTPException:
+            raise RuntimeError("busy")
+
+        def target(progress):
+            def tagged(event, data):
+                if event == "ingested" and data.get("batch_id"):
+                    store().set_batch_via(data["batch_id"], via)
+                progress(event, data)
+            pipeline.process_batch(store(), project_id, files, label, settings, progress=tagged, root=root)
+
+        feed.push("uploaded", {"label": label, "files": len(files), "folder": str(root)})
+        _launch(target, feed)
+
+    def _mail_check() -> dict:
+        st = store()
+        account = st.mail_account()
+        if not account or not gmail_mod.configured(settings):
+            raise HTTPException(409, "no mailbox is connected")
+        try:
+            return inbox_mod.check(st, settings, _gmail(account), _run_batch)
+        except Exception as e:  # the mailbox could not be read; the Office page shows why
+            log.warning("mail check failed: %s", type(e).__name__)
+            st.touch_mail_check(f"{type(e).__name__}: {str(e)[:120]}")
+            raise HTTPException(502, "the mailbox could not be read just now")
+
+    def _mail_status() -> dict:
+        st = store()
+        account = st.mail_account()
+        unplaced = []
+        for r in st.inbound_unplaced():
+            unplaced.append({k: r[k] for k in ("id", "from_addr", "subject", "text", "sent_at", "files", "at")})
+        return {"configured": gmail_mod.configured(settings), "label": settings.mail_label,
+                "account": {"address": account["address"], "connected_at": account["connected_at"], "last_check": account["last_check"],
+                            "last_error": account["last_error"]} if account else None,
+                "unplaced": unplaced, "projects": [{"slug": p["slug"], "name": p["name"]} for p in st.projects()]}
+
+    @app.get("/api/mail")
+    def mail_status() -> dict:
+        return _mail_status()
+
+    @app.get("/api/mail/connect")
+    def mail_connect(request: Request):
+        """Hands the engineer to Google's own consent screen; the secret never reaches the browser."""
+        if not gmail_mod.configured(settings):
+            raise HTTPException(409, "the server has no Google client yet; see deploy/env.example")
+        return RedirectResponse(gmail_mod.auth_url(settings, _redirect_uri(request), _mail_state(request)), status_code=303)
+
+    @app.get("/api/mail/callback")
+    def mail_callback(request: Request, code: str = "", state: str = "", error: str = ""):
+        if error or not code or not hmac.compare_digest(state, _mail_state(request)):
+            return RedirectResponse("/#/office?mail=refused", status_code=303)
+        try:
+            tokens = gmail_mod.exchange_code(settings, code, _redirect_uri(request))
+            refresh = tokens.get("refresh_token", "")
+            if not refresh:
+                raise RuntimeError("no refresh token")
+            address = gmail_mod.Gmail(settings, refresh).profile()
+        except Exception as e:
+            log.warning("gmail connect failed: %s", type(e).__name__)
+            return RedirectResponse("/#/office?mail=failed", status_code=303)
+        store().connect_mail(address, refresh)
+        return RedirectResponse("/#/office?mail=connected", status_code=303)
+
+    @app.delete("/api/mail")
+    def mail_disconnect() -> dict:
+        store().disconnect_mail()
+        return _mail_status()
+
+    @app.post("/api/mail/check")
+    def mail_check_now() -> dict:
+        out = _mail_check()
+        return {"check": out, **_mail_status()}
+
+    @app.post("/api/mail/{inbound_id}/place")
+    def mail_place(inbound_id: str, body: PlaceIn) -> dict:
+        """The engineer says which review an unplaced email belongs to; its files are filed there."""
+        st = store()
+        row = st.inbound(inbound_id)
+        if not row:
+            raise HTTPException(404, "no such email")
+        prj = _project(st, body.slug)
+        r = st.review(body.review_id)
+        if not r or r["project_id"] != prj["id"]:
+            raise HTTPException(404, "no such review")
+        row = st.place_inbound(inbound_id, prj["id"], body.review_id)
+        if row["status"] == "queued":
+            inbox_mod.file_queued(st, inbound_id, _run_batch)
+        st.touch_project(prj["id"])
+        return {"email": st.inbound(inbound_id), **_mail_status()}
+
+    def _mail_poller() -> None:
+        import time
+        while True:
+            time.sleep(settings.mail_check_seconds)
+            try:
+                if gmail_mod.configured(settings) and store().mail_account():
+                    _mail_check()
+            except Exception:  # already recorded on the account row
+                pass
+
+    if settings.mail_check_seconds > 0 and gmail_mod.configured(settings):
+        threading.Thread(target=_mail_poller, name="closeout-mail", daemon=True).start()
 
     @app.delete("/api/projects/{slug}/shares/{token}")
     def revoke_share(slug: str, token: str) -> dict:

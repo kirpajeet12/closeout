@@ -92,6 +92,11 @@
   .msg .send label { display: grid; gap: 4px; font-size: 12px; color: var(--mute); min-width: 0; }
   .msg .send input { font: inherit; font-size: 14px; padding: 8px 10px; border-radius: 9px; border: 1px solid var(--line-2); background: #fff; color: var(--ink); min-width: 0; }
   .msg .send .btn { white-space: nowrap; }
+  .msg .send select { font: inherit; font-size: 14px; padding: 8px 10px; border-radius: 9px; border: 1px solid var(--line-2); background: #fff; color: var(--ink); min-width: 0; }
+  .msg .got { margin-top: 10px; padding: 12px 16px 6px; border-radius: 12px; border: 1px dashed var(--line-2); }
+  .msg .got > b { display: block; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--mute); margin-bottom: 4px; }
+  .msg .in { padding: 10px 0; border-top: 1px solid var(--line); } .msg .in:first-of-type { border-top: 0; }
+  .msg .in h5 { margin: 4px 0 6px; font-size: 14px; } .msg .in pre { margin: 0; font: inherit; font-size: 13.5px; white-space: pre-wrap; color: var(--ink-2); }
   .msg .send .sent { grid-column: 1 / -1; list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 4px; }
   .msg .send .sent li { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; } .msg .send .sent li span { color: var(--mute); }
   @media (max-width: 640px) { .msg .send { grid-template-columns: 1fr; } .msg .send .sent li { flex-direction: column; gap: 0; } }
@@ -862,7 +867,7 @@ const state = { home: null, p: null, slug: null, es: null, run: { kind: "idle", 
 function toast(msg, err) { const t = $("#toast"); t.textContent = msg; t.className = "toast show" + (err ? " err" : ""); setTimeout(() => t.className = "toast", 3200); }
 function route() {
   const c = location.pathname.match(/^\/c\/([^/]+)/); if (c) return { page: "contractor", token: decodeURIComponent(c[1]) };
-  const h = location.hash.replace(/^#\/?/, "");
+  const h = location.hash.replace(/^#\/?/, "").split("?")[0];
   let m = h.match(/^p\/([^/]+)\/item\/(.+)$/); if (m) return { page: "item", slug: m[1], id: decodeURIComponent(m[2]) };
   m = h.match(/^p\/([^/]+)\/field\/([^/]+)$/); if (m) return { page: "sheet", slug: m[1], sheetId: m[2] };
   m = h.match(/^p\/([^/]+)\/?(deficiencies|drawings|docs|field|evidence|messages)?$/); if (m) return { page: "project", slug: m[1], tab: m[2] === "evidence" ? "messages" : m[2] === "deficiencies" ? "list" : m[2] || "overview" };
@@ -901,11 +906,13 @@ async function load() {
   }
   if (r.page === "home" || r.page === "office") {
     state.home = await (await fetch("/api/projects")).json();
+    if (r.page === "office") state.mail = await (await fetch("/api/mail")).json().catch(() => null);
     if (state.home.active_run_id && !state.es) follow(state.home.active_run_id);
   } else {
     const res = await fetch(pUrl(r.slug));
     if (!res.ok) { state.p = null; state.slug = r.slug; render(); return; }
     state.p = await res.json(); state.slug = r.slug; state.cov = {};
+    state.mail = state.p.mail && state.p.mail.gmail ? await (await fetch("/api/mail")).json().catch(() => null) : null;
     if (state.p.active_run_id && !state.es) follow(state.p.active_run_id);
   }
   render();
@@ -998,6 +1005,10 @@ function renderOffice() {
         ${kinds.length ? `<ul class="ukinds">${kinds.map(k => `<li><span>${esc(k.name)}</span><small>${times(k.runs)}</small><b>${usd(k.usd) || "$0.00"}</b></li>`).join("")}</ul>` : `<p class="empty">Nothing read or answered yet.</p>`}
       </section>
       <section class="oblock">
+        <h2>Email</h2>
+        ${mailBlock()}
+      </section>
+      <section class="oblock">
         <h2>Projects</h2>
         <p class="fine">${h.projects ? `${h.projects.length} project${h.projects.length === 1 ? "" : "s"} on file. Saved conversations live on each project, in the Ask panel.` : ""}</p>
       </section>
@@ -1008,6 +1019,30 @@ function renderOffice() {
       </section>
     </div>`;
   renderStatus();
+  const note = (location.hash.split("?")[1] || "").replace("mail=", "");
+  if (note) { history.replaceState(null, "", "#/office"); toast(note === "connected" ? "Gmail connected" : note === "refused" ? "Google did not connect the mailbox" : "The mailbox could not be connected; try again", note !== "connected"); }
+  $("#main").querySelectorAll("[data-mail]").forEach(b => b.onclick = async () => {
+    b.disabled = true;
+    const act = b.dataset.mail;
+    const r = await fetch("/api/mail" + (act === "check" ? "/check" : ""), { method: act === "check" ? "POST" : "DELETE" });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { b.disabled = false; return toast(j.detail || "Could not reach the mailbox", true); }
+    if (act === "check") toast(j.check.new ? `${j.check.new} new email${j.check.new === 1 ? "" : "s"}, ${j.check.placed} filed${j.check.unplaced ? `, ${j.check.unplaced} for you to place` : ""}` : "Nothing new in the mailbox");
+    else toast("Gmail disconnected");
+    state.mail = j; renderOffice();
+  });
+}
+function mailBlock() {
+  const m = state.mail;
+  if (!m) return `<p class="fine">Checking the mailbox…</p>`;
+  if (!m.configured) return `<p class="fine">Connecting the office's Gmail lets Closeout send the covering message from your own address and file what the contractor sends back. The server needs a Google sign-in client first; the deploy notes say how.</p>`;
+  if (!m.account) return `<p class="fine">Connect the office's Gmail and Closeout sends the covering message from that address, watches for the contractor's reply in the same thread, and files the photos and documents that come back to the right review. It reads only its own threads and any email you label <b>${esc(m.label)}</b>. Nothing is sent without your press.</p>
+    <form onsubmit="return false"><a class="btn primary" href="/api/mail/connect">Connect Gmail</a></form>`;
+  const a = m.account, n = m.unplaced.length;
+  return `<p class="uline"><b style="font-size:20px">${esc(a.address)}</b></p>
+    <p class="fine">Connected ${esc(when(a.connected_at))}. ${a.last_check ? `Last looked ${esc(when(a.last_check))}.` : "Not looked at yet."} ${a.last_error ? `<span style="color:var(--hot)">The last look failed: ${esc(a.last_error)}</span>` : ""}
+    Closeout reads replies to messages it sent and email you label <b>${esc(m.label)}</b>; anything with the contractor's link inside is filed to that review on its own.${n ? ` <b>${n} email${n === 1 ? "" : "s"} still need${n === 1 ? "s" : ""} a review</b>: open the project's Messages tab to place ${n === 1 ? "it" : "them"}.` : ""}</p>
+    <form onsubmit="return false" style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-mail="check">Look now</button><button class="btn quiet" data-mail="off">Disconnect</button></form>`;
 }
 
 /* ---- project page ----------------------------------------------------- */
@@ -1106,7 +1141,7 @@ function renderList() {
       <div class="inbox">
         <span class="k">Evidence</span>
         <h2>${p.batches.length ? `${p.batches.length} drop${p.batches.length === 1 ? "" : "s"} filed` : "Nothing back yet"}</h2>
-        <p>${p.batches.length ? `Last ${esc(when(p.batches[p.batches.length - 1].created_at))}${p.batches[p.batches.length - 1].via ? ", through the contractor's link" : ""}. Each file is filed to the item it belongs to.` : p.register.length ? "Finish a field review, share the contractor's link, and what they send lands here filed to the right item." : "Load the deficiency list, or start a field review, to have something to close."}</p>
+        <p>${p.batches.length ? `Last ${esc(when(p.batches[p.batches.length - 1].created_at))}${p.batches[p.batches.length - 1].via.startsWith("email:") ? ", by email" : p.batches[p.batches.length - 1].via ? ", through the contractor's link" : ""}. Each file is filed to the item it belongs to.` : p.register.length ? "Finish a field review, share the contractor's link, and what they send lands here filed to the right item." : "Load the deficiency list, or start a field review, to have something to close."}</p>
         <a href="${pHash(slug, "/messages")}">Messages and evidence</a>
       </div>
     </div>
@@ -1774,6 +1809,16 @@ function renderOccupancy(pr) {
   </div>`;
 }
 
+function unplacedBlock() {
+  const p = state.p, list = (state.mail && state.mail.unplaced) || [];
+  if (!list.length) return "";
+  const finished = p.reviews.filter(r => r.status === "finished");
+  const opts = finished.map(r => { const d = (disciplines().find(x => x.code === r.discipline) || {}).name; return `<option value="${esc(r.id)}">${esc(r.title)}${d ? " (" + esc(d) + ")" : ""}</option>`; }).join("");
+  return `<h3 class="sec">Email waiting for a review</h3>
+    <p class="fine" style="margin:0 0 10px">${list.length === 1 ? "This email" : "These emails"} came in with the ${esc(state.mail.label)} label but nothing inside says which review ${list.length === 1 ? "it belongs" : "they belong"} to. Say which one and Closeout files ${list.length === 1 ? "its" : "their"} attachments there.${finished.length ? "" : " This project has no finished review yet."}</p>
+    ${list.map(x => `<div class="msg"><div class="top"><span>${esc(x.from_addr)}</span><span>${esc(when(x.at))}${x.files ? ` · ${x.files} file${x.files === 1 ? "" : "s"}` : ""}</span></div><h4>${esc(x.subject)}</h4><pre>${esc(x.text.slice(0, 800))}${x.text.length > 800 ? "…" : ""}</pre>
+      <form class="send" data-place="${esc(x.id)}"><label><span>Belongs to</span><select ${finished.length ? "" : "disabled"}><option value="">Choose a review</option>${opts}</select></label><button type="submit" class="btn primary" ${finished.length ? "" : "disabled"}>Place it here</button></form></div>`).join("")}`;
+}
 function renderMessages() {
   const p = state.p, slug = state.slug;
   const linkFor = rid => p.shares.find(x => x.review_id === rid && !x.revoked_at);
@@ -1789,13 +1834,15 @@ function renderMessages() {
     const sh = linkFor(m.review_id);
     if (!sh) return `<div class="link"><div><b>Contractor link</b><small>They open it, see these items, and send photos and documents back through it. The link is added to the message above for you to copy.</small></div><button class="btn primary" data-share="${esc(r.id)}">Create the link</button></div>`;
     const url = location.origin + "/c/" + sh.id, ds = p.batches.filter(b => b.via === sh.id);
-    const sends = (p.sends || []).filter(x => x.review_id === m.review_id), direct = !!(p.mail && p.mail.from), last = sends[sends.length - 1];
+    const sends = (p.sends || []).filter(x => x.review_id === m.review_id), gm = p.mail && p.mail.gmail, direct = !!(gm || (p.mail && p.mail.from)), last = sends[sends.length - 1];
+    const got = (p.inbound || []).filter(x => x.review_id === m.review_id && x.status !== "unplaced");
     return `<div class="link on"><div><b>Contractor link · active</b><input readonly value="${esc(url)}" onclick="this.select()"><small>${ds.length ? `${ds.length} drop${ds.length === 1 ? "" : "s"} came back through it, last ${esc(when(ds[ds.length - 1].created_at))}.` : "Nothing has come back through it yet."}</small></div>
       <div class="acts"><button class="btn" data-copy="${esc(url)}">Copy link</button><a class="btn" href="${esc(url)}" target="_blank" rel="noopener">Open as the contractor</a><button class="btn quiet" data-revoke="${esc(sh.id)}">Turn off</button></div></div>
-    <form class="send" data-send="${esc(m.review_id)}"><div><b>${sends.length ? "Send it again" : "Send the message"}</b><small>${direct ? "Closeout emails it from the office address, with the link inside, the moment you press Send. Nothing goes out on its own." : "Your mail app opens with the message and the link filled in; you press Send there. Closeout keeps a record of it here."}</small></div>
+    <form class="send" data-send="${esc(m.review_id)}"><div><b>${sends.length ? "Send it again" : "Send the message"}</b><small>${gm ? `Closeout emails it from ${esc(gm)}, with the link inside, the moment you press Send, and watches that thread for the contractor's reply. Nothing goes out on its own.` : direct ? "Closeout emails it from the office address, with the link inside, the moment you press Send. Nothing goes out on its own." : "Your mail app opens with the message and the link filled in; you press Send there. Closeout keeps a record of it here."}</small></div>
       <label><span>Contractor's email</span><input type="email" name="to" placeholder="site@contractor.com" value="${esc(last ? last.to_addr : "")}" required autocomplete="email"></label>
       <button type="submit" class="btn primary">${direct ? "Send by email" : "Open in your mail app"}</button>
-      ${sends.length ? `<ol class="sent">${[...sends].reverse().map(x => `<li><b>Sent to ${esc(x.to_addr)}</b><span>${esc(when(x.at))} · ${x.via === "ses" ? "by Closeout" : "from your mail app"}</span></li>`).join("")}</ol>` : ""}</form>`;
+      ${sends.length ? `<ol class="sent">${[...sends].reverse().map(x => `<li><b>Sent to ${esc(x.to_addr)}</b><span>${esc(when(x.at))} · ${x.via === "gmail" ? `from ${esc(p.mail.gmail || "the office's Gmail")}` : x.via === "ses" ? "by Closeout" : "from your mail app"}</span></li>`).join("")}</ol>` : ""}</form>
+    ${got.length ? `<div class="got"><b>Received by email</b>${got.map(x => `<div class="in"><div class="top"><span>${esc(x.from_addr)}</span><span>${esc(when(x.at))}${x.files ? ` · ${x.files} file${x.files === 1 ? "" : "s"} ${x.status === "queued" ? "waiting to be filed" : "filed"}` : ""}</span></div><h5>${esc(x.subject)}</h5><pre>${esc(x.text.slice(0, 1200))}${x.text.length > 1200 ? "…" : ""}</pre></div>`).join("")}</div>` : ""}`;
   };
   const rows = [...p.batches].reverse();
   $("#tab").innerHTML = `
@@ -1803,13 +1850,14 @@ function renderMessages() {
     <div class="msg"><div class="top"><span>${about(m)}</span><span>${esc(when(m.updated_at || m.created_at))}</span></div>
       <h4>${esc(m.subject)}</h4><pre>${esc(m.body)}</pre>${linkBlock(m)}</div>`).join("")
     : `<p class="empty" style="margin-top:22px">No messages yet. Finish a field review and the covering message to the contractor is drafted here, with a link they use to send evidence back.</p>`}
+    ${unplacedBlock()}
     <h3 class="sec">Evidence received</h3>
     <div class="drop small" id="dropEv"><div><h2>File evidence you received another way</h2><p>${p.register.length ? "Photos, reports and letters that came by email or on a drive: drop the folder here or upload it as a zip. Each file is filed to the item it belongs to." : "Once there is a deficiency list, evidence from the contractor is filed here."}</p></div><input type="file" webkitdirectory multiple>${zipBtn("Zip")}</div>
     <div class="status ${esc(state.run.kind)}" id="status"></div>
     ${rows.length ? `<table style="margin-top:22px"><thead><tr><th>Drop</th><th>From</th><th>When</th><th>Files</th><th>Status</th></tr></thead><tbody>
       ${rows.map(b => { const r = b.runs[b.runs.length - 1]; return `<tr>
         <td><div class="what">${esc(b.label)}</div></td>
-        <td>${b.via ? "Contractor link" : "Filed by the office"}</td>
+        <td>${b.via.startsWith("email:") ? "By email" : b.via ? "Contractor link" : "Filed by the office"}</td>
         <td class="num">${esc(when(b.created_at))}</td>
         <td class="num">${b.files}${b.duplicates ? ` <span style="color:var(--mute)">(${b.duplicates} already on record)</span>` : ""}</td>
         <td>${r ? `<span class="pill ${r.status === "done" ? "ready" : r.status === "failed" ? "needs" : "unclear"}">${r.status === "done" ? "Filed" : r.status === "failed" ? "Needs another try" : "Filing…"}</span> ${r.status === "failed" ? `<button class="btn" data-retry="${esc(r.id)}">Try again</button>` : ""} ${r.status === "done" ? `<a href="/api/runs/${r.id}/packet.md" target="_blank" style="margin-left:8px">Report</a>` : ""}` : ""}</td>
@@ -1825,6 +1873,15 @@ function renderMessages() {
     toast("Link created and added to the message"); load();
   });
   $("#tab").querySelectorAll("[data-copy]").forEach(b => b.onclick = () => navigator.clipboard.writeText(b.dataset.copy).then(() => toast("Link copied"), () => toast("Could not copy", true)));
+  $("#tab").querySelectorAll("form[data-place]").forEach(f => f.onsubmit = async e => {
+    e.preventDefault();
+    const rid = f.querySelector("select").value; if (!rid) return toast("Choose the review it belongs to", true);
+    const btn = f.querySelector("button"); btn.disabled = true;
+    const r = await fetch(`/api/mail/${encodeURIComponent(f.dataset.place)}/place`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ slug, review_id: rid }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { btn.disabled = false; return toast(j.detail || "Could not place the email", true); }
+    toast(j.email.files ? "Placed; its files are being filed" : "Placed"); state.mail = j; load();
+  });
   $("#tab").querySelectorAll("form[data-send]").forEach(f => f.onsubmit = async e => {
     e.preventDefault();
     const rid = f.dataset.send, to = f.querySelector("input[name=to]").value.trim(), m = latestFor[rid], direct = !!(p.mail && p.mail.from);

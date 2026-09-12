@@ -39,7 +39,7 @@ def test_without_a_sender_the_mail_app_sends_and_the_app_only_keeps_the_record(c
     client.post(f"/api/projects/{slug}/reviews/{rev['id']}/share")
     assert client.settings.mail_from == ""
     j = client.get(f"/api/projects/{slug}").json()
-    assert j["mail"] == {"from": ""}
+    assert j["mail"]["from"] == "" and j["mail"]["gmail"] == ""
     r = client.post(f"/api/projects/{slug}/reviews/{rev['id']}/send", json={"to": " Site@Contractor.com "})
     assert r.status_code == 200, r.text
     s = r.json()["send"]
