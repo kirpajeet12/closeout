@@ -222,3 +222,24 @@ def test_closeout_placements_become_filings_the_engineer_can_override_and_undo(c
     assert client.post(f"/api/projects/{slug}/filing/undo", json={"file": "Fire Safety Plan rev2.pdf"}).status_code == 404
     detail = client.get(f"/api/projects/{slug}").json()
     assert detail["filings"] == {} and detail["filing_history"] == []
+
+
+def test_the_engineer_adds_a_discipline_folder_the_drawings_never_brought(client, tmp_path):
+    slug = _seed(client, tmp_path)
+    # a code the office knows fills the name in; the folder joins the project's disciplines
+    r = client.post(f"/api/projects/{slug}/disciplines", json={"code": " sp "})
+    assert r.status_code == 200
+    codes = [d["code"] for d in r.json()["disciplines"]]
+    assert codes == ["AR", "EL", "SP"]
+    sp = r.json()["disciplines"][-1]
+    assert sp["name"] == "Sprinkler" and sp["sheets"] == 0 and sp["dated"] is None and sp["added_by"] == "engineer"
+    assert [d["code"] for d in client.get(f"/api/projects/{slug}").json()["project"]["disciplines"]] == ["AR", "EL", "SP"]
+    # an unknown code needs a name; a duplicate and a blank code are refused
+    assert client.post(f"/api/projects/{slug}/disciplines", json={"code": "ZZ"}).status_code == 400
+    assert client.post(f"/api/projects/{slug}/disciplines", json={"code": "SP", "name": "Sprinkler"}).status_code == 400
+    assert client.post(f"/api/projects/{slug}/disciplines", json={"code": "??", "name": "Nothing"}).status_code == 400
+    r = client.post(f"/api/projects/{slug}/disciplines", json={"code": "en-v", "name": "  Building   envelope  "})
+    assert r.status_code == 200 and r.json()["disciplines"][-1] == {**r.json()["disciplines"][-1], "code": "ENV", "name": "Building envelope"}
+    # the new folder takes files like any other
+    r = client.post(f"/api/projects/{slug}/filing", json={"file": "Fire Safety Plan rev2.pdf", "discipline": "SP"})
+    assert r.status_code == 200 and r.json()["filings"]["Fire Safety Plan rev2.pdf"]["discipline"] == "SP"

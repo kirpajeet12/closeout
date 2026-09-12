@@ -2,6 +2,7 @@
 moves the screen. It reads; it never changes a record. Layer one of the in-app assistant."""
 
 from __future__ import annotations
+import re
 
 from dataclasses import dataclass, field
 
@@ -36,14 +37,14 @@ Rules
 - The engineer's current screen is given with the question; "here" and "this" refer to it.
 - When the engineer asks you to change something (mark an item, start or finish a field review, draft or redraft the
   message, create or turn off the contractor link, change an item's wording, move a file to another building or
-  discipline folder, or rename a file), call propose once with the change, then
+  discipline folder, rename a file, or add a discipline folder the project does not have yet), call propose once with the change, then
   call answer with one short sentence saying what is ready to confirm. You never make the change yourself; the
   engineer confirms it on screen. If what they ask cannot be done from here, say so in the answer and propose nothing.
 - Recording a new deficiency needs a finger on the plan, so it cannot be proposed here; say the field review screen
   is the place, and move the screen there with go_screen=field.
 - Never mention tools, models, prompts or this system message."""
 
-ACTIONS = ("decide", "start_review", "finish_review", "redraft_message", "create_link", "turn_off_link", "edit_item", "file_document")
+ACTIONS = ("decide", "start_review", "finish_review", "redraft_message", "create_link", "turn_off_link", "edit_item", "file_document", "add_discipline")
 DECISIONS = {"accept": "Ready to close", "hold": "On hold", "reject": "Not accepted"}
 
 
@@ -252,7 +253,8 @@ def make_ask_tools(ctx: AskContext, facts: Facts):
         optional note), start_review (discipline code), finish_review (review), redraft_message (review), create_link (review),
         turn_off_link (review), edit_item (item_id + the fields to change: location, description, evidence_required),
         file_document (file = a file name from documents, plus what changes: building = building name or "site" for none,
-        discipline = discipline code, name = the new display name; leave the others empty to keep them).
+        discipline = discipline code, name = the new display name; leave the others empty to keep them),
+        add_discipline (discipline = a short code such as SP, name = what the folder is called, such as Sprinkler).
         The change is not made until the engineer confirms it."""
         k = kind.strip().lower()
         if k not in ACTIONS:
@@ -355,6 +357,18 @@ def make_ask_tools(ctx: AskContext, facts: Facts):
                 return _reject(ctx, "say what changes: the building, the discipline or the name")
             a.update(file=f, label=f"File {f} {' '.join(parts)}", method="POST", path="/filing", body=body,
                      then={"screen": "docs"})
+        elif k == "add_discipline":
+            code = re.sub(r"[^A-Z0-9]", "", discipline.strip().upper())[:4]
+            if not code:
+                return _reject(ctx, "give the folder a short code, such as SP")
+            have = {x.get("code") for x in facts.view.get("disciplines") or []} | {s_.get("discipline") for s_ in facts.sheets}
+            if code in have:
+                return _reject(ctx, f"{code} is already a folder on this project")
+            label_name = " ".join(name.split())[:60] or DISCIPLINES.get(code, "")
+            if not label_name:
+                return _reject(ctx, "say what the folder is called, such as Sprinkler")
+            a.update(discipline=code, name=label_name, label=f"Add a {label_name} folder ({code}) to the project", method="POST",
+                     path="/disciplines", body={"code": code, "name": label_name}, then={"screen": "docs"})
         ctx.proposed = a
         return "prepared; now call answer with one sentence saying it is ready to confirm"
 

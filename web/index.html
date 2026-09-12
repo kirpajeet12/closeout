@@ -635,6 +635,13 @@
   .xrow.ghost .scope { color: var(--ink-2); }
   .outscope { margin: 8px 4px 0; } .outscope summary { cursor: pointer; font-size: 13px; color: var(--mute); padding: 6px 6px; } .xrow.out { opacity: .55; } .xrow.out b { text-decoration: line-through; font-weight: 500; }
   .folderpane .none { padding: 12px 10px; font-size: 13px; color: var(--mute); margin: 0; }
+  .newdisc { margin-top: 14px; } .newdisc .btn { font: inherit; font-size: 13px; padding: 8px 14px; border-radius: 999px; cursor: pointer; border: 1px solid var(--line-2); background: #fff; color: var(--ink); }
+  .newdisc form { display: grid; grid-template-columns: 90px 1fr auto auto; gap: 10px 12px; align-items: end; padding: 14px 16px 12px; border-radius: 14px; background: var(--card); border: 1px solid var(--line-2); }
+  .newdisc label { display: grid; gap: 4px; font-size: 12px; color: var(--mute); } .newdisc input { font: inherit; font-size: 14px; padding: 8px 10px; border-radius: 9px; border: 1px solid var(--line-2); background: #fff; color: var(--ink); min-width: 0; }
+  .newdisc input[name=code] { text-transform: uppercase; font-family: var(--mono); }
+  .newdisc button { font: inherit; font-size: 13px; padding: 9px 14px; border-radius: 999px; cursor: pointer; border: 1px solid var(--line-2); background: #fff; color: var(--ink); white-space: nowrap; } .newdisc button.primary { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .newdisc .note { grid-column: 1 / -1; font-size: 12px; color: var(--mute); }
+  @media (max-width: 640px) { .newdisc form { grid-template-columns: 90px 1fr; } .newdisc label.wide { grid-column: 2; } }
   .filefolder { padding: 6px 4px 4px; }
   .filefolder .fhead { display: grid; grid-template-columns: auto 1fr; gap: 14px 16px; align-items: start; padding: 10px 6px 16px; }
   .filefolder .fhead .fi.big { width: 34px; height: 44px; border-width: 2px; border-radius: 4px; margin-top: 4px; }
@@ -1215,7 +1222,7 @@ function wireUnits() {
    of the count; it stays one tap away at the bottom of its section. On a wide screen the tree sits on the left and the
    open folder on the right; on a phone you drill in folder by folder. */
 function folderTree(pr) {
-  const blds = buildings(), rv = state.p.docs_review, discs = pr.disciplines || [], dn = c => DISC_NAMES[c] || c;
+  const blds = buildings(), rv = state.p.docs_review, discs = pr.disciplines || [], dn = groupName;
   // where each file sits: the filings (Closeout's placements and the engineer's moves, newest wins) and, for a review made
   // before filings existed, its placed list
   const placed = new Map(((rv || {}).placed || []).map(x => [x.file, { ...x, who: "closeout" }]));
@@ -1238,7 +1245,7 @@ function folderTree(pr) {
   // the project folder: site, then one folder per building
   const site = folder("site", "Site", "everything that covers all buildings", { site: true });
   const siteDisc = {}, codes = [...new Set([...discs.map(d => d.code), ...docs.map(d => d.discipline)])];
-  codes.forEach(code => { const f = folder("site/" + code, code in DISC_NAMES ? dn(code) : groupName(code), "", { code }); siteDisc[code] = f; site.folders.push(f); });
+  codes.forEach(code => { const f = folder("site/" + code, groupName(code), "", { code }); siteDisc[code] = f; site.folders.push(f); });
   docs.forEach(d => { const pl = placed.get(baseName(d)); if (pl && pl.building) return; const code = (pl && pl.discipline) || d.discipline; (siteDisc[code] || siteDisc.OTHER || site).items.push(fileItem(d)); });
   missing.filter(m => !m.building).forEach(m => (siteDisc[m.discipline] || site).items.push(ghost(m, "agent")));
   const bfs = blds.map(b => {
@@ -1267,7 +1274,7 @@ function folderTree(pr) {
 function childOf(f, k) { const n = f.folders.find(x => x.key === k); if (n) return n; const i = f.items.find(x => x.kind === "file" && x.key === k); return i ? { key: k, name: i.name, meta: i.meta, kind: "folder", folders: [], items: [], filef: true, file: i, parent: f } : null; }
 function findFolder(root, path) { let f = root; for (const k of path) { const n = childOf(f, k); if (!n) return root; f = n; } return f; }
 function renderExplorer(pr) {
-  const root = folderTree(pr), cur = findFolder(root, state.folder), placed = root.placed, docs = root.docs, dn = c => DISC_NAMES[c] || c;
+  const root = folderTree(pr), cur = findFolder(root, state.folder), placed = root.placed, docs = root.docs, dn = groupName;
   if (cur === root) state.folder = [];
   const crumbs = [root]; { let f = root; for (const k of state.folder) { f = childOf(f, k); crumbs.push(f); } }
   const cnt = f => f.sec ? `${f.got}/${f.need}` : `${f.n}${f.ghosts ? ` <em>+${f.ghosts}</em>` : ""}`;
@@ -1306,7 +1313,7 @@ function renderExplorer(pr) {
    to walk with, filed or renamed and by whom), then the other issues of the same set. All of it is plain bookkeeping. */
 function renderFileFolder(i, pr, placed, docs, movePanel, root) {
   const locate = (f, key, acc) => { if (f.items.some(x => x.kind === "file" && x.key === key)) return [...acc, key].join("|"); for (const c of f.folders) { const r = locate(c, key, [...acc, c.key]); if (r) return r; } return null; };
-  const dn = c => DISC_NAMES[c] || c, pl = placed.get(i.file) || {}, url = pUrl(state.slug, "/documents/" + encodeURIComponent(i.id) + "/file");
+  const dn = groupName, pl = placed.get(i.file) || {}, url = pUrl(state.slug, "/documents/" + encodeURIComponent(i.id) + "/file");
   const stamp = s => String(s || "").replace("T", " ").slice(0, 16);
   const said = { received: "Came into the folder", updated: "Updated: the same file name came in with different contents", current: "Became the set to walk with",
                  superseded: "Superseded: a newer issue is the set to walk with now", removed: "No longer in the folder" };
@@ -1349,7 +1356,7 @@ function wireExplorer() {
 /* The set as the site is built: the site first (the site plan is the anchor of every field review), then one card per
    building with its units, floors and sheets per discipline. Plain code over the readings; the agent's gaps land in place. */
 function renderHierarchy(pr) {
-  const blds = buildings(), discs = pr.disciplines || [], dn = c => DISC_NAMES[c] || c, rv = state.p.docs_review;
+  const blds = buildings(), discs = pr.disciplines || [], dn = groupName, rv = state.p.docs_review;
   const owner = new Map(pr.sheets.map(sh => [sh.id, sheetOwner(sh, blds)]));
   const card = sh => `<div class="sheet" data-id="${sh.id}"><img src="${sh.thumb_url || sh.image_url}" alt="" loading="lazy"><div class="cap"><b>${esc(sh.sheet_number || "p." + sh.page)}</b><span>${esc(sh.title || "")}</span><small>${esc(dn(sh.discipline))} · ${esc(((sh.read || {}).sheet_kind || "sheet").replace(/_/g, " "))}</small></div></div>`;
   const gaps = b => (rv ? rv.missing : []).filter(m => (m.building || "") === (b ? b.name : ""));
@@ -1598,7 +1605,7 @@ function projectDrop(title, text) {
   return `<div class="drop big" id="dropPrj" style="margin-top:24px"><div class="arrow">↓</div><h2>${esc(title)}</h2><p>${esc(text)}</p><input type="file" webkitdirectory multiple>${zipBtn("Upload the project zip")}</div><div class="status ${esc(state.run.kind)}" id="status"></div>`;
 }
 const EXTRA_GROUPS = { SP: "Sprinkler", BCH: "BC Hydro", PM: "Project management", DC: "Contracts and invoices", OTHER: "Other files" };
-const groupName = code => DISC_NAMES[code] || EXTRA_GROUPS[code] || code;
+const groupName = code => DISC_NAMES[code] || EXTRA_GROUPS[code] || ((state.p && state.p.project && state.p.project.disciplines || []).find(d => d.code === code) || {}).name || code;
 const baseName = d => d.rel_path.split("/").pop();
 /* The office writes the reason for an issue in the folder name: "260421_ADDED HOUSE PANEL", "250123_PL_Revised as per city comments". */
 function issueNote(d) {
@@ -1613,6 +1620,7 @@ function renderDocs() {
   const pr = state.p.project, slug = state.slug, docs = pr.documents || [];
   $("#tab").innerHTML = docs.length ? `
     <p class="lead" style="margin-top:22px">${docs.length} files, kept exactly as they came. Closeout files them by building and discipline; you can move or rename any of them, and every change can be undone.</p>
+    <div class="newdisc">${state.newDisc ? `<form id="newDiscForm"><label><span>Code</span><input name="code" maxlength="4" placeholder="SP" required autocomplete="off"></label><label class="wide"><span>Folder name</span><input name="name" maxlength="60" placeholder="Sprinkler" autocomplete="off"></label><button type="submit" class="primary">Add the folder</button><button type="button" id="newDiscNo">Cancel</button><span class="note">For a discipline the drawings have not brought yet. It appears under the site and in every file's move list, and whatever lands in it is logged.</span></form>` : `<button class="btn" id="newDiscBtn">Add a discipline folder</button>`}</div>
     ${renderExplorer(pr)}
     <h3 class="sec">Revision log</h3>
     <p class="lead" style="margin:0">Every issue of every drawing set, newest first, with the reason the office wrote on the folder.</p>
@@ -1624,6 +1632,12 @@ function renderDocs() {
   : projectDrop("Add the project folder", "Upload one zip of the whole project folder. It is filed by discipline and date, every issue is kept, and you see what is still missing.");
   wireDrop($("#dropPrj"), "drawings", slug); renderStatus();
   const ab = $("#askDocs"); if (ab) ab.onclick = askDocs;
+  const nb = $("#newDiscBtn"); if (nb) nb.onclick = () => { state.newDisc = true; renderDocs(); const i = $("#newDiscForm input[name=code]"); if (i) i.focus(); };
+  const nn = $("#newDiscNo"); if (nn) nn.onclick = () => { state.newDisc = false; renderDocs(); };
+  const nf = $("#newDiscForm"); if (nf) nf.onsubmit = async e => { e.preventDefault(); const fd = new FormData(nf);
+    const r = await fetch(pUrl(state.slug, "/disciplines"), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ code: String(fd.get("code") || "").trim(), name: String(fd.get("name") || "").trim() }) }), j = await r.json().catch(() => ({}));
+    if (!r.ok) return toast(j.detail || "Could not add the folder", true);
+    state.p.project.disciplines = j.disciplines; state.newDisc = false; const d = j.disciplines[j.disciplines.length - 1]; toast(`${d.name} folder added`); renderDocs(); };
   wireExplorer();
   $$("button[data-cmp-new]").forEach(b => b.onclick = () => { const c = state.cmp || {};
     if (c.new === b.dataset.cmpNew && c.old === b.dataset.cmpOld) { state.cmp = null; renderDocs(); } else runCompare(b.dataset.cmpOld, b.dataset.cmpNew); });
@@ -1634,7 +1648,7 @@ function renderDocs() {
 /* One agent call over the folder. It gets text only (buildings, sheets, file names, the checklist, the rule-listed gaps) and
    answers through tools that reject any discipline, building, checklist row or file name the folder does not have. */
 function renderAgentDocs(pr) {
-  const rv = state.p.docs_review, blds = buildings(), dn = c => DISC_NAMES[c] || c, already = docsNeeded(pr).length;
+  const rv = state.p.docs_review, blds = buildings(), dn = groupName, already = docsNeeded(pr).length;
   const groups = [{ key: "", name: "Whole site" }, ...blds.map(b => ({ key: b.name, name: b.name }))];
   const rows = g => (rv ? rv.missing : []).filter(m => (m.building || "") === g.key);
   return `<div class="ask agentdocs">
@@ -2154,7 +2168,7 @@ function floorsFor(b, unitLabel) {
 function isPlanSheet(sh) { const k = (sh.read || {}).sheet_kind || "", t = (sh.title || "").toUpperCase(); return k === "floor_plan" || k === "plan" || /FLOOR PLAN/.test(t); }
 function isSiteSheet(sh) { return (sh.read || {}).sheet_kind === "site_plan" || /SITE PLAN/.test((sh.title || "").toUpperCase()); }
 function planFor(code, b, level) {
-  const sheets = state.p.project.sheets, dn = c => DISC_NAMES[c] || c;
+  const sheets = state.p.project.sheets, dn = groupName;
   const scored = sheets.map((sh, i) => {
     const r = sh.read || {}, hit = sheetMentions(sh, b), plan = isPlanSheet(sh), site = isSiteSheet(sh);
     const titled = b && sheetMentions({ title: sh.title || "" }, b);   // the title names this building outright (title blocks mention the civic address on every sheet)

@@ -223,3 +223,27 @@ def test_a_spoken_move_or_rename_is_prepared_for_the_confirm_step(asking, tmp_pa
     assert st.filings(pid) == {}                                                       # nothing moved yet
     r = asking.post(f"/api/projects/{slug}{a['path']}", json=a["body"])                # the Confirm button
     assert r.status_code == 200 and st.filings(pid)["Sprinkler test cert.pdf"]["who"] == "engineer"
+
+
+def test_a_spoken_new_discipline_folder_is_prepared_for_the_confirm_step(asking, tmp_path):
+    slug, rev, _ = _finished_review(asking, tmp_path)
+    st = Store(asking.settings.data_dir / "closeout.db")
+    pid = st.project_by_slug(slug)["id"]
+    pv = asking.get(f"/api/projects/{slug}").json()["project"]
+    before = [d["code"] for d in pv["disciplines"]]
+    taken = (before or [s["discipline"] for s in pv["sheets"]])[0]
+    FakeAskAgent.proposals = [
+        {"kind": "add_discipline", "discipline": taken},                     # already a folder
+        {"kind": "add_discipline", "discipline": "ZZ"},                      # unknown code, no name
+        {"kind": "add_discipline", "discipline": "sprinkler"[:2]},           # SP: the office knows the name
+    ]
+    FakeAskAgent.answers = [{"text": "Ready to confirm: a Sprinkler folder is added to the project."}]
+    j = asking.post(f"/api/projects/{slug}/ask", json={"question": "create 1 more discipline sprinkler for this project"}).json()
+    a = j["action"]
+    assert [r.startswith("REJECTED") for r in FakeAskAgent.replies] == [True, True, False]
+    assert a["kind"] == "add_discipline" and a["method"] == "POST" and a["path"] == "/disciplines" and a["then"] == {"screen": "docs"}
+    assert a["body"] == {"code": "SP", "name": "Sprinkler"} and a["label"] == "Add a Sprinkler folder (SP) to the project"
+    assert [d["code"] for d in asking.get(f"/api/projects/{slug}").json()["project"]["disciplines"]] == before   # nothing added yet
+    r = asking.post(f"/api/projects/{slug}{a['path']}", json=a["body"])                # the Confirm button
+    assert r.status_code == 200
+    assert [d["code"] for d in asking.get(f"/api/projects/{slug}").json()["project"]["disciplines"]] == before + ["SP"]

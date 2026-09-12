@@ -32,7 +32,7 @@ from .packet import build_packet, packet_markdown
 from . import report as report_mod
 from . import brief as brief_mod
 from . import coverage as coverage_mod
-from .store import Store
+from .store import Store, now
 
 log = logging.getLogger("closeout.api")
 
@@ -162,6 +162,11 @@ class DocsAnswerIn(BaseModel):
 class DocsScopeIn(BaseModel):
     name: str             # exact checklist row name
     in_scope: bool = True      # the gaps the web app's rules already show, so the agent does not repeat them
+
+
+class DisciplineIn(BaseModel):
+    code: str                  # short code such as SP
+    name: str = ""             # what the folder is called; a known code fills it in
 
 
 class FilingIn(BaseModel):
@@ -687,6 +692,25 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         _drawings_review(st, prj, review_id)
         st.delete_drawings_review(review_id)
         return {"ok": True}
+
+    @app.post("/api/projects/{slug}/disciplines")
+    def add_discipline(slug: str, body: DisciplineIn) -> dict:
+        """The engineer adds a discipline folder the drawings never brought (a sprinkler set still to come, say). It shows
+        under the site and in every building's move list from now on; files can be filed into it and every drop logs it."""
+        st = store()
+        prj = _project(st, slug)
+        code = re.sub(r"[^A-Z0-9]", "", body.code.strip().upper())[:4]
+        if not code:
+            raise HTTPException(400, "give the folder a short code, such as SP")
+        name = " ".join(body.name.split())[:60] or project_mod.DISCIPLINES.get(code, "")
+        if not name:
+            raise HTTPException(400, "say what the folder is called, such as Sprinkler")
+        discs = list(prj["model"].get("disciplines") or [])
+        if any(d.get("code") == code for d in discs):
+            raise HTTPException(400, f"{code} is already a folder on this project")
+        discs.append({"code": code, "name": name, "current_set": "", "dated": None, "sheets": 0, "added_by": "engineer", "added_at": now()})
+        st.set_project_model(prj["id"], {**prj["model"], "disciplines": discs})
+        return {"disciplines": discs}
 
     @app.get("/api/projects/{slug}/filing")
     def filing(slug: str) -> dict:
