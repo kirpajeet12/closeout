@@ -87,6 +87,14 @@
   .msg .link small { display: block; color: var(--mute); font-size: 12px; margin-top: 4px; max-width: 60ch; }
   .msg .link input { width: 100%; margin-top: 6px; font: inherit; font-size: 13px; font-family: var(--mono); border: 1px solid var(--line-2); border-radius: 8px; padding: 7px 10px; background: #fff; color: var(--ink); }
   .msg .link .acts { display: flex; gap: 8px; flex-wrap: wrap; } .msg .link .btn.quiet { color: var(--mute); border-color: transparent; }
+  .msg .send { margin-top: 10px; padding: 14px 16px; border-radius: 12px; background: var(--paper); border: 1px solid var(--line); display: grid; grid-template-columns: 1fr auto; gap: 10px 14px; align-items: end; }
+  .msg .send > div:first-child { grid-column: 1 / -1; } .msg .send b { display: block; font-size: 14px; } .msg .send small { display: block; color: var(--mute); font-size: 12px; margin-top: 4px; max-width: 70ch; }
+  .msg .send label { display: grid; gap: 4px; font-size: 12px; color: var(--mute); min-width: 0; }
+  .msg .send input { font: inherit; font-size: 14px; padding: 8px 10px; border-radius: 9px; border: 1px solid var(--line-2); background: #fff; color: var(--ink); min-width: 0; }
+  .msg .send .btn { white-space: nowrap; }
+  .msg .send .sent { grid-column: 1 / -1; list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 4px; }
+  .msg .send .sent li { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; } .msg .send .sent li span { color: var(--mute); }
+  @media (max-width: 640px) { .msg .send { grid-template-columns: 1fr; } .msg .send .sent li { flex-direction: column; gap: 0; } }
   .btn.primary { background: var(--ink); color: #fff; border-color: var(--ink); }
   /* the contractor's page */
   body.contractor .wordmark a { pointer-events: none; }
@@ -1031,7 +1039,7 @@ function renderOverview() {
   if (!pr.sheets.length) next = { t: "Add the project drawings", s: "Upload the project folder or its zip on Drawings. The current sheets are read, and the units and floors come from them.", h: "/drawings", a: "Drawings" };
   else if (!p.register.length) next = { t: "Start the first field review", s: "Walk the site with the phone: photo, pin, note. Every item is numbered on its sheet.", h: "/field", a: "Field review" };
   else if (active.length) next = { t: `Finish ${active[0].title}`, s: "Finishing freezes the list for the contractor and drafts the covering message.", h: "/field", a: "Field review" };
-  else if (done.some(r => r.package && r.package.count && !linkFor(r))) next = { t: "Send the review to the contractor", s: "Create the contractor's link on Messages, then copy the message into your email. What they send comes back through the link.", h: "/messages", a: "Messages" };
+  else if (done.some(r => r.package && r.package.count && !linkFor(r))) next = { t: "Send the review to the contractor", s: "Create the contractor's link on Messages and send the message by email from there. What they send comes back through the link.", h: "/messages", a: "Messages" };
   else if (n.ready) next = { t: `Decide on ${plural(n.ready, "ready item")}`, s: "Open each one, check what came back, and mark it ready to close or not accepted.", h: "/deficiencies", a: "Deficiencies" };
   else if (all.length) next = { t: "Waiting on the contractor", s: `${plural(all.length - n.ready, "item")} still need evidence. It arrives through the contractor's link and is filed to the item it belongs to.`, h: "/messages", a: "Messages" };
   else next = { t: "Start a field review", s: "Walk the site with the phone: photo, pin, note.", h: "/field", a: "Field review" };
@@ -1781,8 +1789,13 @@ function renderMessages() {
     const sh = linkFor(m.review_id);
     if (!sh) return `<div class="link"><div><b>Contractor link</b><small>They open it, see these items, and send photos and documents back through it. The link is added to the message above for you to copy.</small></div><button class="btn primary" data-share="${esc(r.id)}">Create the link</button></div>`;
     const url = location.origin + "/c/" + sh.id, ds = p.batches.filter(b => b.via === sh.id);
+    const sends = (p.sends || []).filter(x => x.review_id === m.review_id), direct = !!(p.mail && p.mail.from), last = sends[sends.length - 1];
     return `<div class="link on"><div><b>Contractor link · active</b><input readonly value="${esc(url)}" onclick="this.select()"><small>${ds.length ? `${ds.length} drop${ds.length === 1 ? "" : "s"} came back through it, last ${esc(when(ds[ds.length - 1].created_at))}.` : "Nothing has come back through it yet."}</small></div>
-      <div class="acts"><button class="btn" data-copy="${esc(url)}">Copy link</button><a class="btn" href="${esc(url)}" target="_blank" rel="noopener">Open as the contractor</a><button class="btn quiet" data-revoke="${esc(sh.id)}">Turn off</button></div></div>`;
+      <div class="acts"><button class="btn" data-copy="${esc(url)}">Copy link</button><a class="btn" href="${esc(url)}" target="_blank" rel="noopener">Open as the contractor</a><button class="btn quiet" data-revoke="${esc(sh.id)}">Turn off</button></div></div>
+    <form class="send" data-send="${esc(m.review_id)}"><div><b>${sends.length ? "Send it again" : "Send the message"}</b><small>${direct ? "Closeout emails it from the office address, with the link inside, the moment you press Send. Nothing goes out on its own." : "Your mail app opens with the message and the link filled in; you press Send there. Closeout keeps a record of it here."}</small></div>
+      <label><span>Contractor's email</span><input type="email" name="to" placeholder="site@contractor.com" value="${esc(last ? last.to_addr : "")}" required autocomplete="email"></label>
+      <button type="submit" class="btn primary">${direct ? "Send by email" : "Open in your mail app"}</button>
+      ${sends.length ? `<ol class="sent">${[...sends].reverse().map(x => `<li><b>Sent to ${esc(x.to_addr)}</b><span>${esc(when(x.at))} · ${x.via === "ses" ? "by Closeout" : "from your mail app"}</span></li>`).join("")}</ol>` : ""}</form>`;
   };
   const rows = [...p.batches].reverse();
   $("#tab").innerHTML = `
@@ -1812,6 +1825,19 @@ function renderMessages() {
     toast("Link created and added to the message"); load();
   });
   $("#tab").querySelectorAll("[data-copy]").forEach(b => b.onclick = () => navigator.clipboard.writeText(b.dataset.copy).then(() => toast("Link copied"), () => toast("Could not copy", true)));
+  $("#tab").querySelectorAll("form[data-send]").forEach(f => f.onsubmit = async e => {
+    e.preventDefault();
+    const rid = f.dataset.send, to = f.querySelector("input[name=to]").value.trim(), m = latestFor[rid], direct = !!(p.mail && p.mail.from);
+    if (!m) return toast("There is no message for this review yet", true);
+    const btn = f.querySelector("button[type=submit]"); btn.disabled = true;
+    if (!direct) window.open(`mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(m.subject)}&body=${encodeURIComponent(m.body)}`, "_self");
+    const r = await fetch(pUrl(slug, `/reviews/${encodeURIComponent(rid)}/send`), { method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ to, via: direct ? "" : "mail-app", subject: m.subject, body: m.body }) });
+    const j = await r.json().catch(() => ({}));
+    btn.disabled = false;
+    if (!r.ok) return toast(j.detail || "Could not send the message", true);
+    toast(direct ? `Sent to ${to}` : `Handed to your mail app for ${to}`); p.sends = j.sends; renderMessages();
+  });
   $("#tab").querySelectorAll("[data-revoke]").forEach(b => b.onclick = async () => {
     const r = await fetch(pUrl(slug, `/shares/${encodeURIComponent(b.dataset.revoke)}`), { method: "DELETE" });
     toast(r.ok ? "Link turned off. Create a new one any time." : "Could not turn the link off", !r.ok); if (r.ok) load();

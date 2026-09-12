@@ -45,6 +45,18 @@ CREATE TABLE IF NOT EXISTS batches (
   created_at TEXT NOT NULL,
   via TEXT NOT NULL DEFAULT ''    -- share token when the contractor sent it through their link
 );
+CREATE TABLE IF NOT EXISTS sends (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL,
+  review_id TEXT NOT NULL,
+  draft_id TEXT NOT NULL DEFAULT '',
+  to_addr TEXT NOT NULL,
+  subject TEXT NOT NULL,
+  body TEXT NOT NULL,
+  via TEXT NOT NULL,              -- ses (the app sent it) | mail-app (handed to the engineer's mail app)
+  message_id TEXT NOT NULL DEFAULT '',
+  at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS shares (
   id TEXT PRIMARY KEY,            -- the token in the contractor's link
   project_id TEXT NOT NULL,
@@ -564,6 +576,22 @@ class Store:
         self.conn.execute("INSERT INTO shares(id, project_id, review_id, created_at) VALUES(?,?,?,?)", (token, project_id, review_id, now()))
         self.conn.commit()
         return self.share(token)
+
+    def record_send(self, project_id: str, review_id: str, draft_id: str, to_addr: str, subject: str, body: str, via: str,
+                    message_id: str = "") -> dict:
+        """One row per message that left for the contractor, however it left."""
+        sid = "send_" + uuid.uuid4().hex[:10]
+        self.conn.execute("INSERT INTO sends(id, project_id, review_id, draft_id, to_addr, subject, body, via, message_id, at) VALUES(?,?,?,?,?,?,?,?,?,?)",
+                          (sid, project_id, review_id, draft_id, to_addr, subject, body, via, message_id, now()))
+        self.conn.commit()
+        return self.send(sid)
+
+    def send(self, send_id: str) -> dict | None:
+        r = self.conn.execute("SELECT * FROM sends WHERE id=?", (send_id,)).fetchone()
+        return dict(r) if r else None
+
+    def sends(self, project_id: str) -> list[dict]:
+        return [dict(r) for r in self.conn.execute("SELECT * FROM sends WHERE project_id=? ORDER BY at, rowid", (project_id,))]
 
     def share(self, token: str) -> dict | None:
         r = self.conn.execute("SELECT * FROM shares WHERE id=?", (token,)).fetchone()

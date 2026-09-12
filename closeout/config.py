@@ -28,6 +28,9 @@ class Settings:
     voice_name: str = os.environ.get("CLOSEOUT_VOICE", "marin")
     # the spoken conversation (ears and mouth); the same key turns it on. The Closeout agent stays the brain.
     live_model: str = os.environ.get("CLOSEOUT_LIVE_MODEL", "gpt-live-1")
+    # sending the covering message by email: a verified sender address on Amazon SES turns it on. Without one the
+    # engineer's own mail app opens with the message filled in, and the app only records that it was handed over.
+    mail_from: str = os.environ.get("CLOSEOUT_MAIL_FROM", "")
 
 
 SETTINGS = Settings()

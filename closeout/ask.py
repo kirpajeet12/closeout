@@ -68,6 +68,7 @@ class Facts:
     shares: list[dict]
     batches: list[dict]
     sheets: list[dict]
+    sends: list[dict] = field(default_factory=list)
 
     def building_key(self, text: str) -> str:
         b = building_of(text)
@@ -119,7 +120,7 @@ def gather(store: Store, project_id: str) -> Facts:
     return Facts(view=view, buildings=site_tree(view)["buildings"], items=items, reviews=store.reviews(project_id),
                  documents=view.get("documents") or [], filings=store.filings(project_id),
                  drafts=store.all_drafts(project_id), shares=store.shares(project_id),
-                 batches=store.batches(project_id), sheets=view.get("sheets") or [])
+                 batches=store.batches(project_id), sheets=view.get("sheets") or [], sends=store.sends(project_id))
 
 
 def _state(i: dict) -> str:
@@ -401,8 +402,12 @@ def facts_text(facts: Facts, office: str) -> str:
     lines.append(f"DEFICIENCIES: {len(facts.items)} in total" + ("; " + ", ".join(f"{n} {k}" for k, n in counts.items()) if counts else ""))
     links = sum(1 for s in facts.shares if not s.get("revoked_at"))
     via = sum(1 for b in facts.batches if b.get("via"))
-    lines.append(f"WITH THE CONTRACTOR: {len(facts.drafts)} messages drafted (none sent by the app), {links} contractor links active, "
-                 f"{len(facts.batches)} evidence drops received ({via} through a link)")
+    lines.append(f"WITH THE CONTRACTOR: {len(facts.drafts)} messages drafted, {len(facts.sends)} sent by email on the engineer's press, "
+                 f"{links} contractor links active, {len(facts.batches)} evidence drops received ({via} through a link)")
+    for s_ in facts.sends[-5:]:
+        rv = next((r for r in facts.reviews if r["id"] == s_["review_id"]), None)
+        lines.append(f"- sent {str(s_['at'])[:10]} to {s_['to_addr']} for {rv['title'] if rv else s_['review_id']}"
+                     f" ({'from the app' if s_['via'] == 'ses' else 'from the engineer\'s mail app'}); replies come back through the link")
     return "\n".join(lines)
 
 

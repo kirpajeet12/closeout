@@ -25,7 +25,7 @@ from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse, Response, StreamingResponse
 from pydantic import BaseModel
 
-from . import ask as ask_mod, documents as documents_mod, drawings as drawings_mod, usage as usage_mod, pipeline, plans as plans_mod, project as project_mod, review as review_mod, revisions as revisions_mod
+from . import ask as ask_mod, documents as documents_mod, mail as mail_mod, drawings as drawings_mod, usage as usage_mod, pipeline, plans as plans_mod, project as project_mod, review as review_mod, revisions as revisions_mod
 from .config import SETTINGS, Settings
 from .ingest import _exif, _heic_to_jpeg
 from .packet import build_packet, packet_markdown
@@ -162,6 +162,13 @@ class DocsAnswerIn(BaseModel):
 class DocsScopeIn(BaseModel):
     name: str             # exact checklist row name
     in_scope: bool = True      # the gaps the web app's rules already show, so the agent does not repeat them
+
+
+class SendIn(BaseModel):
+    to: str                    # the contractor's address, typed by the engineer
+    via: str = ""              # "" = send from the app when a sender is configured; "mail-app" = it was handed to the mail app
+    subject: str | None = None # the message as it stood when Send was pressed; None = the current draft
+    body: str | None = None
 
 
 class DisciplineIn(BaseModel):
@@ -501,6 +508,7 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
                 "packet": build_packet(st, latest) if latest else None, "batches": batches,
                 "messages": st.all_drafts(pid), "decisions": st.decisions(pid), "model_id": settings.model_id,
                 "reviews": coverage_mod.decorate_reviews(st, prj, st.reviews(pid)), "shares": st.shares(pid), "office": settings.office,
+                "sends": st.sends(pid), "mail": {"from": settings.mail_from},
                 "stages": {code: coverage_mod.stages_for(prj, code) for code in sorted({*(prj.get("stages") or {}), *(r["discipline"] for r in st.reviews(pid)), *(d["discipline"] for d in st.documents(pid) if d.get("kind") == "drawing" and d.get("discipline"))})},
                 "units": coverage_mod.buildings(prj),
                 "docs_review": prj.get("docs_review"), "docs_scope": prj.get("docs_scope") or [],
@@ -1156,6 +1164,41 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
             st.update_draft(msg["id"], body=msg["body"].rstrip() + "\n\n" + LINK_LINE + url)
         st.touch_project(prj["id"])
         return {"share": share, "url": url, "message": st.draft_for_review(review_id)}
+
+    @app.post("/api/projects/{slug}/reviews/{review_id}/send")
+    def send_review_message(slug: str, review_id: str, body: SendIn) -> dict:
+        """The engineer sends the covering message to the contractor. Only on their press, one message at a time.
+        With a verified sender configured the app sends it by email; otherwise the mail app sends it and this records that.
+        Either way the contractor's link must already be in the message, so what comes back has a way home."""
+        st = store()
+        prj = _project(st, slug)
+        r = st.review(review_id)
+        if not r or r["project_id"] != prj["id"]:
+            raise HTTPException(404, "no such review")
+        to = body.to.strip()
+        if not mail_mod.valid_address(to):
+            raise HTTPException(400, "give the contractor's email address")
+        share = st.share_for_review(review_id)
+        if not share or share.get("revoked_at"):
+            raise HTTPException(409, "create the contractor's link first, so what they send comes back to this review")
+        msg = st.draft_for_review(review_id)
+        if not msg:
+            raise HTTPException(409, "there is no message for this review yet")
+        subject = " ".join((body.subject if body.subject is not None else msg["subject"]).split())[:200]
+        text = (body.body if body.body is not None else msg["body"]).strip()
+        if "/c/" not in text:
+            raise HTTPException(409, "the message must carry the contractor's link")
+        via = "mail-app" if body.via == "mail-app" or not mail_mod.can_send(settings) else "ses"
+        message_id = ""
+        if via == "ses":
+            try:
+                message_id = mail_mod.send_email(settings, to, subject, text)
+            except Exception as e:  # the mail service refused; nothing recorded, the engineer sees why
+                log.warning("send refused: %s", e)
+                raise HTTPException(502, "the email could not be sent; the message is unchanged, try again or use your mail app")
+        sent = st.record_send(prj["id"], review_id, msg["id"], to, subject, text, via, message_id)
+        st.touch_project(prj["id"])
+        return {"send": sent, "sends": st.sends(prj["id"])}
 
     @app.delete("/api/projects/{slug}/shares/{token}")
     def revoke_share(slug: str, token: str) -> dict:
