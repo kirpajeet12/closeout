@@ -912,7 +912,7 @@ const fileUrl = (id, page) => `/api/evidence/${id}/file` + (page ? `#page=${page
 const isImg = name => /\.(jpe?g|png|heic|heif|webp)$/i.test(name || "");
 const state = { home: null, p: null, slug: null, es: null, run: { kind: "idle", text: "", done: 0, total: 0 }, fieldDisc: null, walk: null, rmNote: null, filing: null, viewer: null, shot: null, openReview: null, mailOpen: null, finishing: null, confirmFinish: null, drafting: null, mapping: null, docsAsking: false, filters: { bld: "", disc: "", rv: "" }, folder: [], pinMode: "", brief: {}, briefOpen: {}, starting: null, cov: {}, unitLog: null, stagesEdit: null };
 
-function toast(msg, err) { const t = $("#toast"); t.textContent = msg; t.className = "toast show" + (err ? " err" : ""); setTimeout(() => t.className = "toast", 3200); }
+function toast(msg, err) { if (typeof msg !== "string") msg = Array.isArray(msg) ? "Fill in " + msg.map(e => String((e.loc || []).slice(-1)[0] || "").replace(/_/g, " ")).filter(Boolean).join(", ") : "Something went wrong"; const t = $("#toast"); t.textContent = msg; t.className = "toast show" + (err ? " err" : ""); setTimeout(() => t.className = "toast", 3200); }
 function route() {
   const c = location.pathname.match(/^\/c\/([^/]+)/); if (c) return { page: "contractor", token: decodeURIComponent(c[1]) };
   const h = location.hash.replace(/^#\/?/, "").split("?")[0];
@@ -2811,7 +2811,7 @@ function tapSheet(sh, x, y) {
   v.draft = { x, y }; v.step = v.step === "form" ? "form" : "shoot"; render();
 }
 function renderPanel(sh, rv) {
-  const v = state.viewer, p = state.p, slug = state.slug, el = $("#panel"), s = v.sug || {};
+  const v = state.viewer, p = state.p, slug = state.slug, el = $("#panel"), s = v.sug || v.typed || {};
   const units = p.project.units.map(u => u.label || u.name || u), levels = [...new Set([...p.project.levels.map(l => l.name || l), ...p.project.units.flatMap(u => (u.levels || []).map(l => l.name || l))])];
   const opts = (list, cur) => `<option value="">—</option>` + list.map(x => `<option ${x === cur ? "selected" : ""}>${esc(x)}</option>`).join("");
   if (v.step === "shoot") el.innerHTML = `
@@ -2838,7 +2838,7 @@ function renderPanel(sh, rv) {
   const pin = $("#photoIn"); if (pin) pin.onchange = () => { const f = pin.files[0]; if (!f) return; v.photo = f; if (v.photoUrl) URL.revokeObjectURL(v.photoUrl); v.photoUrl = URL.createObjectURL(f); renderPanel(sh, rv); };
   const note = $("#noteIn"); if (note) note.oninput = () => v.note = note.value;
   const cancel = $("#cancel"); if (cancel) cancel.onclick = () => { resetDraft(); render(); };
-  const manual = $("#manual"); if (manual) manual.onclick = () => { v.step = "form"; v.sug = null; renderPanel(sh, rv); };
+  const manual = $("#manual"); if (manual) manual.onclick = () => { const w = v.sug || {}; v.typed = { unit: w.unit || "", level: w.level || "", location: [w.unit, w.level].filter(Boolean).join(", ") }; v.step = "form"; v.sug = null; renderPanel(sh, rv); };
   const ask = $("#ask"); if (ask) ask.onclick = () => askAgent(sh, rv);
   const save = $("#save"); if (save) save.onclick = () => saveFinding(sh, rv);
 }

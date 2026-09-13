@@ -122,3 +122,11 @@ def test_every_file_keeps_a_log_across_drops(folder, tmp_path, monkeypatch):
     detail = client.get("/api/projects/sample").json()
     assert len(detail["document_log"]) == len(log) + 2
     assert detail["document_log"][0]["kind"] == "received"
+
+
+def test_a_set_date_is_read_in_the_office_style_and_the_iso_style():
+    from closeout.project import _dated
+    assert _dated("EL/260421_ADDED HOUSE PANEL/E1.pdf") == "2026-04-21"
+    assert _dated("AR/Cedar Row - Architectural Set 2026-08-28.pdf") == "2026-08-28"
+    assert _dated("AR/260101/Set 2026-08-28.pdf") == "2026-08-28"      # the file's own date wins over the folder's
+    assert _dated("PM/notes.pdf") is None

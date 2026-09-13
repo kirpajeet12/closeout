@@ -100,6 +100,10 @@ def _dated(rel: str) -> str | None:
     """YYMMDD in the file name wins over the folder; the folder is the day it was filed, the file the day it was issued."""
     parts = rel.split("/")
     for cand in [parts[-1]] + parts[:-1][::-1]:
+        for m in re.finditer(r"(?<!\d)20(\d{2})[-_.](\d{1,2})[-_.](\d{1,2})(?!\d)", cand):   # 2026-08-28 as well
+            yy, mm, dd = (int(x) for x in m.groups())
+            if 1 <= mm <= 12 and 1 <= dd <= 31 and 15 <= yy <= 40:
+                return f"20{yy:02d}-{mm:02d}-{dd:02d}"
         for m in re.finditer(r"(?<!\d)(\d{2})(\d{2})(\d{2})(?!\d)", cand):
             yy, mm, dd = (int(x) for x in m.groups())
             if 1 <= mm <= 12 and 1 <= dd <= 31 and 15 <= yy <= 40:
