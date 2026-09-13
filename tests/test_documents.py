@@ -259,3 +259,21 @@ def test_an_empty_folder_the_engineer_added_can_be_removed_and_walked(client, tm
     r = client.delete(f"/api/projects/{slug}/disciplines/SP")
     assert r.status_code == 200 and [d["code"] for d in r.json()["disciplines"]] == ["AR", "EL", "SK"]
     assert client.delete(f"/api/projects/{slug}/disciplines/SP").status_code == 404
+
+
+def test_a_walk_needs_no_drawings_and_a_deficiency_needs_no_photo(client, tmp_path):
+    """A project with nothing on file: the engineer adds a folder, starts a walk under it, and writes a deficiency
+    down with the unit and floor only. No sheet, no pin, no photo, no model call. Finishing an empty walk drafts nothing."""
+    slug = client.post("/api/projects/blank", json={"name": "Bare Lot"}).json()["slug"]
+    assert client.post(f"/api/projects/{slug}/disciplines", json={"code": "SK", "name": "Sprinkler"}).status_code == 200
+    rv = client.post(f"/api/projects/{slug}/reviews", json={"discipline": "SK", "title": "Sprinkler review 1"}).json()["review"]
+    r = client.post(f"/api/projects/{slug}/findings", data={"review_id": rv["id"], "discipline": "SK", "location": "Unit B · Level 2",
+                                                            "description": "Sprinkler head missing over the stair", "evidence_required": "photo: the corrected work at this spot",
+                                                            "unit": "Unit B", "level": "Level 2"})
+    assert r.status_code == 200, r.text
+    it = r.json()["item"]
+    assert it["item_id"] == "SK-01" and not it.get("sheet_id") and it.get("pin_x") is None and not it.get("reference_photo")
+    # an empty walk closes without a message and without a model call
+    rv2 = client.post(f"/api/projects/{slug}/reviews", json={"discipline": "AR", "title": "Arch review 1"}).json()["review"]
+    j = client.post(f"/api/projects/{slug}/reviews/{rv2['id']}/finish").json()
+    assert j["review"]["status"] == "finished" and j["message"] is None and "nothing to send" in j["error"]

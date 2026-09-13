@@ -1616,7 +1616,7 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         except RegisterError as e:
             raise HTTPException(400, f"evidence required: {e}") from e
         code = (discipline.strip().upper() or rv["discipline"])
-        if code not in project_mod.DISCIPLINES:
+        if code not in project_mod.DISCIPLINES and not any(d.get("code") == code for d in prj["model"].get("disciplines") or []):
             raise HTTPException(400, f"unknown discipline '{discipline}'")
         item_id = st.next_item_id(pid, rv["discipline"])
         raw, original = await _read_photo(photo)
