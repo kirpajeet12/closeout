@@ -194,6 +194,17 @@ class FilingIn(BaseModel):
     building: str | None = None    # None = keep the current one; "" = the site, no building
     discipline: str | None = None  # None = keep; "" = the file's own discipline
     name: str | None = None        # None = keep; "" = back to the file's own name
+    folder: str | None = None      # None = keep; "" = out of the engineer's own folder, back by building and discipline
+    # (a folder id from /folders otherwise)
+
+
+class FolderIn(BaseModel):
+    parent: str                    # the Documents tree key it goes inside: prj, site, site/AR, b/<building>, b/<building>/AR, u/<id>
+    name: str
+
+
+class FolderRename(BaseModel):
+    name: str
 
 
 class FilingUndoIn(BaseModel):
@@ -542,7 +553,7 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
                 "units": coverage_mod.buildings(prj),
                 "docs_review": prj.get("docs_review"), "docs_scope": prj.get("docs_scope") or [],
                 "occupancy_docs": [list(row) for row in documents_mod.OCCUPANCY_DOCS],
-                "filings": st.filings(pid), "filing_history": st.filing_history(pid), "document_log": st.document_log(pid),
+                "filings": st.filings(pid), "filing_history": st.filing_history(pid), "document_log": st.document_log(pid), "folders": st.folders(pid),
                 "drawings_reviews": st.drawings_reviews(pid), "seen": st.seen(pid)}
         out["history"] = history_mod.build(sends=out["sends"], inbound=out["inbound"], batches=batches, shares=out["shares"], reviews=out["reviews"],
                                            messages=out["messages"], filings=out["filing_history"], document_log=out["document_log"],
@@ -796,6 +807,73 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         st.set_project_model(pid, {**prj["model"], "disciplines": discs})
         return {"disciplines": discs}
 
+    def _folder_parents(st, prj: dict) -> set[str]:
+        """Every place in the Documents tree a folder of the engineer's own can go: the project folder, the site, each
+        building, a discipline under either, or inside another folder of their own."""
+        pid = prj["id"]
+        codes = {d.get("code") for d in prj["model"].get("disciplines") or []} | {s["discipline"] for s in st.sheets(pid)} \
+            | {d["discipline"] for d in st.documents(pid)}
+        codes.discard(None); codes.discard("")
+        keys = {"prj", "site"} | {f"site/{c}" for c in codes} | {"u/" + f["id"] for f in st.folders(pid)}
+        for b in coverage_mod.buildings(prj):
+            keys |= {f"b/{b['key']}"} | {f"b/{b['key']}/{c}" for c in codes}
+        return keys
+
+    def _folder_name(body_name: str) -> str:
+        name = " ".join((body_name or "").split())[:60]
+        if not name:
+            raise HTTPException(400, "say what the folder is called")
+        if any(ch in name for ch in "/\\|"):
+            raise HTTPException(400, "a folder name cannot hold / \\ or |")
+        return name
+
+    @app.post("/api/projects/{slug}/folders")
+    def add_folder(slug: str, body: FolderIn) -> dict:
+        """The engineer makes a folder of their own anywhere in the project folder: under the site, a building, a
+        discipline, or inside another of their folders, as deep as they like. Nothing on disk changes; files are
+        filed into it the same way they are moved, with every move kept in the history."""
+        st = store()
+        prj = _project(st, slug)
+        pid = prj["id"]
+        name, parent = _folder_name(body.name), (body.parent or "").strip()
+        if parent not in _folder_parents(st, prj):
+            raise HTTPException(400, "that is not a folder in the project folder")
+        if any(f["parent"] == parent and f["name"].lower() == name.lower() for f in st.folders(pid)):
+            raise HTTPException(400, f"there is already a folder called {name} there")
+        folder = st.add_folder(pid, parent, name)
+        return {"folder": folder, "folders": st.folders(pid)}
+
+    @app.patch("/api/projects/{slug}/folders/{folder_id}")
+    def rename_folder(slug: str, folder_id: str, body: FolderRename) -> dict:
+        """Rename one of the engineer's own folders. Its files and folders stay inside it."""
+        st = store()
+        prj = _project(st, slug)
+        pid = prj["id"]
+        name, folders = _folder_name(body.name), st.folders(pid)
+        f = next((x for x in folders if x["id"] == folder_id), None)
+        if f is None:
+            raise HTTPException(404, "no such folder")
+        if any(x["id"] != folder_id and x["parent"] == f["parent"] and x["name"].lower() == name.lower() for x in folders):
+            raise HTTPException(400, f"there is already a folder called {name} there")
+        st.rename_folder(pid, folder_id, name)
+        return {"folders": st.folders(pid)}
+
+    @app.delete("/api/projects/{slug}/folders/{folder_id}")
+    def remove_folder(slug: str, folder_id: str) -> dict:
+        """Remove one of the engineer's own folders while it is empty: no folders inside it and no file filed in it."""
+        st = store()
+        prj = _project(st, slug)
+        pid = prj["id"]
+        folders = st.folders(pid)
+        if not any(x["id"] == folder_id for x in folders):
+            raise HTTPException(404, "no such folder")
+        if any(x["parent"] == "u/" + folder_id for x in folders):
+            raise HTTPException(400, "it has folders inside it; remove or empty those first")
+        if any((f or {}).get("folder") == folder_id for f in st.filings(pid).values()):
+            raise HTTPException(400, "it has files in it; move them first")
+        st.delete_folder(pid, folder_id)
+        return {"folders": st.folders(pid)}
+
     @app.get("/api/projects/{slug}/filing")
     def filing(slug: str) -> dict:
         """Where every file sits in the project folder tree now, and every move behind it."""
@@ -810,7 +888,7 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         prj = _project(st, slug)
         view = project_mod.project_view(st, prj["id"]) or {}
         try:
-            row = documents_mod.file_by_engineer(st, prj["id"], view, body.file, body.building, body.discipline, body.name)
+            row = documents_mod.file_by_engineer(st, prj["id"], view, body.file, body.building, body.discipline, body.name, body.folder)
         except ValueError as e:
             raise HTTPException(400, str(e))
         return {"filing": row, "filings": st.filings(prj["id"]), "history": st.filing_history(prj["id"])}

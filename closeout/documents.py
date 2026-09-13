@@ -359,7 +359,7 @@ def record_placements(store: Store, project_id: str, placed: list[dict]) -> None
 
 
 def file_by_engineer(store: Store, project_id: str, view: dict, file: str, building: str | None, discipline: str | None,
-                     name: str | None) -> dict:
+                     name: str | None, folder: str | None = None) -> dict:
     """The engineer's move or rename, checked against the real file names, buildings and disciplines before it is kept.
     None for a field means 'leave as it is'. Raises ValueError with a plain reason."""
     files = {d["rel_path"].split("/")[-1] for d in view.get("documents") or []}
@@ -369,7 +369,7 @@ def file_by_engineer(store: Store, project_id: str, view: dict, file: str, build
     tree = site_tree(view)
     buildings = {b["name"] for b in tree["buildings"]}
     disciplines = {d["code"] for d in view.get("disciplines") or []} | {sh["discipline"] for sh in view.get("sheets") or []}
-    cur = store.filings(project_id).get(f) or {"building": "", "discipline": "", "name": ""}
+    cur = {"folder": "", **(store.filings(project_id).get(f) or {"building": "", "discipline": "", "name": ""})}
     b = cur["building"] if building is None else building.strip()
     if b and b not in buildings:
         raise ValueError(f"unknown building {b!r}; the project has: " + (", ".join(sorted(buildings)) or "none"))
@@ -377,9 +377,12 @@ def file_by_engineer(store: Store, project_id: str, view: dict, file: str, build
     if d and d not in disciplines:
         raise ValueError(f"unknown discipline {d!r}; the project has: " + (", ".join(sorted(disciplines)) or "none"))
     n = cur["name"] if name is None else " ".join(name.split())[:120]
-    if (b, d, n) == (cur["building"], cur["discipline"], cur["name"]):
+    fo = cur["folder"] if folder is None else folder.strip()
+    if fo and fo not in {x["id"] for x in store.folders(project_id)}:
+        raise ValueError("that folder is not on this project any more")
+    if (b, d, n, fo) == (cur["building"], cur["discipline"], cur["name"], cur["folder"]):
         raise ValueError("that is where the file already is")
-    return store.file_document(project_id, f, b, d, n, who="engineer")
+    return store.file_document(project_id, f, b, d, n, who="engineer", folder=fo)
 
 
 def review_documents(store: Store, project_id: str, view: dict, already: list[str] | None = None, settings: Settings = SETTINGS,

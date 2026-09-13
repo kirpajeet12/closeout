@@ -231,9 +231,18 @@ CREATE TABLE IF NOT EXISTS filings (
   discipline TEXT NOT NULL DEFAULT '',
   name TEXT NOT NULL DEFAULT '',  -- display name; '' = the file name itself
   who TEXT NOT NULL,              -- closeout | engineer
-  at TEXT NOT NULL
+  at TEXT NOT NULL,
+  folder TEXT NOT NULL DEFAULT '' -- one of the engineer's own folders (folders.id); '' = by building and discipline
 );
 CREATE INDEX IF NOT EXISTS filings_by_file ON filings(project_id, file, at);
+CREATE TABLE IF NOT EXISTS folders (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL,
+  parent TEXT NOT NULL,           -- where it sits in the Documents tree: prj, site, site/AR, b/<building>, b/<building>/AR, u/<folder id>
+  name TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS folders_by_project ON folders(project_id, created_at);
 CREATE TABLE IF NOT EXISTS document_log (
   id TEXT PRIMARY KEY,
   project_id TEXT NOT NULL,
@@ -381,7 +390,8 @@ class Store:
                                 ("batches", "via", "TEXT NOT NULL DEFAULT ''"),
                                 ("sends", "thread_id", "TEXT NOT NULL DEFAULT ''"),
                                 ("sends", "report", "TEXT NOT NULL DEFAULT ''"),
-                                ("projects", "seen_json", "TEXT NOT NULL DEFAULT '{}'")):
+                                ("projects", "seen_json", "TEXT NOT NULL DEFAULT '{}'"),
+                                ("filings", "folder", "TEXT NOT NULL DEFAULT ''")):
             if col not in self._cols(table):
                 self.conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {ddl}")
         if "project_id" not in self._cols("deficiencies"):
@@ -1170,10 +1180,10 @@ class Store:
     # Every change is a new row; the newest row per file is the current filing, the rest is its history.
 
     def file_document(self, project_id: str, file: str, building: str = "", discipline: str = "", name: str = "",
-                      who: str = "engineer") -> dict:
+                      who: str = "engineer", folder: str = "") -> dict:
         fid = new_id("fil")
-        self.conn.execute("INSERT INTO filings(id, project_id, file, building, discipline, name, who, at) VALUES(?,?,?,?,?,?,?,?)",
-                          (fid, project_id, file, building or "", discipline or "", name or "", who, now()))
+        self.conn.execute("INSERT INTO filings(id, project_id, file, building, discipline, name, who, at, folder) VALUES(?,?,?,?,?,?,?,?,?)",
+                          (fid, project_id, file, building or "", discipline or "", name or "", who, now(), folder or ""))
         self.conn.commit()
         return dict(self.conn.execute("SELECT * FROM filings WHERE id=?", (fid,)).fetchone())
 
@@ -1201,7 +1211,26 @@ class Store:
             return None
         self.conn.execute("DELETE FROM filings WHERE id=?", (rows[-1]["id"],))
         self.conn.commit()
-        return rows[-2] if len(rows) > 1 else {"file": file, "building": "", "discipline": "", "name": "", "who": "", "at": ""}
+        return rows[-2] if len(rows) > 1 else {"file": file, "building": "", "discipline": "", "name": "", "who": "", "at": "", "folder": ""}
+
+    # --- the engineer's own folders in the Documents tree, nested under any project folder or under each other -------
+
+    def folders(self, project_id: str) -> list[dict]:
+        return [dict(r) for r in self.conn.execute("SELECT * FROM folders WHERE project_id=? ORDER BY created_at, rowid", (project_id,))]
+
+    def add_folder(self, project_id: str, parent: str, name: str) -> dict:
+        fid = new_id("fld")
+        self.conn.execute("INSERT INTO folders(id, project_id, parent, name, created_at) VALUES(?,?,?,?,?)", (fid, project_id, parent, name, now()))
+        self.conn.commit()
+        return dict(self.conn.execute("SELECT * FROM folders WHERE id=?", (fid,)).fetchone())
+
+    def rename_folder(self, project_id: str, folder_id: str, name: str) -> None:
+        self.conn.execute("UPDATE folders SET name=? WHERE project_id=? AND id=?", (name, project_id, folder_id))
+        self.conn.commit()
+
+    def delete_folder(self, project_id: str, folder_id: str) -> None:
+        self.conn.execute("DELETE FROM folders WHERE project_id=? AND id=?", (project_id, folder_id))
+        self.conn.commit()
 
     def replace_sheets(self, project_id: str, sheets: list[dict]) -> list[str]:
         self.conn.execute("DELETE FROM sheets WHERE project_id=?", (project_id,))

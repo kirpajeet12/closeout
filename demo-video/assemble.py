@@ -437,10 +437,10 @@ def build():
 def build_free():
     P = lambda nm, i=None: nm
     S = []
-    S.append(scene_photo("site-access-2.jpg", ["A site walk ends with a list.", "Then the chasing starts."], 7.0))
-    S.append(scene_black(["Closeout", "From the walk to the last item closed."], 6.5))
+    S.append(scene_photo("site-access-2.jpg", ["A field review finds deficiencies.", "Each one needs proof it was fixed."], 7.0))
+    S.append(scene_black(["Closeout", "Deficiency tracking for field reviews."], 6.5))
     S.append(scene_desk([(0, "d01-projects"), (3.6, "d02-docs")], 9.0,
-                        [top(["One project. Every drawing, filed."], 0.5, 8.6)],
+                        [top(["Cedar Row Townhomes", "Its drawings and documents, filed by discipline."], 0.5, 8.6)],
                         cam=[(0, 0.5, 0.5, 1.0), (3.6, 0.5, 0.5, 1.0), (8.5, 0.42, 0.55, 1.25)],
                         cur=(0.8, 2.4, 2.7, "d01-projects", (W * 0.7, H * 0.8))))
     S.append(scene_phone([(0, "p01-field"), (2.6, "p02-walk")], 6.5,
@@ -468,25 +468,25 @@ def build_free():
                          [left(["Finish.", "It asks which units you walked."], 0.3, 7.7)],
                          taps=[(2.2, "p10-list"), (6.8, "p11-finish-ask")]))
     S.append(scene_phone([(0, "p12-finished")], 5.5,
-                         [left(["The list is ready", "for the contractor."], 0.3, 5.2)]))
+                         [left(["Field review 1", "is finished."], 0.3, 5.2)]))
     split = len(S)
-    S.append(scene_desk([(0, "d04-overview")], 7.0, [top(["The overview always shows the next step."], 0.4, 6.7, size=56)],
+    S.append(scene_desk([(0, "d04-overview")], 7.0, [top(["The overview", "Items ready to close, and what is still missing."], 0.4, 6.7)],
                         cam=[(0, 0.5, 0.5, 1.0), (7.0, 0.5, 0.42, 1.12)]))
-    S.append(scene_desk([(0, "d05-deficiencies")], 7.0, [top(["Every item, where it is, and what it needs."], 0.4, 6.7, size=56)],
+    S.append(scene_desk([(0, "d05-deficiencies")], 7.0, [top(["0 of 3 ready to close", "Each item with its unit, floor and sheet."], 0.4, 6.7)],
                         cam=[(0, 0.5, 0.5, 1.0), (7.0, 0.5, 0.8, 1.3)]))
-    S.append(scene_report(12.0, [top(["The report is ready.", "Photos, plan pins, what closes each item."], 0.4, 10.6, size=56)]))
+    S.append(scene_report(12.0, [top(["The field review report", "Each item with its photo, plan pin and what closes it."], 0.4, 10.6)]))
     S.append(scene_phone([(0, "p13-contractor"), (5.0, "p14-contractor-list")], 11.0,
                          [left(["The contractor", "gets one link."], 0.3, 5.0),
-                          left(["No account.", "Just their items, and", "what closes each one."], 5.4, 10.7)]))
+                          left(["No account.", "Only their items,", "and what closes each."], 5.4, 10.7)]))
     S.append(scene_desk([(0, "d08-item"), (4.0, "d09-item-evidence")], 9.5,
-                        [top(["What they send lands on the item it belongs to."], 0.4, 9.2, size=54)],
+                        [top(["Their photo is filed", "on the item it belongs to."], 0.4, 9.2)],
                         cur=(0.6, 2.2, 2.6, "d08-item", (W * 0.6, H * 0.9))))
     S.append(scene_desk([(0, "d09-item-evidence"), (2.7, "d10-item-closed")], 7.5,
-                        [top(["The engineer decides what closes."], 0.4, 7.2)],
+                        [top(["The engineer decides", "Ready to close, hold, or not accepted."], 0.4, 7.2)],
                         cam=[(0, 0.5, 0.5, 1.0), (7.5, 0.36, 0.62, 1.35)],
                         cur=(0.4, 2.0, 2.4, "d09-item-evidence", (W * 0.7, H * 0.4))))
-    S.append(scene_dual(8.0, [top(["The office and the contractor", "see the same list."], 0.4, 7.7, size=56)]))
-    S.append(scene_black(["Closeout", "Walk it. Send it. Close it."], 12.0))
+    S.append(scene_dual(8.0, [top(["Office and contractor", "The same list, on both screens."], 0.4, 7.7)]))
+    S.append(scene_black(["Closeout"], 7.0))
     return S, split
 
 
@@ -506,20 +506,35 @@ def progress_beats(t0, t1, most=6):
 
 def build_ai():
     S = []
-    S.append(scene_photo("site-access-2.jpg", ["A site walk ends with a list.", "Then the chasing starts."], 6.5))
-    S.append(scene_black(["Closeout", "From the walk to the last item closed."], 5.5))
+    S.append(scene_photo("site-access-2.jpg", ["A field review finds deficiencies.", "Each one needs proof it was fixed."], 6.5))
+    S.append(scene_black(["Closeout", "Deficiency tracking for field reviews."], 5.5))
     # a new project: the whole folder as one zip, filed and read
     S.append(scene_desk([(0, "n01-home")] + progress_beats(3.4, 12.0), 12.5,
-                        [side(["Start a project.", "Upload the whole project folder as one zip."], 0.4, 3.9),
-                         side(["Closeout sorts it.", "Every file by discipline and date.", "Then it reads each current sheet."], 4.3, 12.2)],
+                        [side(["New project", "Upload the project folder as one zip. Here, 418 Alder Court: 5 PDFs."], 0.4, 3.9),
+                         side(["Closeout reads the files", "and files them by building and discipline."], 4.3, 12.2)],
                         cam=[(0, 0.5, 0.5, 1.0), (2.6, 0.5, 0.5, 1.0), (4.6, 0.5, 0.4, 1.0), (12.5, 0.5, 0.38, 1.03)],
                         cur=(0.6, 2.1, 2.5, "n01-home", (W * 0.62, H * 0.9))))
-    S.append(scene_desk([(0, "n05-drawings"), (5.0, "n06-docs")], 10.5,
-                        [side(["It opens already filed.", "Current sheets by discipline."], 0.4, 4.8),
-                         side(["Nothing is lost.", "Older issues stay in the revision log, newest first."], 5.2, 10.2)],
-                        cam=[(0, 0.5, 0.37, 1.0), (4.99, 0.5, 0.4, 1.06), (5.0, 0.5, 0.56, 1.0), (10.5, 0.5, 0.66, 1.06)]))
+    S.append(scene_desk([(0, "n05-drawings"), (4.0, "n06-folders1"), (8.0, "n06-folders2")], 12.5,
+                        [side(["Drawings tab", "Architectural: 3 current sheets. Electrical: 2."], 0.4, 3.8),
+                         side(["The folders it set up", "Documents before occupancy, the project folder, and one per building."], 4.2, 7.8),
+                         side(["Site › Architectural", "Both issues of the set. September is current, June is kept as older."], 8.2, 12.2)],
+                        cam=[(0, 0.5, 0.37, 1.0), (3.99, 0.5, 0.4, 1.06), (4.0, 0.5, 0.38, 1.0), (7.99, 0.5, 0.36, 1.04),
+                             (8.0, 0.5, 0.36, 1.04), (12.5, 0.5, 0.35, 1.0)]))
+    # folders of your own, inside any folder, and a file filed into one
+    S.append(scene_desk([(0, "n06-folders2"), (2.0, "n08-mkfolder"), (5.2, "n08-made")], 9.0,
+                        [side(["New folder", "Make a folder of your own inside any folder. Here, Older issues, inside Site › Architectural."], 0.4, 8.7)],
+                        cam=[(0, 0.5, 0.34, 1.06), (9.0, 0.5, 0.34, 1.08)],
+                        cur=(0.4, 1.3, 1.6, "n06-folders2", (W * 0.6, H * 0.85))))
+    S.append(scene_desk([(0, "n08-nested"), (4.2, "n08-move")], 8.5,
+                        [side(["Folders inside folders", "June 2026 issue, inside Older issues."], 0.4, 3.9),
+                         side(["Move…", "The June set goes into June 2026 issue."], 4.4, 8.2)],
+                        cam=[(0, 0.5, 0.34, 1.06), (4.19, 0.5, 0.34, 1.08), (4.2, 0.5, 0.44, 1.06), (8.5, 0.5, 0.45, 1.08)],
+                        cur=(5.6, 6.8, 7.2, "n08-move", (W * 0.7, H * 0.85))))
+    S.append(scene_desk([(0, "n08-filed")], 6.0,
+                        [side(["Filed", "Site › Architectural › Older issues › June 2026 issue. Every move can be undone."], 0.4, 5.7)],
+                        cam=[(0, 0.5, 0.34, 1.06), (6.0, 0.5, 0.34, 1.09)]))
     S.append(scene_desk([(0, "n07-home-after")], 6.0,
-                        [side(["Every project in one place."], 0.4, 5.7)],
+                        [side(["Projects", "Open Cedar Row Townhomes for the site walk."], 0.4, 5.7)],
                         cam=[(0, 0.5, 0.48, 1.0), (6.0, 0.5, 0.5, 1.05)],
                         cur=(1.6, 3.4, 3.9, "n07-home-after", (W * 0.78, H * 0.8), "cedar")))
     # the walk
@@ -538,7 +553,7 @@ def build_ai():
                          taps=[(0.9, "p06-tapped"), (5.4, "p06-tapped", "ask")]))
     S.append(scene_phone([(0, "p07-thinking"), (0.9, "p07-suggested"), (5.3, "p08-form")], 7.8,
                          [left(["It reads the photo", "and the drawing,", "and writes it up."], 0.3, 4.6),
-                          left(["You check it.", "Nothing is saved", "until you save."], 4.9, 7.6)],
+                          left(["Check the wording,", "then save."], 4.9, 7.6)],
                          cam=[pz(0, 1.0), pz(0.9, 1.0), pz(2.3, 1.5, 0.5), pz(5.0, 1.5, 0.5), pz(6.0, 1.0)],
                          taps=[(7.0, "p08-form")]))
     S.append(scene_phone([(0, "p07-type1"), (0.4, "p07-type2"), (0.8, "p07-type3"), (1.2, "p07-type4"), (1.9, "p08-typed")], 5.0,
@@ -553,33 +568,33 @@ def build_ai():
                          [left(["Finish.", "It asks which units you walked."], 0.3, 6.7)],
                          taps=[(2.0, "p10-list"), (6.0, "p11-finish-ask")]))
     S.append(scene_phone([(0, "p11-drafting"), (0.9, "p12-finished")], 4.8,
-                         [left(["Done on site.", "Closeout drafts the", "message to the contractor."], 0.3, 4.5)]))
+                         [left(["Field review 1 finished.", "Closeout drafts the", "message to the contractor."], 0.3, 4.5)]))
     split = len(S)        # the office and the contractor: second score from here
-    S.append(scene_desk([(0, "d05-deficiencies")], 6.0, [side(["Every item, where it is, and what it needs."], 0.4, 5.7, size=56)],
+    S.append(scene_desk([(0, "d05-deficiencies")], 6.0, [side(["0 of 3 ready to close", "Each item with its unit, floor and sheet."], 0.4, 5.7)],
                         cam=[(0, 0.5, 0.5, 1.0), (6.0, 0.5, 0.78, 1.1)]))
-    S.append(scene_report(9.0, [side(["The report is ready.", "Photos, plan pins, what closes each item."], 0.4, 8.5, size=56)]))
+    S.append(scene_report(9.0, [side(["The field review report", "Each item with its photo, plan pin and what closes it."], 0.4, 8.5)]))
     S.append(scene_desk([(0, "d07-messages")], 7.5,
-                        [side(["The message is drafted.", "Nothing is sent until you send it."], 0.4, 7.2, size=56)],
+                        [side(["The drafted message", "3 items to close at Cedar Row. Nothing is sent until you send it."], 0.4, 7.2)],
                         cam=[(0, 0.5, 0.5, 1.0), (1.5, 0.5, 0.5, 1.0), (7.5, 0.56, 0.6, 1.15)]))
     S.append(scene_phone([(0, "p13-contractor"), (3.4, "p14-contractor-list")], 7.0,
                          [left(["The contractor", "gets one link."], 0.3, 3.4),
-                          left(["No account.", "Just their items."], 3.7, 6.8)]))
+                          left(["No account.", "Only their items."], 3.7, 6.8)]))
     S.append(scene_phone([(0, "p13-contractor"), (2.0, "p16-contractor-filing"), (3.2, "p17-contractor-filed")], 7.0,
-                         [left(["They send a photo.", "Closeout files it", "to the right item."], 0.3, 6.7)],
+                         [left(["They upload AR-01.jpg.", "Closeout files it", "on item AR-01."], 0.3, 6.7)],
                          taps=[(1.2, "p13-contractor")]))
     S.append(scene_desk([(0, "d08-item-filed")], 8.5,
-                        [side(["It says what it could not confirm."], 0.4, 8.2, size=56)],
+                        [side(["Location not confirmed", "The photo matches AR-01, but nothing in it shows where it was taken."], 0.4, 8.2)],
                         cam=[(0, 0.5, 0.45, 1.0), (1.8, 0.5, 0.45, 1.0), (5.6, 0.5, 0.72, 1.0), (8.5, 0.5, 0.74, 1.06)]))
     S.append(scene_desk([(0, "d09-item-evidence"), (2.6, "d10-item-closed")], 7.0,
-                        [side(["The engineer decides what closes."], 0.4, 6.7)],
+                        [side(["The engineer decides", "Ready to close, hold, or not accepted."], 0.4, 6.7)],
                         cam=[(0, 0.5, 0.5, 1.0), (7.0, 0.42, 0.62, 1.22)],
                         cur=(0.4, 1.9, 2.3, "d09-item-evidence", (W * 0.7, H * 0.4))))
     S.append(scene_desk([(0, "d12-ask"), (2.2, "d12-ask-thinking"), (3.1, "d13-answer")], 8.4,
-                        [side(["Ask Closeout anything about the project."], 0.4, 8.1, size=56)],
+                        [side(["Ask about the project", "“What does the contractor still need to send?”"], 0.4, 8.1)],
                         cam=[(0, 0.5, 0.5, 0.77), (2.4, 0.5, 0.5, 0.77), (4.2, 0.8, 0.37, 1.45), (8.4, 0.8, 0.37, 1.5)],
                         cur=(0.5, 1.7, 2.0, "d12-ask", (W * 0.5, H * 0.5))))
-    S.append(scene_dual(7.0, [side(["The office and the contractor", "see the same list."], 0.4, 6.7, size=56)]))
-    S.append(scene_black(["Closeout", "Walk it. Send it. Close it."], 9.0))
+    S.append(scene_dual(7.0, [side(["Office and contractor", "The same list, on both screens."], 0.4, 6.7)]))
+    S.append(scene_black(["Closeout"], 6.0))
     return S, split
 
 
