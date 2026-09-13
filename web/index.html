@@ -677,6 +677,7 @@
   .xrow.sheetrow .pins { padding: 2px 8px; border-radius: 999px; background: var(--hot); color: #fff; font-size: 11px; font-weight: 700; }
   .xrow.filerow { cursor: pointer; grid-template-columns: 1fr auto auto auto; padding-right: 6px; }
   .xrow.filerow .dl { color: var(--ink-2); text-decoration: none; font-size: 15px; line-height: 1; padding: 6px 8px; border-radius: 8px; } .xrow.filerow .dl:hover { background: #fff; color: var(--ink); } .xrow.filerow .fi { margin: 0 3px; } .xrow.filerow.cur b { font-weight: 600; }
+  .xrow.filerow.check { cursor: default; grid-template-columns: auto 1fr auto; padding-right: 10px; }
   .xrow.filerow .open { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: center; color: inherit; text-decoration: none; min-width: 0; }
   .xrow .tag { font-size: 11px; font-weight: 600; white-space: nowrap; padding: 3px 8px; border-radius: 999px; letter-spacing: .01em; }
   .xrow .tag.by { background: #fff3d6; color: #8a5a00; } .xrow .tag.you { background: var(--ink); color: #fff; }
@@ -1400,7 +1401,7 @@ function renderExplorer(pr) {
       ${h.length ? `<ol class="hist">${h.slice().reverse().map(x => `<li><b>${x.who === "closeout" ? "Closeout" : "You"}</b> ${x.folder ? `filed it in ${esc(myFolderName(x.folder))}` : x.building || x.discipline ? `filed it under ${esc([x.building, x.discipline ? dn(x.discipline) : ""].filter(Boolean).join(" · "))}` : "put it back on the site"}${x.name ? `, shown as “${esc(x.name)}”` : ""}<small>${esc(String(x.at || "").replace("T", " ").slice(0, 16))}</small></li>`).join("")}</ol>` : ""}
     </form>`; };
   const row = i => i.kind === "file" ? fileRow(i)
-    : i.kind === "check" ? (i.out ? "" : `<div class="xrow ${i.files.length ? "filerow" : "ghost"}"><i class="fi ${i.files.length ? "doc" : "ghost"}"></i><div><b>${esc(i.name)}</b><small>${i.files.length ? esc(i.files.join(" · ")) : "not on file yet"}</small></div><label class="scope"><input type="checkbox" data-scope="${esc(i.name)}"> Not in scope</label></div>`)
+    : i.kind === "check" ? (i.out ? "" : `<div class="xrow ${i.files.length ? "filerow check" : "ghost"}"><i class="fi ${i.files.length ? "doc" : "ghost"}"></i><div><b>${esc(i.name)}</b><small>${i.files.length ? esc(i.files.join(" · ")) : "not on file yet"}</small></div><label class="scope"><input type="checkbox" data-scope="${esc(i.name)}"> Not in scope</label></div>`)
     : `<div class="xrow ghost"><i class="fi ghost"></i><div><b>${esc(i.name)}</b><small>${esc(i.meta)}</small></div><span class="who">not in the folder yet</span></div>`;
   const outRows = cur.items.filter(i => i.kind === "check" && i.out);
   const sub = f => `<div class="xrow folderrow" data-path="${esc(pathOf(f, root))}"><i class="fi ${f.site ? "site" : f.bld ? "bld" : f.crp || f.sec ? "crp" : f.prj ? "root" : ""}">${f.badge ? esc(f.badge) : ""}</i><div><b>${esc(f.name)}</b><small>${esc(f.meta || f.note || `${f.n} item${f.n === 1 ? "" : "s"}`)}</small></div><small class="n">${cnt(f)}</small><span class="chev">›</span></div>`;
