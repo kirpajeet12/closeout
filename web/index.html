@@ -339,6 +339,9 @@
   .disc .n { color: var(--mute); font-size: 13px; }
   .disc .rv { margin-top: auto; padding-top: 10px; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; }
   .disc .rv b { color: var(--hot); } .disc .rv .live { width: 8px; height: 8px; border-radius: 50%; background: var(--hot); display: inline-block; margin-right: 6px; animation: pulse 1s infinite alternate; }
+  .walk { margin-top: 18px; border-radius: 22px; border: 1px solid var(--line-2); background: #fff; padding: 20px 22px 22px; box-shadow: 0 24px 60px -34px rgba(18,19,20,.4); }
+  .walk .fr-head { margin-top: 0; } .walk .capture { margin: 18px 0 14px; } .walk h3.sec { margin-top: 30px; } .walk .finishask { margin-top: 16px; }
+  @media (max-width: 640px) { .walk { padding: 16px 14px 18px; border-radius: 18px; } }
   .fr-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 30px; flex-wrap: wrap; }
   .fr-head h2 { margin: 0; font-size: 22px; letter-spacing: -.01em; } .fr-head p { margin: 4px 0 0; color: var(--mute); font-size: 14px; }
   .brief { margin-top: 18px; border-radius: 18px; background: var(--card); border: 1px solid var(--line); padding: 16px 18px 18px; }
@@ -869,7 +872,7 @@ const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt
 const when = s => { const d = new Date(s); return isNaN(d) ? String(s ?? "") : d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }); };
 const fileUrl = (id, page) => `/api/evidence/${id}/file` + (page ? `#page=${page}` : "");
 const isImg = name => /\.(jpe?g|png|heic|heif|webp)$/i.test(name || "");
-const state = { home: null, p: null, slug: null, es: null, run: { kind: "idle", text: "", done: 0, total: 0 }, fieldDisc: null, filing: null, viewer: null, shot: null, openReview: null, finishing: null, confirmFinish: null, drafting: null, mapping: null, docsAsking: false, filters: { bld: "", disc: "", rv: "" }, folder: [], pinMode: "", brief: {}, briefOpen: {}, starting: null, cov: {}, unitLog: null, stagesEdit: null };
+const state = { home: null, p: null, slug: null, es: null, run: { kind: "idle", text: "", done: 0, total: 0 }, fieldDisc: null, walk: null, filing: null, viewer: null, shot: null, openReview: null, finishing: null, confirmFinish: null, drafting: null, mapping: null, docsAsking: false, filters: { bld: "", disc: "", rv: "" }, folder: [], pinMode: "", brief: {}, briefOpen: {}, starting: null, cov: {}, unitLog: null, stagesEdit: null };
 
 function toast(msg, err) { const t = $("#toast"); t.textContent = msg; t.className = "toast show" + (err ? " err" : ""); setTimeout(() => t.className = "toast", 3200); }
 function route() {
@@ -2084,31 +2087,43 @@ function renderField() {
   const cur = discs.find(d => d.code === state.fieldDisc), rv = activeReview(cur.code);
   const done = p.reviews.filter(r => r.discipline === cur.code && r.status === "finished");
   const items = rv ? findingsIn(rv.id) : [], shot = state.shot;
+  const walking = state.walk === cur.code || !!(shot && shot.disc === cur.code);
+  const head = `<div class="fr-head">
+      <div><h2>${esc(cur.name)}${rv ? ` · ${esc(rv.title)}${rv.stage ? ` · ${esc(rv.stage)}` : ""}` : ""}</h2><p>${rv ? `Started ${esc(when(rv.started_at))} · ${items.length} deficienc${items.length === 1 ? "y" : "ies"} so far.${walking ? " Take a photo or write it down; open a plan to mark the spot." : " Press Continue to keep walking."}` : done.length ? `${done.length} review${done.length === 1 ? "" : "s"} finished. Start the next one to add more deficiencies.` : "Nothing recorded yet for this discipline."}</p></div>
+      ${state.finishing === (rv && rv.id) && rv ? `<div class="thinking"><span class="dot"></span><span>Packaging ${items.length} deficienc${items.length === 1 ? "y" : "ies"} and drafting the message to the contractor…</span></div>`
+      : rv && walking ? `<span class="frbtns"><a class="btn quiet" href="${pUrl(slug, "/reviews/" + encodeURIComponent(rv.id) + "/report")}" target="_blank" rel="noopener">Report so far</a>${state.confirmFinish === rv.id ? "" : `<button class="btn" id="finishRv">Finish ${esc(rv.title.toLowerCase())}</button>`}<button class="btn quiet" id="walkClose" title="Put the walk away for now">Put away</button></span>`
+      : rv ? `<button class="btn primary hot" id="walkOpen">Continue ${esc(rv.title.toLowerCase())}</button>`
+      : state.starting && state.starting.code === cur.code ? "" : `<button class="btn primary" id="startRv">Start field review ${done.length + 1}</button>`}
+    </div>`;
+  const capture = shot && shot.disc === cur.code ? renderWhere(cur, rv) : `<label class="capture"><input type="file" accept="image/*" capture="environment" id="shotIn"><span class="ico">📷</span><span><b>Take a photo of the problem</b><small>${esc(cur.name)} · then say which unit and level you are in. Closeout finds the sheet and writes it up; you tap the spot and save.</small></span></label><p class="nophoto">No photo? <a href="#" id="noShot">Write it down instead</a>${cur.sheets.length ? "" : " · no drawings are needed"}</p>`;
   $("#tab").innerHTML = `
-    ${shot && shot.disc === cur.code ? renderWhere(cur, rv) : `<label class="capture"><input type="file" accept="image/*" capture="environment" id="shotIn"><span class="ico">📷</span><span><b>Take a photo of the problem</b><small>${esc(cur.name)} · then say which unit and level you are in. Closeout finds the sheet and writes it up; you tap the spot and save.</small></span></label><p class="nophoto">No photo? <a href="#" id="noShot">Write it down instead</a>${cur.sheets.length ? "" : " · no drawings are needed"}</p>`}
     <div class="discs">${discs.map(d => { const a = activeReview(d.code), n = p.register.filter(x => x.discipline === d.code && x.source === "field").length; return `
       <div class="disc ${d.code === cur.code ? "on" : ""}" data-code="${esc(d.code)}"><span class="code">${esc(d.code)}</span><h2>${esc(d.name)}</h2><span class="n">${d.added && !d.sheets.length ? "no drawings yet · plans stand in" : `${d.sheets.length} sheet${d.sheets.length === 1 ? "" : "s"}`} · ${n} deficienc${n === 1 ? "y" : "ies"}</span>
         <div class="rv">${a ? `<span><i class="live"></i><b>${esc(a.title)}</b> in progress</span>` : `<span style="color:var(--mute)">${p.reviews.filter(r => r.discipline === d.code).length ? p.reviews.filter(r => r.discipline === d.code).length + " done" : "Not started"}</span>`}</div></div>`; }).join("")}</div>
-    <div class="fr-head">
-      <div><h2>${esc(cur.name)}${rv ? ` · ${esc(rv.title)}${rv.stage ? ` · ${esc(rv.stage)}` : ""}` : ""}</h2><p>${rv ? `Started ${esc(when(rv.started_at))} · ${items.length} deficienc${items.length === 1 ? "y" : "ies"} so far. Open a sheet, tap where the problem is, take the photo.` : done.length ? `${done.length} review${done.length === 1 ? "" : "s"} finished. Start the next one to add more deficiencies.` : "Nothing recorded yet for this discipline."}</p></div>
-      ${state.finishing === (rv && rv.id) && rv ? `<div class="thinking"><span class="dot"></span><span>Packaging ${items.length} deficienc${items.length === 1 ? "y" : "ies"} and drafting the message to the contractor…</span></div>` : rv ? `<span class="frbtns"><a class="btn quiet" href="${pUrl(slug, "/reviews/" + encodeURIComponent(rv.id) + "/report")}" target="_blank" rel="noopener">Report so far</a>${state.confirmFinish === rv.id ? "" : `<button class="btn" id="finishRv">Finish ${esc(rv.title.toLowerCase())}</button>`}</span>` : state.starting && state.starting.code === cur.code ? "" : `<button class="btn primary" id="startRv">Start field review ${done.length + 1}</button>`}
-    </div>
-    ${!rv && state.starting && state.starting.code === cur.code ? renderStartPanel(cur, done) : ""}
-    ${rv && state.confirmFinish === rv.id ? `<section class="finishask"><div class="fq"><span class="n">1</span><div><h3>Which units did you walk?</h3><p>Before ${esc(rv.title.toLowerCase())} is finished. Ticked from where you recorded deficiencies; add the ones you walked without finding anything.</p></div></div>${renderUnitsStrip(rv, true, "Walked in this review")}<div class="fq"><span class="n">2</span><div><h3>Finish and package</h3><p>The list is frozen for the contractor and the covering message is drafted. ${(rv.units || []).length ? `${(rv.units || []).length} unit${(rv.units || []).length === 1 ? " goes" : "s go"} on the report as walked.` : "No units marked yet."}</p></div><span class="acts"><button class="btn" id="finishNo">Not yet</button><button class="btn primary" id="finishGo">Finish ${esc(rv.title.toLowerCase())}</button></span></div></section>` : rv ? renderUnitsStrip(rv, true) : ""}
+    ${walking ? `<section class="walk">${head}
+      ${rv && state.confirmFinish === rv.id ? `<section class="finishask"><div class="fq"><span class="n">1</span><div><h3>Which units did you walk?</h3><p>Before ${esc(rv.title.toLowerCase())} is finished. Ticked from where you recorded deficiencies; add the ones you walked without finding anything.</p></div></div>${renderUnitsStrip(rv, true, "Walked in this review")}<div class="fq"><span class="n">2</span><div><h3>Finish and package</h3><p>The list is frozen for the contractor and the covering message is drafted. ${(rv.units || []).length ? `${(rv.units || []).length} unit${(rv.units || []).length === 1 ? " goes" : "s go"} on the report as walked.` : "No units marked yet."}</p></div><span class="acts"><button class="btn" id="finishNo">Not yet</button><button class="btn primary" id="finishGo">Finish ${esc(rv.title.toLowerCase())}</button></span></div></section>` : ""}
+      ${capture}
+      ${rv && state.confirmFinish !== rv.id ? renderUnitsStrip(rv, true) : ""}
+      ${shot && shot.disc === cur.code && shot.pick ? `<p class="pickhint"><span>Which sheet does this belong on?</span> Tap it; the photo comes with you.</p>` : ""}
+      ${rv ? items.length ? `<h3 class="sec">Recorded in ${esc(rv.title.toLowerCase())} · ${items.length}</h3>${renderByUnit(items)}` : `<p class="empty">Nothing recorded in this walk yet.</p>` : ""}
+      <h3 class="sec">Plans · tap one to mark the spot</h3>
+      ${renderGalleryGroups(cur)}
+    </section>` : head}
+    ${!walking && !rv && state.starting && state.starting.code === cur.code ? renderStartPanel(cur, done) : ""}
     ${rv ? "" : renderBrief(cur)}
     ${STAGES_ON ? renderCoverage(cur) + renderUnitLog(cur) : ""}
     ${(() => { const show = state.finishing ? null : state.openReview ? done.find(x => x.id === state.openReview) : (!rv && done.length ? done[done.length - 1] : null); return show ? renderHandoff(show) : ""; })()}
-    ${shot && shot.disc === cur.code && shot.pick ? `<p class="pickhint"><span>Which sheet does this belong on?</span> Tap it; the photo comes with you.</p>` : ""}
-    ${renderGalleryGroups(cur)}
-    ${items.length ? `<h3 class="sec">Recorded in ${esc(rv.title.toLowerCase())}</h3>${renderByUnit(items)}` : ""}
+    ${!walking && rv && items.length ? `<h3 class="sec">Recorded so far in ${esc(rv.title.toLowerCase())}</h3>${renderByUnit(items)}` : ""}
     ${done.length ? `<h3 class="sec">Earlier reviews</h3><table><tbody>${done.map(r => { const n = findingsIn(r.id).length, m = messageFor(r.id); return `<tr class="row" data-rv="${esc(r.id)}"><td class="id">${esc(r.title)}</td><td><div class="what">${esc(when(r.started_at))} → ${esc(when(r.finished_at))}</div><div class="where">${m ? "Message drafted for the contractor" : n ? "No message yet" : "Nothing recorded"}</div></td><td class="num">${n} item${n === 1 ? "" : "s"}</td><td class="go">›</td></tr>`; }).join("")}</tbody></table>` : ""}
     <footer><span>Numbers are ${esc(cur.code)}-01, ${esc(cur.code)}-02 … and never reused.</span><span>Closeout suggests the wording; you decide what is saved.</span></footer>`;
-  $("#tab").querySelectorAll(".disc").forEach(d => d.onclick = () => { state.fieldDisc = d.dataset.code; const s = state.shot; if (s && !s.busy) { s.disc = d.dataset.code; s.pick = false; } renderField(); });
+  $("#tab").querySelectorAll(".disc").forEach(d => d.onclick = () => { state.fieldDisc = d.dataset.code; const s = state.shot; if (s && !s.busy) { s.disc = d.dataset.code; s.pick = false; state.walk = d.dataset.code; } renderField(); });
   $("#tab").querySelectorAll(".sheet").forEach(s => s.onclick = () => { if (shot && shot.disc === cur.code) { const sh = p.project.sheets.find(x => x.id === s.dataset.id), lv = shot.level; carryShot(s.dataset.id, sh && lv ? (sh.views || []).find(v => v.level === lv) || null : null); } else location.hash = pHash(slug, "/field/" + s.dataset.id); });
   const mb = $("#mapBtn"); if (mb) mb.onclick = () => mapFloors(JSON.parse(mb.dataset.list).map(id => p.project.sheets.find(x => x.id === id)));
   $("#tab").querySelectorAll("tr.row[data-id]").forEach(r => r.onclick = () => location.hash = pHash(slug, "/item/" + encodeURIComponent(r.dataset.id)));
   $("#tab").querySelectorAll("tr.row[data-rv]").forEach(r => r.onclick = () => { state.openReview = r.dataset.rv; renderField(); window.scrollTo({ top: 0, behavior: "smooth" }); });
-  const st = $("#startRv"); if (st) st.onclick = () => { if (!STAGES_ON) return startReview(cur.code, ""); state.starting = { code: cur.code, stage: "", other: false }; renderField(); };
+  const st = $("#startRv"); if (st) st.onclick = () => { if (!STAGES_ON) { state.walk = cur.code; return startReview(cur.code, ""); } state.starting = { code: cur.code, stage: "", other: false }; renderField(); };
+  const wo = $("#walkOpen"); if (wo) wo.onclick = () => { state.walk = cur.code; renderField(); const w = $("#tab").querySelector(".walk"); if (w) w.scrollIntoView({ behavior: "smooth", block: "start" }); };
+  const wc = $("#walkClose"); if (wc) wc.onclick = () => { state.walk = null; if (shot && shot.disc === cur.code) { if (shot.photoUrl) URL.revokeObjectURL(shot.photoUrl); state.shot = null; } renderField(); };
   const fi = $("#finishRv"); if (fi) fi.onclick = () => { if (!hasUnits()) return finishReview(rv); state.confirmFinish = rv.id; renderField(); const ask = $("#tab").querySelector(".finishask"); if (ask) ask.scrollIntoView({ behavior: "smooth", block: "center" }); };
   const fg = $("#finishGo"); if (fg) fg.onclick = () => { state.confirmFinish = null; finishReview(rv); };
   const fn = $("#finishNo"); if (fn) fn.onclick = () => { state.confirmFinish = null; renderField(); };
@@ -2181,7 +2196,7 @@ async function finishReview(rv) {
   const j = await r.json().catch(() => ({}));
   state.finishing = null;
   if (!r.ok) { toast(j.detail || "Could not finish", true); return renderField(); }
-  state.openReview = rv.id;
+  state.openReview = rv.id; if (state.walk === rv.discipline) state.walk = null;
   toast(j.message ? `${rv.title} finished · message drafted` : `${rv.title} finished`, false);
   await load();
 }
@@ -2319,7 +2334,7 @@ function beginShot(code, file) {
   const last = lastFieldItem(code) || lastFieldItem();
   const unit = last ? last.unit || "" : "", b = unit ? buildings().find(x => x.units.some(u => u.label === unit)) : null;
   state.shot = { disc: code, photo: file, photoUrl: file ? URL.createObjectURL(file) : "", bld: b ? b.key : "", unit, level: last ? last.level || "" : "", note: "", gps: "", gpsText: "", busy: false, pick: false };
-  askGps(state.shot); renderField();
+  state.walk = code; askGps(state.shot); renderField();
 }
 function askGps(s) {
   const show = () => { const g = $("#gps"); if (g) g.textContent = s.gpsText; };
