@@ -25,4 +25,6 @@ deploy/.env
 deploy/.deploy
 demo-video/project/
 demo-video/data/
+demo-video/data-new/
+demo-video/project2/
 demo-video/preview-*.png

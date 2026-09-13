@@ -17,6 +17,9 @@ FD = "/System/Library/Fonts/Supplemental/"
 PROJECT = "CEDAR ROW TOWNHOMES"
 ADDRESS = "2150 CEDAR ROW"
 SUB = "CLOSEOUT DEMONSTRATION PROJECT"
+STREET = "CEDAR ROW"
+DATE, REV = "2026-08-28", 3
+MIRROR_NOTE = "2. UNITS 2 AND 4 ARE MIRRORED."
 UNITS = 4
 # the drawing area: four units side by side
 X0, Y0, UW, UD = 520, 520, 900, 2200
@@ -39,13 +42,13 @@ def frame(d, number, title, level):
     d.text((x0 + 50, 160), PROJECT, font=font(50, True), fill=INK)
     d.text((x0 + 50, 240), ADDRESS, font=font(40), fill=INK)
     d.text((x0 + 50, 300), SUB, font=font(32), fill=GREY)
-    for i, n in enumerate(["GENERAL NOTES", "1. VERIFY ALL DIMENSIONS ON SITE.", "2. UNITS 2 AND 4 ARE MIRRORED.",
+    for i, n in enumerate(["GENERAL NOTES", "1. VERIFY ALL DIMENSIONS ON SITE.", MIRROR_NOTE,
                            "3. SMOKE / CO ALARMS INTERCONNECTED.", "4. FICTIONAL SET FOR A FILM."]):
         d.text((x0 + 50, 520 + i * 60), n, font=font(36, i == 0), fill=INK if i == 0 else GREY)
     d.line([x0, 2300, x1, 2300], fill=INK, width=4)
     d.text((x0 + 50, 2340), "FOR DEMONSTRATION ONLY", font=font(48, True), fill=INK)
     d.text((x0 + 50, 2410), "FICTIONAL PROJECT - NOT FOR CONSTRUCTION", font=font(32), fill=GREY)
-    d.text((x0 + 50, 2470), "SCALE 1:50    DATE 2026-08-28    REV 3", font=font(32), fill=GREY)
+    d.text((x0 + 50, 2470), f"SCALE 1:50    DATE {DATE}    REV {REV}", font=font(32), fill=GREY)
     d.line([x0, 2560, x1, 2560], fill=INK, width=4)
     d.text((x0 + 50, 2600), title, font=font(58, True), fill=INK)
     d.text((x0 + 50, 2680), level.upper(), font=font(40), fill=INK)
@@ -119,7 +122,7 @@ def unit_plan(d, i, level, elec):
         room(d, cx, cy, n, 36)
     # unit tag
     ctext(d, ux + UW / 2, Y1 + 90, f"UNIT {i + 1}", font(64, True))
-    ctext(d, ux + UW / 2, Y1 + 170, f"#{i + 1} - 2150 CEDAR ROW", font(34), GREY)
+    ctext(d, ux + UW / 2, Y1 + 170, f"#{i + 1} - {ADDRESS}", font(34), GREY)
     if elec:
         f = font(30, True)
         # receptacles along the long walls, lights as circles, smoke alarms
@@ -161,7 +164,7 @@ def sheet(number, title, level, elec=False, site=False):
         for i in range(UNITS):
             ctext(d, X0 + (i + 0.5) * UW, 1560, f"UNIT {i + 1}", font(64, True))
         d.rectangle([400, 2400, 4000, 2700], fill=(235, 235, 235))
-        ctext(d, 2200, 2510, "CEDAR ROW  (FICTIONAL STREET)", font(56, True), GREY)
+        ctext(d, 2200, 2510, f"{STREET}  (FICTIONAL STREET)", font(56, True), GREY)
         for i in range(UNITS):
             d.rectangle([X0 + i * UW + 250, 2200, X0 + i * UW + 650, 2400], outline=GREY, width=4)
         ctext(d, 2200, 700, "SITE PLAN", font(80, True))

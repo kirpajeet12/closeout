@@ -18,11 +18,16 @@ HERE = Path(__file__).resolve().parent
 FREE = "--free" in sys.argv
 CAP = HERE / "output" / ("cap" if FREE else "cap-ai")
 PHOTOS = Path.home() / "Documents/New project/PunchPilot/demo-assets/photos"
-SCORE = HERE / "audio" / "score.mp3"
+SCORE = HERE / "audio" / "score.mp3"       # the site walk
+SCORE2 = HERE / "audio" / "score2.mp3"     # the office and the contractor
 OUT = HERE / "output" / ("closeout-demo-free.mp4" if FREE else "closeout-demo.mp4")
 W, H, FPS, SS = 1920, 1080, 30, 2          # output size; stage is rendered SS times larger for crisp zooms
 SW, SH = W * SS, H * SS
 META = json.loads((CAP / "shots.json").read_text())
+# the new-project stills from capture_new.py; the dry rehearsal stands in until the real run exists
+CAPNEW = HERE / "output" / ("cap-new" if (HERE / "output" / "cap-new" / "shots.json").exists() else "cap-new-dry")
+NEW = json.loads((CAPNEW / "shots.json").read_text())
+META.update({k: v for k, v in NEW.items() if k != "project"})
 INK, GREY, ORANGE, STAGE = (29, 29, 31), (110, 110, 115), (242, 92, 5), (245, 245, 247)
 SF = "/System/Library/Fonts/SFNS.ttf"
 
@@ -54,7 +59,7 @@ def rrect_mask(size, r):
 
 @lru_cache(None)
 def shot(name):
-    return Image.open(CAP / f"{name}.png").convert("RGB")
+    return Image.open((CAPNEW if name.startswith("n") else CAP) / f"{name}.png").convert("RGB")
 
 
 def shadow(canvas, box, r, blur=60, alpha=70, dy=30):
@@ -144,7 +149,7 @@ def browser(img, cx, top, width, canvas, crop_h=None, scroll=0):
 # ---------- overlays drawn at output resolution ----------
 
 def captions(frame, items, t):
-    """items: dicts with text lines, t0, t1, x, y, align, size."""
+    """items: dicts with text lines, t0, t1, x, y, align, size; maxw wraps each line to that width."""
     d = ImageDraw.Draw(frame, "RGBA")
     for c in items:
         t0, t1 = c["t0"], c.get("t1", 1e9)
@@ -152,22 +157,36 @@ def captions(frame, items, t):
         a = min(a_in, a_out)
         if a <= 0:
             continue
-        if c.get("band"):
-            band = Image.new("RGBA", (W, 250), STAGE + (0,))
-            mask = Image.linear_gradient("L").rotate(180).resize((W, 250)).point(lambda v: round(min(255, v * 1.6) * a))
-            frame.paste(Image.new("RGB", (W, 250), STAGE), (0, 0), mask)
-            d = ImageDraw.Draw(frame, "RGBA")
         rise = (1 - a_in) * 26
-        y = c["y"] + rise
         col = c.get("color", INK)
         f = font(c.get("size", 72), c.get("weight", "Semibold"))
+        rows = []
         for i, line in enumerate(c["lines"]):
-            li = ramp(t, t0 + i * 0.18, t0 + i * 0.18 + 0.7) if a_out >= 1 else a
-            fill = col if i == 0 or c.get("same") else c.get("sub", GREY)
-            ff = f if i == 0 or c.get("same") else font(round(c.get("size", 72) * 0.5), "Regular")
+            head = i == 0 or c.get("same")
+            ff = f if head else font(round(c.get("size", 72) * 0.5), "Regular")
+            for k, part in enumerate(wrap(line, ff, c.get("maxw"))):
+                rows.append((i, part, ff, head, k == len(wrap(line, ff, c.get("maxw"))) - 1))
+        step = lambda r: r[2].size * (1.14 if r[3] else 1.45) + (18 if r[0] == 0 and r[4] else 0)
+        y = (c["y"] if c["y"] is not None else (H - sum(map(step, rows)) + rows[-1][2].size * 0.3) / 2) + rise
+        for n, (i, line, ff, head, last) in enumerate(rows):
+            li = ramp(t, t0 + n * 0.18, t0 + n * 0.18 + 0.7) if a_out >= 1 else a
+            fill = col if head else c.get("sub", GREY)
             anchor = {"l": "la", "c": "ma", "r": "ra"}[c.get("align", "l")]
             d.text((c["x"], y), line, font=ff, fill=fill + (round(255 * min(li, a)),), anchor=anchor)
-            y += ff.size * (1.14 if i == 0 or c.get("same") else 1.45) + (18 if i == 0 else 0)
+            y += step((i, line, ff, head, last))
+
+
+@lru_cache(None)
+def wrap(line, ff, maxw):
+    if not maxw or ff.getlength(line) <= maxw:
+        return (line,)
+    out, cur = [], ""
+    for w in line.split(" "):
+        if cur and ff.getlength(cur + " " + w) > maxw:
+            out.append(cur); cur = w
+        else:
+            cur = (cur + " " + w).strip()
+    return tuple(out + [cur])
 
 
 def tap(frame, x, y, t, t0):
@@ -237,19 +256,67 @@ def phone_stage(name, cx=0.70, h=0.86):
     return st, m
 
 
-@lru_cache(4)
-def desk_stage(name, top=0.2, width=0.8):
-    st = BG.copy()
+# the desk window, drawn at output size: right of the caption column, the page moves inside it
+DESK_W, DESK_R, DESK_BAR = 1100, 90, 30
+DESK_H = round(DESK_W / 1.6)
+DESK_X, DESK_Y = W - DESK_R - DESK_W, (H - DESK_H - DESK_BAR) // 2
+CAP_X, CAP_W = 120, DESK_X - 120 - 60
+DESK_Z = 1.3
+
+
+@lru_cache(1)
+def desk_base():
+    fr = BG.resize((W, H), Image.LANCZOS)
+    box = (DESK_X, DESK_Y, DESK_X + DESK_W, DESK_Y + DESK_BAR + DESK_H)
+    shadow(fr, box, 10, blur=40, alpha=55, dy=20)
+    win = Image.new("RGB", (DESK_W, DESK_BAR), (236, 236, 238))
+    d = ImageDraw.Draw(win)
+    d.line((0, DESK_BAR - 1, DESK_W, DESK_BAR - 1), fill=(210, 210, 214), width=1)
+    for i, c in enumerate([(255, 95, 87), (254, 188, 46), (40, 200, 64)]):
+        ccx, ccy, rr = 18 + i * 13, DESK_BAR / 2, 4
+        d.ellipse((ccx - rr, ccy - rr, ccx + rr, ccy + rr), fill=c)
+    pw_, phh = round(DESK_W * 0.3), round(DESK_BAR * 0.6)
+    d.rounded_rectangle((DESK_W / 2 - pw_ / 2, DESK_BAR / 2 - phh / 2, DESK_W / 2 + pw_ / 2, DESK_BAR / 2 + phh / 2), phh / 2, fill=(222, 222, 226))
+    d.text((DESK_W / 2, DESK_BAR / 2), "Closeout", font=font(12, "Medium"), fill=(90, 90, 96), anchor="mm")
+    fr.paste((255, 255, 255), box, rrect_mask((DESK_W, DESK_BAR + DESK_H), 10))
+    fr.paste(win, (DESK_X, DESK_Y), rrect_mask((DESK_W, DESK_BAR + 20), 10).crop((0, 0, DESK_W, DESK_BAR)))
+    mask = rrect_mask((DESK_W, DESK_H + 20), 10).crop((0, 20, DESK_W, DESK_H + 20))
+    return fr, mask
+
+
+def view_at(keys, t):
+    """keys: [(time, fx, fy, zoom)]: the point of the page at the window centre, as fractions of the still, eased."""
+    k0 = keys[0]
+    for k1 in keys[1:]:
+        if t <= k1[0]:
+            u = ease((t - k0[0]) / max(1e-6, k1[0] - k0[0]))
+            return tuple(k0[i] + (k1[i] - k0[i]) * u for i in (1, 2, 3))
+        k0 = k1
+    return k0[1:]
+
+
+def desk_frame(name, view):
+    """One frame of the desk window showing still `name` at view (fx, fy, zoom). Returns frame, screenshot px -> output px."""
     img = shot(name)
-    m = browser(img, SW / 2, round(SH * top), round(SW * width), st, crop_h=min(img.height, 1800))
-    return st, m
+    fx, fy, z = view
+    z *= DESK_Z
+    rw = img.width / z
+    rh = rw * DESK_H / DESK_W
+    x0 = min(max(fx * img.width - rw / 2, 0), img.width - rw)
+    y0 = min(max(fy * img.height - rh / 2, 0), max(0, img.height - rh))
+    page = img.crop((round(x0), round(y0), round(x0 + rw), round(y0 + rh))).resize((DESK_W, DESK_H), Image.BILINEAR)
+    base, mask = desk_base()
+    fr = base.copy()
+    fr.paste(page, (DESK_X, DESK_Y + DESK_BAR), mask)
+    k = DESK_W / rw
+    return fr, (lambda px, py: (DESK_X + (px - x0) * k, DESK_Y + DESK_BAR + (py - y0) * k))
 
 
 def dual_stage(dname, pname):
     st = BG.copy()
     img = shot(dname)
-    md = browser(img, SW * 0.41, round(SH * 0.2), round(SW * 0.66), st, crop_h=1800)
-    mp = phone(shot(pname), SW * 0.82, SH * 0.6, round(SH * 0.72), st)
+    md = browser(img, SW * 0.625, round(SH * 0.22), round(SW * 0.5), st, crop_h=1800)
+    mp = phone(shot(pname), SW * 0.875, SH * 0.56, round(SH * 0.72), st)
     return st, md, mp
 
 
@@ -303,37 +370,31 @@ def scene_phone(beats, dur, cap, cam=None, taps=()):
     return dur, draw
 
 
-def scene_desk(beats, dur, cap, cam=None, cur=None, lay=()):
-    """cur: (t0, t1, click_t, still, start_out_xy) moves the cursor to that still's tap point. lay: (top, width) of the window."""
+def scene_desk(beats, dur, cap, cam=None, cur=None):
+    """beats: [(t_start, still)]; cam: view keys inside the window; cur: (t0, t1, click_t, still, start_out_xy) moves the
+    cursor to that still's tap point."""
     cam = cam or [(0, 0.5, 0.5, 1.0)]
 
     def draw(t):
         name = [b for b in beats if b[0] <= t][-1][1]
-        st, m = desk_stage(name, *lay)
-        fr, to_out = camera(st, cam, t)
+        fr, m = desk_frame(name, view_at(cam, t))
         captions(fr, cap, t)
         if cur:
-            t0, t1, ct, nm, start = cur
-            p = META[nm]["tap"]
-            sx, sy = desk_stage(nm, *lay)[1](p[0] * META[nm]["dsf"], p[1] * META[nm]["dsf"])
-            if t >= t0 - 0.4:
-                cursor(fr, start, to_out(sx, sy), t, t0, t1, click=ct)
+            t0, t1, ct, nm, start, *key = cur
+            p = META[nm].get(key[0] if key else "tap")
+            if p and t0 - 0.4 <= t <= ct + 1.2:
+                cursor(fr, start, m(p[0] * META[nm]["dsf"], p[1] * META[nm]["dsf"]), t, t0, t1, click=ct)
         return fr
     return dur, draw
 
 
 def scene_report(dur, cap):
     img = shot("d06-report")
-    vis = 1800
-    top = round(SH * 0.2)
-    width = round(SW * 0.62)
-    max_scroll = max(0, img.height - vis)
+    top_f = DESK_H / DESK_W * img.width / DESK_Z / 2 / img.height         # the page centre when the top of the report is in view
 
     def draw(t):
-        st = BG.copy()
-        scroll = max_scroll * 0.62 * ramp(t, 2.2, dur - 1.0)
-        browser(img, SW / 2, top, width, st, crop_h=vis, scroll=scroll)
-        fr = st.resize((W, H), Image.BILINEAR)
+        fy = top_f + (0.62 - top_f) * ramp(t, 2.2, dur - 1.0)
+        fr, _ = desk_frame("d06-report", (0.5, fy, 1.0))
         captions(fr, cap, t)
         return fr
     return dur, draw
@@ -341,8 +402,7 @@ def scene_report(dur, cap):
 
 def scene_dual(dur, cap):
     def draw(t):
-        st, md, mp = _dual()
-        fr, _ = camera(st, [(0, 0.5, 0.5, 1.0)], t)
+        fr = _dual().copy()
         captions(fr, cap, t)
         return fr
     return dur, draw
@@ -350,7 +410,7 @@ def scene_dual(dur, cap):
 
 @lru_cache(1)
 def _dual():
-    return dual_stage("d11-overview-closed", "p15-contractor-closed")
+    return dual_stage("d11-overview-closed", "p15-contractor-closed")[0].resize((W, H), Image.LANCZOS)
 
 
 def pz(t, z, cy=0.5, px=0.70):
@@ -362,15 +422,12 @@ def left(lines, t0, t1, y=380, size=76):
     return {"lines": lines, "t0": t0, "t1": t1, "x": 170, "y": y, "size": size, "weight": "Bold"}
 
 
-def top(lines, t0, t1, size=60):
-    return {"lines": lines, "t0": t0, "t1": t1, "x": W / 2, "y": 62, "size": size, "align": "c", "weight": "Bold", "band": True}
+def side(lines, t0, t1, size=58, y=None):
+    """Caption for a desk scene: the column left of the window, centred on it."""
+    return {"lines": lines, "t0": t0, "t1": t1, "x": CAP_X, "y": y, "size": size, "weight": "Bold", "maxw": CAP_W}
 
 
-def end_extra(fr, t):
-    d = ImageDraw.Draw(fr, "RGBA")
-    a = round(255 * ramp(t, 3.0, 4.0))
-    d.text((W / 2, H - 150), "Built with Strands Agents SDK on Amazon Bedrock", font=font(30, "Medium"), fill=(161, 161, 166, a), anchor="mm")
-    d.text((W / 2, H - 105), "AWS Agents for Humans Hackathon", font=font(24, "Regular"), fill=(110, 110, 115, a), anchor="mm")
+top = side   # the free cut's captions sit in the same column
 
 
 def build():
@@ -411,7 +468,8 @@ def build_free():
                          [left(["Finish.", "It asks which units you walked."], 0.3, 7.7)],
                          taps=[(2.2, "p10-list"), (6.8, "p11-finish-ask")]))
     S.append(scene_phone([(0, "p12-finished")], 5.5,
-                         [left(["The list is frozen", "for the contractor."], 0.3, 5.2)]))
+                         [left(["The list is ready", "for the contractor."], 0.3, 5.2)]))
+    split = len(S)
     S.append(scene_desk([(0, "d04-overview")], 7.0, [top(["The overview always shows the next step."], 0.4, 6.7, size=56)],
                         cam=[(0, 0.5, 0.5, 1.0), (7.0, 0.5, 0.42, 1.12)]))
     S.append(scene_desk([(0, "d05-deficiencies")], 7.0, [top(["Every item, where it is, and what it needs."], 0.4, 6.7, size=56)],
@@ -428,36 +486,61 @@ def build_free():
                         cam=[(0, 0.5, 0.5, 1.0), (7.5, 0.36, 0.62, 1.35)],
                         cur=(0.4, 2.0, 2.4, "d09-item-evidence", (W * 0.7, H * 0.4))))
     S.append(scene_dual(8.0, [top(["The office and the contractor", "see the same list."], 0.4, 7.7, size=56)]))
-    S.append(scene_black(["Closeout", "Walk it. Send it. Close it."], 12.0, extra=end_extra))
-    return S
+    S.append(scene_black(["Closeout", "Walk it. Send it. Close it."], 12.0))
+    return S, split
+
+
+def progress_beats(t0, t1, most=6):
+    """The upload's status stills, one per step (sorting, rendering, reading, summarising, filing), spread over t0..t1."""
+    names, kinds = [], []
+    for n in sorted(k for k in NEW if k.startswith("n02-progress")):
+        w = (NEW[n].get("status") or "").split(" ")
+        kind = w[0] + ("#" if len(w) > 1 and w[1][:1].isdigit() else "")
+        if kind and kind not in kinds:
+            kinds.append(kind); names.append(n)
+    if len(names) > most:
+        names = [names[round(i * (len(names) - 1) / (most - 1))] for i in range(most)]
+    step = (t1 - t0) / max(1, len(names))
+    return [(t0 + i * step, n) for i, n in enumerate(names)]
 
 
 def build_ai():
     S = []
     S.append(scene_photo("site-access-2.jpg", ["A site walk ends with a list.", "Then the chasing starts."], 6.5))
-    S.append(scene_black(["Closeout", "From the walk to the last item closed."], 6.0))
-    S.append(scene_desk([(0, "d01-projects"), (3.2, "d02-docs")], 8.0,
-                        [top(["One project. Every drawing, filed."], 0.5, 7.6)],
-                        cam=[(0, 0.5, 0.5, 1.0), (3.2, 0.5, 0.5, 1.0), (8.0, 0.42, 0.55, 1.22)],
-                        cur=(0.7, 2.1, 2.4, "d01-projects", (W * 0.7, H * 0.8))))
+    S.append(scene_black(["Closeout", "From the walk to the last item closed."], 5.5))
+    # a new project: the whole folder as one zip, filed and read
+    S.append(scene_desk([(0, "n01-home")] + progress_beats(3.4, 12.0), 12.5,
+                        [side(["Start a project.", "Upload the whole project folder as one zip."], 0.4, 3.9),
+                         side(["Closeout sorts it.", "Every file by discipline and date.", "Then it reads each current sheet."], 4.3, 12.2)],
+                        cam=[(0, 0.5, 0.5, 1.0), (2.6, 0.5, 0.5, 1.0), (4.6, 0.5, 0.4, 1.0), (12.5, 0.5, 0.38, 1.03)],
+                        cur=(0.6, 2.1, 2.5, "n01-home", (W * 0.62, H * 0.9))))
+    S.append(scene_desk([(0, "n05-drawings"), (5.0, "n06-docs")], 10.5,
+                        [side(["It opens already filed.", "Current sheets by discipline."], 0.4, 4.8),
+                         side(["Nothing is lost.", "Older issues stay in the revision log, newest first."], 5.2, 10.2)],
+                        cam=[(0, 0.5, 0.37, 1.0), (4.99, 0.5, 0.4, 1.06), (5.0, 0.5, 0.56, 1.0), (10.5, 0.5, 0.66, 1.06)]))
+    S.append(scene_desk([(0, "n07-home-after")], 6.0,
+                        [side(["Every project in one place."], 0.4, 5.7)],
+                        cam=[(0, 0.5, 0.48, 1.0), (6.0, 0.5, 0.5, 1.05)],
+                        cur=(1.6, 3.4, 3.9, "n07-home-after", (W * 0.78, H * 0.8), "cedar")))
+    # the walk
     S.append(scene_phone([(0, "p01-field"), (2.4, "p02-walk")], 6.0,
                          [left(["On site,", "open the field tab.", "Start the review."], 0.4, 5.7)],
                          taps=[(1.7, "p01-field"), (4.8, "p02-walk")]))
     S.append(scene_phone([(0, "p03-photo"), (2.6, "p04-where")], 6.5,
                          [left(["Take a photo.", "Say which unit and floor."], 0.3, 6.2)],
                          taps=[(5.3, "p04-where")]))
-    S.append(scene_phone([(0, "p05-plan")], 5.5,
-                         [left(["The plan opens", "on your floor."], 0.3, 5.2)],
-                         cam=[pz(0, 1.0), pz(1.6, 1.0), pz(5.5, 1.55, 0.36)]))
+    S.append(scene_phone([(0, "p05-plan")], 5.0,
+                         [left(["The plan opens", "on your floor."], 0.3, 4.7)],
+                         cam=[pz(0, 1.0), pz(1.2, 1.0), pz(5.0, 1.55, 0.36)]))
     S.append(scene_phone([(0, "p05-plan"), (1.4, "p06-tapped")], 6.5,
                          [left(["Tap the spot.", "Ask Closeout to write it up."], 2.0, 6.3)],
                          cam=[pz(0, 1.55, 0.36), pz(1.7, 1.55, 0.36), pz(3.1, 1.0)],
                          taps=[(0.9, "p06-tapped"), (5.4, "p06-tapped", "ask")]))
-    S.append(scene_phone([(0, "p07-thinking"), (2.2, "p07-suggested"), (6.6, "p08-form")], 9.0,
-                         [left(["It reads the photo", "and the drawing,", "and writes it up."], 0.3, 5.6),
-                          left(["You check it.", "Nothing is saved", "until you save."], 5.9, 8.8)],
-                         cam=[pz(0, 1.0), pz(2.2, 1.0), pz(3.6, 1.5, 0.5), pz(6.3, 1.5, 0.5), pz(7.3, 1.0)],
-                         taps=[(8.2, "p08-form")]))
+    S.append(scene_phone([(0, "p07-thinking"), (0.9, "p07-suggested"), (5.3, "p08-form")], 7.8,
+                         [left(["It reads the photo", "and the drawing,", "and writes it up."], 0.3, 4.6),
+                          left(["You check it.", "Nothing is saved", "until you save."], 4.9, 7.6)],
+                         cam=[pz(0, 1.0), pz(0.9, 1.0), pz(2.3, 1.5, 0.5), pz(5.0, 1.5, 0.5), pz(6.0, 1.0)],
+                         taps=[(7.0, "p08-form")]))
     S.append(scene_phone([(0, "p07-type1"), (0.4, "p07-type2"), (0.8, "p07-type3"), (1.2, "p07-type4"), (1.9, "p08-typed")], 5.0,
                          [left(["Or type it yourself."], 0.3, 4.8)],
                          taps=[(4.1, "p08-typed")]))
@@ -469,38 +552,44 @@ def build_ai():
     S.append(scene_phone([(0, "p10-list"), (2.6, "p11-finish-ask")], 7.0,
                          [left(["Finish.", "It asks which units you walked."], 0.3, 6.7)],
                          taps=[(2.0, "p10-list"), (6.0, "p11-finish-ask")]))
-    S.append(scene_phone([(0, "p11-drafting"), (2.4, "p12-finished")], 6.0,
-                         [left(["The list is frozen.", "Closeout drafts the", "message to the contractor."], 0.3, 5.7)]))
-    S.append(scene_desk([(0, "d05-deficiencies")], 6.0, [top(["Every item, where it is, and what it needs."], 0.4, 5.7, size=56)],
-                        cam=[(0, 0.5, 0.5, 1.0), (6.0, 0.5, 0.8, 1.3)]))
-    S.append(scene_report(9.5, [top(["The report is ready.", "Photos, plan pins, what closes each item."], 0.4, 9.0, size=56)]))
-    S.append(scene_desk([(0, "d07-messages")], 8.0,
-                        [top(["The message to the contractor is drafted.", "Nothing is sent until you send it."], 0.4, 7.7, size=56)],
-                        cam=[(0, 0.5, 0.5, 1.0), (1.5, 0.5, 0.5, 1.0), (8.0, 0.58, 0.62, 1.3)]))
+    S.append(scene_phone([(0, "p11-drafting"), (0.9, "p12-finished")], 4.8,
+                         [left(["Done on site.", "Closeout drafts the", "message to the contractor."], 0.3, 4.5)]))
+    split = len(S)        # the office and the contractor: second score from here
+    S.append(scene_desk([(0, "d05-deficiencies")], 6.0, [side(["Every item, where it is, and what it needs."], 0.4, 5.7, size=56)],
+                        cam=[(0, 0.5, 0.5, 1.0), (6.0, 0.5, 0.78, 1.1)]))
+    S.append(scene_report(9.0, [side(["The report is ready.", "Photos, plan pins, what closes each item."], 0.4, 8.5, size=56)]))
+    S.append(scene_desk([(0, "d07-messages")], 7.5,
+                        [side(["The message is drafted.", "Nothing is sent until you send it."], 0.4, 7.2, size=56)],
+                        cam=[(0, 0.5, 0.5, 1.0), (1.5, 0.5, 0.5, 1.0), (7.5, 0.56, 0.6, 1.15)]))
     S.append(scene_phone([(0, "p13-contractor"), (3.4, "p14-contractor-list")], 7.0,
                          [left(["The contractor", "gets one link."], 0.3, 3.4),
                           left(["No account.", "Just their items."], 3.7, 6.8)]))
-    S.append(scene_phone([(0, "p13-contractor"), (2.0, "p16-contractor-filing"), (4.6, "p17-contractor-filed")], 8.0,
-                         [left(["They send a photo.", "Closeout files it", "to the right item."], 0.3, 7.7)],
+    S.append(scene_phone([(0, "p13-contractor"), (2.0, "p16-contractor-filing"), (3.2, "p17-contractor-filed")], 7.0,
+                         [left(["They send a photo.", "Closeout files it", "to the right item."], 0.3, 6.7)],
                          taps=[(1.2, "p13-contractor")]))
-    S.append(scene_desk([(0, "d08-item-filed")], 9.0,
-                        [top(["It says what it could not confirm."], 0.4, 8.7, size=56)],
-                        cam=[(0, 0.5, 0.5, 1.0), (1.8, 0.5, 0.5, 1.0), (6.0, 0.42, 0.66, 1.5), (9.0, 0.42, 0.67, 1.55)],
-                        lay=(0.17, 0.62)))
+    S.append(scene_desk([(0, "d08-item-filed")], 8.5,
+                        [side(["It says what it could not confirm."], 0.4, 8.2, size=56)],
+                        cam=[(0, 0.5, 0.45, 1.0), (1.8, 0.5, 0.45, 1.0), (5.6, 0.5, 0.72, 1.0), (8.5, 0.5, 0.74, 1.06)]))
     S.append(scene_desk([(0, "d09-item-evidence"), (2.6, "d10-item-closed")], 7.0,
-                        [top(["The engineer decides what closes."], 0.4, 6.7)],
-                        cam=[(0, 0.5, 0.5, 1.0), (7.0, 0.36, 0.62, 1.35)],
+                        [side(["The engineer decides what closes."], 0.4, 6.7)],
+                        cam=[(0, 0.5, 0.5, 1.0), (7.0, 0.42, 0.62, 1.22)],
                         cur=(0.4, 1.9, 2.3, "d09-item-evidence", (W * 0.7, H * 0.4))))
-    S.append(scene_desk([(0, "d12-ask"), (2.2, "d12-ask-thinking"), (3.8, "d13-answer")], 9.0,
-                        [top(["Ask Closeout anything about the project."], 0.4, 8.7, size=56)],
-                        cam=[(0, 0.5, 0.5, 1.0), (2.4, 0.5, 0.5, 1.0), (4.6, 0.75, 0.37, 1.8), (9.0, 0.75, 0.37, 1.85)],
+    S.append(scene_desk([(0, "d12-ask"), (2.2, "d12-ask-thinking"), (3.1, "d13-answer")], 8.4,
+                        [side(["Ask Closeout anything about the project."], 0.4, 8.1, size=56)],
+                        cam=[(0, 0.5, 0.5, 0.77), (2.4, 0.5, 0.5, 0.77), (4.2, 0.8, 0.37, 1.45), (8.4, 0.8, 0.37, 1.5)],
                         cur=(0.5, 1.7, 2.0, "d12-ask", (W * 0.5, H * 0.5))))
-    S.append(scene_dual(7.0, [top(["The office and the contractor", "see the same list."], 0.4, 6.7, size=56)]))
-    S.append(scene_black(["Closeout", "Walk it. Send it. Close it."], 11.0, extra=end_extra))
-    return S
+    S.append(scene_dual(7.0, [side(["The office and the contractor", "see the same list."], 0.4, 6.7, size=56)]))
+    S.append(scene_black(["Closeout", "Walk it. Send it. Close it."], 9.0))
+    return S, split
 
 
-def render(scenes, preview=None):
+def audio_len(path):
+    out = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(path)],
+                         capture_output=True, text=True).stdout
+    return float(out.strip())
+
+
+def render(scenes, split, preview=None):
     XF = 0.6
     starts, t = [], 0.0
     for dur, _ in scenes:
@@ -512,12 +601,21 @@ def render(scenes, preview=None):
         for i, ((dur, fn), s) in enumerate(zip(scenes, starts)):
             for frac in (0.3, 0.85):
                 fn(dur * frac).save(HERE / "output" / "preview" / f"s{i:02d}-{int(frac * 100)}.jpg", quality=85)
-        print("preview scenes", len(scenes), "total", round(total, 1), "s")
+        print("preview scenes", len(scenes), "total", round(total, 1), "s; second score from", round(starts[split], 1), "s")
         return
-    fade_out = 2.5
-    af = f"afade=t=in:d=1.2,afade=t=out:st={total - fade_out:.2f}:d={fade_out},loudnorm=I=-16:TP=-1.5:LRA=11"
+    # two scores: the calm one under the site walk, the brighter one from the office on, crossfaded over XA seconds.
+    # The second is trimmed from its start so its resolved ending lands on the end card.
+    XA, fade_out = 2.0, 2.5
+    t2 = starts[split] - XA / 2
+    len2 = total - t2
+    off2 = max(0.0, audio_len(SCORE2) - len2 - 0.5)
+    af = (f"[1:a]atrim=0:{t2 + XA:.2f},afade=t=in:d=1.2,afade=t=out:st={t2:.2f}:d={XA}[a1];"
+          f"[2:a]atrim={off2:.2f}:{off2 + len2:.2f},asetpts=PTS-STARTPTS,afade=t=in:d={XA},"
+          f"afade=t=out:st={len2 - fade_out:.2f}:d={fade_out},adelay={round(t2 * 1000)}:all=1[a2];"
+          f"[a1][a2]amix=inputs=2:normalize=0:duration=longest,loudnorm=I=-16:TP=-1.5:LRA=11[a]")
     cmd = ["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}",
-           "-r", str(FPS), "-i", "-", "-i", str(SCORE), "-filter:a", af, "-map", "0:v", "-map", "1:a", "-t", f"{total:.2f}",
+           "-r", str(FPS), "-i", "-", "-i", str(SCORE), "-i", str(SCORE2), "-filter_complex", af,
+           "-map", "0:v", "-map", "[a]", "-t", f"{total:.2f}",
            "-c:v", "libx264", "-preset", "slow", "-crf", "17", "-pix_fmt", "yuv420p", "-movflags", "+faststart",
            "-c:a", "aac", "-b:a", "192k", str(OUT)]
     ff = subprocess.Popen(cmd, stdin=subprocess.PIPE)
@@ -543,5 +641,5 @@ def render(scenes, preview=None):
 
 if __name__ == "__main__":
     BG = stage_bg()
-    sc = build()
-    render(sc, preview=0 if "--preview" in sys.argv else None)
+    sc, split = build()
+    render(sc, split, preview=0 if "--preview" in sys.argv else None)
