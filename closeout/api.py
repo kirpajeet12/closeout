@@ -484,6 +484,19 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         _project(store(), slug)
         return await _drawings_drop(slug, files, paths, read_with_model)
 
+    def _worked_out(st: Store, run: dict) -> dict:
+        """What one filing run did with a drop's files, in plain shape: which items got which files, what stayed loose."""
+        byitem: dict[str, list[str]] = {}
+        loose: list[str] = []
+        for f in st.findings_for_run(run["id"]):
+            name = (st.evidence(f["evidence_id"]) or {}).get("filename") or ""
+            if f["status"] == "matched" and f.get("item_id"):
+                if name not in byitem.setdefault(f["item_id"], []):
+                    byitem[f["item_id"]].append(name)
+            elif f["status"] in ("ambiguous", "unrelated", "conflict") and name and name not in loose:
+                loose.append(name)
+        return {"items": [{"item_id": k, "files": v} for k, v in byitem.items()], "loose": loose}
+
     @app.get("/api/projects/{slug}")
     def project_detail(slug: str) -> dict:
         """Everything one project page needs: drawings, deficiency list, latest packet, drops, messages."""
