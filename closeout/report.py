@@ -48,6 +48,10 @@ def review_report(store: Store, project_id: str, review_id: str, office: str = "
             "status": CALLS.get((call or {}).get("decision", ""), OPEN),
             "status_note": (call or {}).get("note") or "", "status_at": (call or {}).get("created_at", ""),
         })
+    site_notes = [{"id": n["id"], "note": n.get("note", ""), "unit": n.get("unit", ""), "level": n.get("level", ""), "space": n.get("space", ""),
+                   "photo_url": f"/api/projects/{slug}/notes/{n['id']}/photo" if n.get("photo") else "",
+                   "taken_at": (n.get("meta") or {}).get("taken_at", ""), "created_at": n["created_at"]}
+                  for n in store.site_notes(project_id) if n.get("review_id") == review_id]
     all_docs = store.documents(project_id)
     members = revisions.set_members(all_docs, rv["discipline"])
     docs = [x for x in all_docs if x.get("kind") == "drawing" and x.get("discipline") == rv["discipline"]]
@@ -87,6 +91,7 @@ def review_report(store: Store, project_id: str, review_id: str, office: str = "
         "name": f"FieldReview_{_safe(prj.get('name') or slug)}_{stamp}_{rv['discipline']}{rv['sequence']}",
         "drawings": drawings, "current_set": current,
         "items": items, "count": len(items), "photos": sum(1 for i in items if i["photo_url"]),
+        "site_notes": site_notes,
         "units": sorted({i["unit"] for i in items if i["unit"]}), "sheets_used": sorted({i["sheet"] for i in items if i["sheet"]}),
         "status_counts": counts,
     }
@@ -138,6 +143,14 @@ def report_html(data: dict) -> str:
         if k != OPEN:
             summary.append(f"{v} {k.lower()}")
     drawings = "".join(f'<tr><td>{e(d["file"])}</td><td>{e(d["dated"] or "undated")}</td><td>{d["pages"] or ""}</td><td>{"Current issue" if d["current"] else "Superseded" if d["in_set"] else "On file, not an issue of the set"}</td></tr>' for d in data["drawings"])
+    notes = ""
+    for n in data.get("site_notes") or []:
+        where = " · ".join(x for x in (n["unit"], n["level"], n["space"]) if x)
+        pic = f'<img src="{e(n["photo_url"])}" alt="">' if n["photo_url"] else ""
+        cap = " · ".join(x for x in (where, _when(n["taken_at"]) if n["taken_at"] else _day(n["created_at"])) if x)
+        notes += f'<figure class="snote">{pic}<figcaption>{("<b>" + e(n["note"]) + "</b>") if n["note"] else ""}{("<span>" + e(cap) + "</span>") if cap else ""}</figcaption></figure>'
+    notes_section = (f'<section class="snotes"><h2>Site photos and notes</h2><p class="lead">Kept for the office as they were taken. Not deficiencies; not sent to the contractor.</p>'
+                     f'<div class="grid">{notes}</div></section>') if notes else ""
     return f'''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{e(data["name"])}</title>
 <style>{CSS}</style></head><body class="{"draft" if live else ""}">
@@ -152,6 +165,7 @@ def report_html(data: dict) -> str:
   </header>
   {_units_section(data)}
   <section class="items">{grouped if cards else '<p class="none">Nothing was recorded during this walk.</p>'}</section>
+  {notes_section}
   <section class="docs"><h2>Drawings on file for {e(rv["discipline_name"].lower())}</h2>
     {("<table><thead><tr><th>File</th><th>Issued</th><th>Pages</th><th></th></tr></thead><tbody>" + drawings + "</tbody></table>") if drawings else "<p class='none'>No drawings on file for this discipline.</p>"}
   </section>
@@ -167,6 +181,9 @@ def report_html(data: dict) -> str:
 
 
 CSS = """
+.snotes{margin-top:36px;break-inside:avoid}.snotes h2{font-size:18px;margin:0 0 4px}.snotes .lead{margin:0 0 14px;color:var(--ink2);font-size:14px}
+.snotes .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.snote{margin:0;border:1px solid var(--line);border-radius:10px;overflow:hidden;break-inside:avoid;background:var(--wash)}
+.snote img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover}.snote figcaption{padding:8px 10px;font-size:13px;display:grid;gap:2px}.snote figcaption span{color:var(--mute);font-size:12px}
 :root{--ink:#14161a;--ink2:#4a4f58;--mute:#8a8f98;--line:#e3e5ea;--paper:#fff;--wash:#f5f6f8;--ok:#1d7a4a;--hold:#9a6b00;--no:#b3261e}
 *{box-sizing:border-box}body{margin:0;background:#ecedf0;color:var(--ink);font:15px/1.45 -apple-system,BlinkMacSystemFont,"Helvetica Neue",Inter,Arial,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .bar{position:sticky;top:0;display:flex;align-items:center;gap:16px;padding:12px 24px;background:var(--ink);color:#fff;font-size:14px;z-index:2}

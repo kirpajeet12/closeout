@@ -494,6 +494,15 @@
   .locate .acts { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; align-items: center; }
   .locate .acts .btn { min-height: 44px; padding: 10px 16px; border-radius: 10px; font-size: 15px; }
   .locate .acts .cancel { margin-left: auto; color: var(--mute); border: 0; background: transparent; font: inherit; cursor: pointer; }
+  .locate .keep { margin: 14px 0 0; font-size: 13px; color: var(--mute); } .locate .keep a { color: var(--ink); font-weight: 600; }
+  h3.sec small { display: block; margin-top: 3px; font-size: 13px; font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--mute); }
+  .snotes { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; margin-top: 12px; align-items: start; }
+  .snote { margin: 0; border: 1px solid var(--line-2); border-radius: 14px; overflow: hidden; background: #fff; box-shadow: 0 10px 24px -20px rgba(18,19,20,.5); }
+  .snote a { display: block; } .snote img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; background: #f1f2f4; }
+  .snote figcaption { padding: 10px 12px 11px; display: grid; gap: 3px; font-size: 14px; } .snote figcaption b { font-weight: 600; } .snote figcaption b.mute { color: var(--mute); font-weight: 500; }
+  .snote figcaption span { font-size: 12px; color: var(--mute); } .snote figcaption em { font-style: normal; margin-top: 4px; font-size: 12px; }
+  .snote figcaption .lnk { padding: 0; border: 0; background: none; font: inherit; font-size: 12px; font-weight: 600; color: var(--mute); cursor: pointer; } .snote figcaption .lnk.warn { color: #b3261e; }
+  .snote.words { border-style: dashed; } .snote.words figcaption { padding-top: 14px; }
   .locate .shot .take { width: 112px; height: 112px; }
   .locate .row.three { grid-template-columns: 1.3fr 1fr 1fr; }
   .plan-pick { display: grid; grid-template-columns: 148px 1fr; gap: 14px; align-items: center; margin-top: 14px; padding: 12px; border-radius: 14px; background: var(--paper); border: 1px solid var(--line); }
@@ -872,7 +881,7 @@ const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt
 const when = s => { const d = new Date(s); return isNaN(d) ? String(s ?? "") : d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }); };
 const fileUrl = (id, page) => `/api/evidence/${id}/file` + (page ? `#page=${page}` : "");
 const isImg = name => /\.(jpe?g|png|heic|heif|webp)$/i.test(name || "");
-const state = { home: null, p: null, slug: null, es: null, run: { kind: "idle", text: "", done: 0, total: 0 }, fieldDisc: null, walk: null, filing: null, viewer: null, shot: null, openReview: null, finishing: null, confirmFinish: null, drafting: null, mapping: null, docsAsking: false, filters: { bld: "", disc: "", rv: "" }, folder: [], pinMode: "", brief: {}, briefOpen: {}, starting: null, cov: {}, unitLog: null, stagesEdit: null };
+const state = { home: null, p: null, slug: null, es: null, run: { kind: "idle", text: "", done: 0, total: 0 }, fieldDisc: null, walk: null, rmNote: null, filing: null, viewer: null, shot: null, openReview: null, finishing: null, confirmFinish: null, drafting: null, mapping: null, docsAsking: false, filters: { bld: "", disc: "", rv: "" }, folder: [], pinMode: "", brief: {}, briefOpen: {}, starting: null, cov: {}, unitLog: null, stagesEdit: null };
 
 function toast(msg, err) { const t = $("#toast"); t.textContent = msg; t.className = "toast show" + (err ? " err" : ""); setTimeout(() => t.className = "toast", 3200); }
 function route() {
@@ -2095,7 +2104,7 @@ function renderField() {
       : rv ? `<button class="btn primary hot" id="walkOpen">Continue ${esc(rv.title.toLowerCase())}</button>`
       : state.starting && state.starting.code === cur.code ? "" : `<button class="btn primary" id="startRv">Start field review ${done.length + 1}</button>`}
     </div>`;
-  const capture = shot && shot.disc === cur.code ? renderWhere(cur, rv) : `<label class="capture"><input type="file" accept="image/*" capture="environment" id="shotIn"><span class="ico">📷</span><span><b>Take a photo of the problem</b><small>${esc(cur.name)} · then say which unit and level you are in. Closeout finds the sheet and writes it up; you tap the spot and save.</small></span></label><p class="nophoto">No photo? <a href="#" id="noShot">Write it down instead</a>${cur.sheets.length ? "" : " · no drawings are needed"}</p>`;
+  const capture = shot && shot.disc === cur.code ? renderWhere(cur, rv) : `<label class="capture"><input type="file" accept="image/*" capture="environment" id="shotIn"><span class="ico">📷</span><span><b>Take a photo of the problem</b><small>${esc(cur.name)} · then say which unit and level you are in. Closeout finds the sheet and writes it up; you tap the spot and save.</small></span></label><p class="nophoto">No photo? <a href="#" id="noShot">Write it down instead</a>${cur.sheets.length ? "" : " · no drawings are needed"}. A photo of the site that is not a deficiency can be kept for the office the same way.</p>`;
   $("#tab").innerHTML = `
     <div class="discs">${discs.map(d => { const a = activeReview(d.code), n = p.register.filter(x => x.discipline === d.code && x.source === "field").length; return `
       <div class="disc ${d.code === cur.code ? "on" : ""}" data-code="${esc(d.code)}"><span class="code">${esc(d.code)}</span><h2>${esc(d.name)}</h2><span class="n">${d.added && !d.sheets.length ? "no drawings yet · plans stand in" : `${d.sheets.length} sheet${d.sheets.length === 1 ? "" : "s"}`} · ${n} deficienc${n === 1 ? "y" : "ies"}</span>
@@ -2105,13 +2114,14 @@ function renderField() {
       ${capture}
       ${rv && state.confirmFinish !== rv.id ? renderUnitsStrip(rv, true) : ""}
       ${shot && shot.disc === cur.code && shot.pick ? `<p class="pickhint"><span>Which sheet does this belong on?</span> Tap it; the photo comes with you.</p>${renderGalleryGroups(cur)}` : ""}
-      ${rv ? `<h3 class="sec">Reported in ${esc(rv.title.toLowerCase())} · ${items.length}</h3>${items.length ? renderByUnit(items) : `<p class="empty">Nothing reported yet. Each deficiency you save lands here, and on the report.</p>`}` : ""}
+      ${rv ? `<h3 class="sec">Reported in ${esc(rv.title.toLowerCase())} · ${items.length}</h3>${items.length ? renderByUnit(items) : `<p class="empty">Nothing reported yet. Each deficiency you save lands here, and on the report.</p>`}${renderSiteNotes(rv, true)}` : ""}
     </section>` : head}
     ${!walking && !rv && state.starting && state.starting.code === cur.code ? renderStartPanel(cur, done) : ""}
     ${rv ? "" : renderBrief(cur)}
     ${STAGES_ON ? renderCoverage(cur) + renderUnitLog(cur) : ""}
     ${(() => { const show = state.finishing ? null : state.openReview ? done.find(x => x.id === state.openReview) : (!rv && done.length ? done[done.length - 1] : null); return show ? renderHandoff(show) : ""; })()}
     ${!walking && rv && items.length ? `<h3 class="sec">Reported so far in ${esc(rv.title.toLowerCase())}</h3>${renderByUnit(items)}` : ""}
+    ${!walking && rv ? renderSiteNotes(rv, false) : ""}
     ${!walking ? (() => { const pins = cur.sheets.reduce((n, sh) => n + findingsOn(sh.id).length, 0); return `<h3 class="sec">Plans${pins ? ` · ${pins} spot${pins === 1 ? "" : "s"} marked across the field reviews` : ""}</h3>${renderGalleryGroups(cur)}`; })() : ""}
     ${done.length ? `<h3 class="sec">Earlier reviews</h3><table><tbody>${done.map(r => { const n = findingsIn(r.id).length, m = messageFor(r.id); return `<tr class="row" data-rv="${esc(r.id)}"><td class="id">${esc(r.title)}</td><td><div class="what">${esc(when(r.started_at))} → ${esc(when(r.finished_at))}</div><div class="where">${m ? "Message drafted for the contractor" : n ? "No message yet" : "Nothing recorded"}</div></td><td class="num">${n} item${n === 1 ? "" : "s"}</td><td class="go">›</td></tr>`; }).join("")}</tbody></table>` : ""}
     <footer><span>Numbers are ${esc(cur.code)}-01, ${esc(cur.code)}-02 … and never reused.</span><span>Closeout suggests the wording; you decide what is saved.</span></footer>`;
@@ -2130,6 +2140,13 @@ function renderField() {
   const si = $("#shotIn"); if (si) si.onchange = () => { const f = si.files[0]; if (!f) return; beginShot(cur.code, f); };
   const ns = $("#noShot"); if (ns) ns.onclick = e => { e.preventDefault(); beginShot(cur.code, null); };
   if (shot && shot.disc === cur.code) wireWhere(cur, rv);
+  $("#tab").querySelectorAll("[data-rmnote]").forEach(b => b.onclick = async () => {
+    const id = b.dataset.rmnote;
+    if (state.rmNote !== id) { state.rmNote = id; renderField(); return; }
+    const r = await fetch(pUrl(slug, "/notes/" + encodeURIComponent(id)), { method: "DELETE" });
+    state.rmNote = null; if (!r.ok) return toast("Could not remove it", true);
+    toast("Removed"); await load(); });
+  $("#tab").querySelectorAll("[data-keepnote]").forEach(b => b.onclick = () => { state.rmNote = null; renderField(); });
   wireHandoff();
 }
 /* ---- before the walk: the set to carry, what changed, what is still open, what is missing, who to ask. Read, not generated. ---- */
@@ -2372,6 +2389,7 @@ function renderWhere(cur, rv) {
     ${sh ? `<div class="plan-pick"><div class="crop" style="${cropStyle(sh, pick.view)}"></div><div><b>${esc(sh.sheet_number || "p." + sh.page)} · ${esc(DISC_NAMES[sh.discipline] || sh.discipline)}${pick.standIn ? " · stands in" : ""}</b><h4>${esc(sh.title || "Sheet")}</h4><p class="${pick.warn ? "warn" : ""}">${esc(pick.note || "This floor plan opens; tap where the problem is.")}</p></div></div>` : ""}
     <div class="agentnote" id="gps">${esc(s.gpsText)}</div>
     <div class="acts">${sh ? `<button class="btn primary hot" id="wOpen">${b && s.level ? `Open the ${esc(s.level.toLowerCase())} plan` : b ? "Open the plan" : "Open this sheet"}</button>` : ""}${s.photo && state.p.project.sheets.length ? `<button class="btn" id="wFind">Pick the sheet for me</button>` : ""}<button class="btn ${sh ? "" : "primary hot"}" id="wHere">Save it here${sh ? ", no pin" : ""}</button><button class="btn" id="wPick">${s.pick ? "Picking below ↓" : "I'll pick"}</button><button class="cancel" id="wCancel">Cancel</button></div>
+    <p class="keep">Not a deficiency? <a href="#" id="wKeep">Keep it as a site ${s.photo ? "photo" : "note"}</a> for the office, with the unit and floor. It stays off the contractor's list.</p>
   </div>`;
 }
 function wireWhere(cur, rv) {
@@ -2386,7 +2404,35 @@ function wireWhere(cur, rv) {
   $("#wPick").onclick = () => { grab(); s.pick = true; renderField(); const g = $(".gallery"); if (g) g.scrollIntoView({ behavior: "smooth", block: "start" }); };
   const wf = $("#wFind"); if (wf) wf.onclick = () => { grab(); locateShot(cur.code); };
   $("#wHere").onclick = () => { grab(); saveHere(cur.code); };
+  $("#wKeep").onclick = e => { e.preventDefault(); grab(); keepSiteNote(cur.code); };
   const op = $("#wOpen"); if (op) op.onclick = () => { grab(); const b = buildings().find(x => x.key === s.bld), pick = planFor(cur.code, b, s.level); if (pick) carryShot(pick.sheet.id, pick.view); };
+}
+/* Kept as it is for the office: a site photo or a few words that are not a deficiency. Never numbered, never sent. */
+async function keepSiteNote(code) {
+  const s = state.shot, slug = state.slug;
+  const note = (s.note || "").trim();
+  if (!s.photo && note.length < 2) return toast("Add a photo or a few words first", true);
+  s.busy = true; renderField();
+  let rv = activeReview(code); if (!rv) { rv = await startReview(code); if (!rv) { s.busy = false; renderField(); return; } }
+  const fd = new FormData(); fd.append("review_id", rv.id); fd.append("discipline", code);
+  fd.append("unit", s.unit); fd.append("level", s.level); fd.append("note", note); if (s.gps) fd.append("gps", s.gps);
+  if (s.photo) fd.append("photo", s.photo, s.photo.name || "photo.jpg");
+  const r = await fetch(pUrl(slug, "/notes"), { method: "POST", body: fd }), j = await r.json().catch(() => ({}));
+  s.busy = false;
+  if (!r.ok) { renderField(); return toast(j.detail || "Could not keep it", true); }
+  if (s.photoUrl) URL.revokeObjectURL(s.photoUrl); state.shot = null;
+  toast(`Site ${s.photo ? "photo" : "note"} kept${[s.unit, s.level].filter(Boolean).length ? " · " + [s.unit, s.level].filter(Boolean).join(" · ") : ""}`); await load();
+}
+function renderSiteNotes(rv, editable) {
+  const list = (state.p.notes || []).filter(n => n.review_id === rv.id);
+  if (!list.length) return "";
+  const when = n => { const d = new Date(n.taken_at || n.created_at); return isNaN(d) ? "" : d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }); };
+  return `<h3 class="sec">Site photos and notes · ${list.length}<small>For the office. Not deficiencies, not sent to the contractor.</small></h3>
+    <div class="snotes">${list.map(n => { const where = [n.unit, n.level, n.space].filter(Boolean).join(" · "); return `<figure class="snote ${n.photo_url ? "" : "words"}">
+      ${n.photo_url ? `<a href="${esc(n.photo_url)}" target="_blank" rel="noopener"><img src="${esc(n.photo_url)}" alt="" loading="lazy"></a>` : ""}
+      <figcaption>${n.note ? `<b>${esc(n.note)}</b>` : `<b class="mute">Photo only</b>`}<span>${esc([where, when(n)].filter(Boolean).join(" · ") || "On site")}</span>
+      ${editable ? `<em>${state.rmNote === n.id ? `<button class="lnk warn" data-rmnote="${esc(n.id)}">Remove for sure</button> <button class="lnk" data-keepnote="${esc(n.id)}">Keep</button>` : `<button class="lnk" data-rmnote="${esc(n.id)}">Remove</button>`}</em>` : ""}</figcaption>
+    </figure>`; }).join("")}</div>`;
 }
 /* Saved as it is: the unit, the floor and the words, the photo if there is one. No sheet, no pin, no reading of the photo. */
 async function saveHere(code) {

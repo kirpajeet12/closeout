@@ -518,6 +518,7 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
                 "messages": st.all_drafts(pid), "decisions": st.decisions(pid), "model_id": settings.model_id,
                 "reviews": coverage_mod.decorate_reviews(st, prj, st.reviews(pid)), "shares": st.shares(pid), "office": settings.office,
                 "sends": st.sends(pid), "inbound": st.inbound_for_project(pid),
+                "notes": [_note_view(prj["slug"], n) for n in st.site_notes(pid)],
                 "mail": {"from": settings.mail_from, "gmail": (st.mail_account() or {}).get("address", "") if gmail_mod.configured(gs()) else "", "can_connect": gmail_mod.configured(gs())},
                 "stages": {code: coverage_mod.stages_for(prj, code) for code in sorted({*(prj.get("stages") or {}), *(r["discipline"] for r in st.reviews(pid)), *(d["discipline"] for d in st.documents(pid) if d.get("kind") == "drawing" and d.get("discipline"))})},
                 "units": coverage_mod.buildings(prj),
@@ -1663,6 +1664,69 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         if d.get("reference_photo"):
             Path(d["reference_photo"]).unlink(missing_ok=True)
         return {"deleted": item_id}
+
+    # --- site photos and notes ------------------------------------------
+    # Kept as they are for the office: not deficiencies, never numbered, never in the package or the message.
+    def _note_view(slug: str, n: dict) -> dict:
+        return {**{k: n[k] for k in ("id", "review_id", "discipline", "unit", "level", "space", "note", "created_at")},
+                "photo_url": f"/api/projects/{slug}/notes/{n['id']}/photo" if n.get("photo") else "",
+                "taken_at": (n.get("meta") or {}).get("taken_at", "")}
+
+    @app.post("/api/projects/{slug}/notes")
+    async def save_site_note(slug: str, review_id: str = Form(...), discipline: str = Form(""), unit: str = Form(""),
+                             level: str = Form(""), space: str = Form(""), note: str = Form(""), gps: str = Form(""),
+                             photo: UploadFile | None = File(None)) -> dict:
+        st = store()
+        prj = _project(st, slug)
+        pid = prj["id"]
+        rv = st.review(review_id)
+        if not rv or rv["project_id"] != pid:
+            raise HTTPException(404, "no such review")
+        if rv["status"] != "active":
+            raise HTTPException(409, "that review is finished; start a new one")
+        note = " ".join(note.split())
+        raw, original = await _read_photo(photo)
+        if not raw and len(note) < 2:
+            raise HTTPException(400, "a photo or a few words are needed")
+        code = (discipline.strip().upper() or rv["discipline"])
+        meta: dict = {}
+        n = st.add_site_note(pid, review_id, code, unit=unit.strip(), level=level.strip(), space=space.strip(), note=note)
+        if raw:
+            d = settings.data_dir / "projects" / prj["slug"] / "field" / "notes"
+            d.mkdir(parents=True, exist_ok=True)
+            p = d / f"{n['id']}.jpg"
+            p.write_bytes(raw)
+            meta = {**_exif(p), "original_name": original}
+            if gps.strip():
+                meta["gps"] = gps.strip()[:80]
+            st.conn.execute("UPDATE site_notes SET photo=?, meta_json=? WHERE id=?", (str(p), json.dumps(meta), n["id"]))
+            st.conn.commit()
+            n = st.site_note(n["id"])
+        return {"note": _note_view(prj["slug"], n)}
+
+    @app.get("/api/projects/{slug}/notes/{note_id}/photo")
+    def site_note_photo(slug: str, note_id: str):
+        st = store()
+        pid = _project(st, slug)["id"]
+        n = st.site_note(note_id)
+        if not n or n["project_id"] != pid or not n.get("photo"):
+            raise HTTPException(404, "no photo")
+        p = Path(n["photo"])
+        if not p.exists():
+            raise HTTPException(404, "photo file missing")
+        return FileResponse(p, media_type="image/jpeg")
+
+    @app.delete("/api/projects/{slug}/notes/{note_id}")
+    def delete_site_note(slug: str, note_id: str) -> dict:
+        st = store()
+        pid = _project(st, slug)["id"]
+        n = st.site_note(note_id)
+        if not n or n["project_id"] != pid:
+            raise HTTPException(404, "no such note")
+        st.delete_site_note(note_id)
+        if n.get("photo"):
+            Path(n["photo"]).unlink(missing_ok=True)
+        return {"deleted": note_id}
 
     # --- batches / runs -------------------------------------------------
     @app.post("/api/projects/{slug}/batches")

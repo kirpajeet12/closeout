@@ -279,6 +279,20 @@ CREATE TABLE IF NOT EXISTS turns (
   at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS turns_by_conv ON turns(conversation_id, at);
+CREATE TABLE IF NOT EXISTS site_notes (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL,
+  review_id TEXT NOT NULL,
+  discipline TEXT NOT NULL,
+  unit TEXT NOT NULL DEFAULT '',
+  level TEXT NOT NULL DEFAULT '',
+  space TEXT NOT NULL DEFAULT '',
+  note TEXT NOT NULL DEFAULT '',
+  photo TEXT NOT NULL DEFAULT '',      -- path of the kept photo, '' when it is words only
+  meta_json TEXT NOT NULL DEFAULT '{}',
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS site_notes_by_project ON site_notes(project_id, created_at);
 """
 
 
@@ -456,6 +470,36 @@ class Store:
         sets = ", ".join(f"{k}=?" for k in cols)
         self.conn.execute(f"UPDATE deficiencies SET {sets} WHERE project_id=? AND item_id=?", (*cols.values(), project_id, item_id))
         self.conn.commit()
+
+    # --- site photos and notes ------------------------------------------
+    # A photo or a few words kept as they are, for the office: not a deficiency, never numbered, never sent to the
+    # contractor. Its own table so nothing that packages, mails or matches deficiencies can ever pick one up.
+    def add_site_note(self, project_id: str, review_id: str, discipline: str, unit: str = "", level: str = "", space: str = "",
+                      note: str = "", photo: str = "", meta: dict | None = None) -> dict:
+        nid = new_id("note")
+        self.conn.execute(
+            "INSERT INTO site_notes(id, project_id, review_id, discipline, unit, level, space, note, photo, meta_json, created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+            (nid, project_id, review_id, discipline, unit, level, space, note, photo, json.dumps(meta or {}), now()))
+        self.conn.commit()
+        return self.site_note(nid)
+
+    def site_note(self, note_id: str) -> dict | None:
+        r = self.conn.execute("SELECT * FROM site_notes WHERE id=?", (note_id,)).fetchone()
+        return self._n(r) if r else None
+
+    def site_notes(self, project_id: str) -> list[dict]:
+        rows = self.conn.execute("SELECT * FROM site_notes WHERE project_id=? ORDER BY created_at, rowid", (project_id,)).fetchall()
+        return [self._n(r) for r in rows]
+
+    def delete_site_note(self, note_id: str) -> None:
+        self.conn.execute("DELETE FROM site_notes WHERE id=?", (note_id,))
+        self.conn.commit()
+
+    @staticmethod
+    def _n(r) -> dict:
+        d = dict(r)
+        d["meta"] = json.loads(d.pop("meta_json") or "{}")
+        return d
 
     # --- field reviews ----------------------------------------------------
     def create_review(self, project_id: str, discipline: str, title: str = "", stage: str = "") -> dict:

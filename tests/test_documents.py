@@ -277,3 +277,32 @@ def test_a_walk_needs_no_drawings_and_a_deficiency_needs_no_photo(client, tmp_pa
     rv2 = client.post(f"/api/projects/{slug}/reviews", json={"discipline": "AR", "title": "Arch review 1"}).json()["review"]
     j = client.post(f"/api/projects/{slug}/reviews/{rv2['id']}/finish").json()
     assert j["review"]["status"] == "finished" and j["message"] is None and "nothing to send" in j["error"]
+
+
+def test_a_site_photo_is_kept_for_the_office_and_never_sent(client, tmp_path):
+    """A photo of the site that is not a deficiency: kept with the unit and floor, listed for the office, shown on the
+    report, and never numbered, packaged or mailed. Finishing a walk that holds only site photos makes no model call."""
+    import io
+    from PIL import Image
+    slug = client.post("/api/projects/blank", json={"name": "Bare Lot"}).json()["slug"]
+    rv = client.post(f"/api/projects/{slug}/reviews", json={"discipline": "AR", "title": "Arch review 1"}).json()["review"]
+    buf = io.BytesIO(); Image.new("RGB", (64, 48), (120, 130, 140)).save(buf, "JPEG"); buf.seek(0)
+    r = client.post(f"/api/projects/{slug}/notes", data={"review_id": rv["id"], "unit": "Unit B", "level": "Level 2", "note": "Rough-in as found, for the office"},
+                    files={"photo": ("site.jpg", buf, "image/jpeg")})
+    assert r.status_code == 200, r.text
+    n = r.json()["note"]
+    assert n["unit"] == "Unit B" and n["photo_url"] and "item_id" not in n
+    assert client.get(n["photo_url"]).status_code == 200
+    # words only works too; nothing at all does not
+    assert client.post(f"/api/projects/{slug}/notes", data={"review_id": rv["id"], "note": "Crew on site, no access to the roof today"}).status_code == 200
+    assert client.post(f"/api/projects/{slug}/notes", data={"review_id": rv["id"], "note": ""}).status_code == 400
+    p = client.get(f"/api/projects/{slug}").json()
+    assert len(p["notes"]) == 2 and p["register"] == []              # listed for the office, never a numbered deficiency
+    rep = client.get(f"/api/projects/{slug}/reviews/{rv['id']}/report.json").json()
+    assert rep["count"] == 0 and len(rep["site_notes"]) == 2
+    assert "Site photos and notes" in client.get(f"/api/projects/{slug}/reviews/{rv['id']}/report").text
+    j = client.post(f"/api/projects/{slug}/reviews/{rv['id']}/finish").json()
+    assert j["package"]["items"] == [] and j["message"] is None and "nothing to send" in j["error"]
+    assert client.delete(f"/api/projects/{slug}/notes/{n['id']}").status_code == 200
+    assert client.get(n["photo_url"]).status_code == 404
+    assert len(client.get(f"/api/projects/{slug}").json()["notes"]) == 1
