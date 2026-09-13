@@ -53,10 +53,23 @@ def main():
         def click(sel):
             pg.locator(sel).first.click(); pg.wait_for_timeout(700); top()
 
+        # the drawings as the site is built: the site's own sheets, then the building's
+        pg.goto(BASE + f"/#/p/{SLUG}/drawings"); pg.wait_for_timeout(2500)
+        for name, sel in (("n05-site", ".tier.site"), ("n05-building", ".tier.bld")):
+            pg.evaluate(f"scrollTo(0, document.querySelector('{sel}').getBoundingClientRect().top + scrollY - 40)")
+            pg.wait_for_timeout(600); shot(name)
+        pg.goto(BASE + f"/#/p/{SLUG}/docs"); pg.wait_for_timeout(2500)
+
         top(); shot("n06-folders1")
         for path in ("prj", "prj|site", "prj|site|site/AR"):
             click(f".treepane [data-path='{path}']")
         shot("n06-folders2", tap=box("[data-mkopen]"))
+        # where every other file went
+        for name, path in (("n06-site-el", "prj|site|site/EL"), ("n06-bld", "prj|b/418"), ("n06-bld-el", "prj|b/418|b/418/EL"),
+                           ("n06-bld-other", "prj|b/418|b/418/OTHER"), ("n06-crp", "crp"), ("n06-crp-loa", "crp|crp/1")):
+            click(f".treepane [data-path='{path}']"); shot(name)
+        for path in ("prj", "prj|site", "prj|site|site/AR"):
+            click(f".treepane [data-path='{path}']")
 
         # a folder of the engineer's own inside Architectural
         click("[data-mkopen]")

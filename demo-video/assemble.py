@@ -593,14 +593,38 @@ def build_ai():
                         cam=track(12.5, [(0, D("n01-home", (579, 480, 861, 552), z=1.06)), (3.4, D("n02-progress03", (208, 228, 1232, 278), z=1.0))]),
                         cur=(0.6, 2.1, 2.5, "n01-home", (W * 0.62, H * 0.9)),
                         hl=[(0.3, 3.3, "n01-home", (579, 480, 861, 552)), (3.5, 12.2, None, (208, 228, 1232, 278))]))
-    S.append(scene_desk([(0, "n05-drawings"), (4.0, "n06-folders1"), (8.0, "n06-folders2")], 12.5,
-                        [side(["Drawings tab", "Architectural: 3 current sheets. Electrical: 2."], 0.4, 3.8),
-                         side(["The folders it set up", "Documents before occupancy, the project folder, and one per building."], 4.2, 7.8),
-                         side(["Site › Architectural", "Both issues of the set. September is current, June is kept as older."], 8.2, 12.2)],
-                        cam=track(12.5, [(0, D("n05-drawings", (208, 240, 950, 508))), (4.0, D("n06-folders1", (217, 160, 480, 258), z=1.1)),
-                                         (8.0, D("n06-folders2", (217, 160, 1215, 425), z=1.05))]),
-                        hl=[(0.4, 3.8, "n05-drawings", (208, 332, 886, 508)), (4.3, 7.8, "n06-folders1", (217, 160, 480, 258)),
-                            (8.3, 12.2, "n06-folders2", (500, 255, 1215, 358))]))
+    # where every drawing sheet went: the site's own sheets, then the building's
+    S.append(scene_desk([(0, "n05-site"), (6.5, "n05-building")], 13.0,
+                        [side(["Drawings › Site", "A-101 site plan. E-201 and E-202, electrical, site-wide."], 0.4, 6.3),
+                         side(["Drawings › 418 Alder Court", "A-201 main floor plan and A-202 upper floor plan."], 6.9, 12.7)],
+                        cam=track(13.0, [(0, D("n05-site", (208, 40, 1232, 880), z=1.0)), (3.4, D("n05-site", (208, 560, 1000, 870), z=1.1)),
+                                         (6.5, D("n05-building", (208, 50, 1000, 480), z=1.1))]),
+                        hl=[(0.5, 3.3, "n05-site", (231, 160, 548, 532)), (3.6, 6.3, "n05-site", (231, 572, 712, 856)),
+                            (7.0, 12.7, "n05-building", (231, 140, 712, 422))]))
+    # and every document: one folder at a time
+    S.append(scene_desk([(0, "n06-folders1"), (4.0, "n06-folders2"), (8.0, "n06-site-el")], 12.5,
+                        [side(["The folders it set up", "Documents before occupancy, the project folder, and one per building."], 0.4, 3.8),
+                         side(["Site › Architectural", "Both issues of the set. September is current, June is kept as older."], 4.2, 7.8),
+                         side(["Site › Electrical", "Electrical Set, issued 2026-09-02."], 8.2, 12.2)],
+                        cam=track(12.5, [(0, D("n06-folders1", (217, 160, 480, 258), z=1.1)), (4.0, D("n06-folders2", (217, 160, 1215, 425), z=1.05)),
+                                         (8.0, D("n06-site-el", (217, 160, 1215, 425), z=1.05))]),
+                        hl=[(0.5, 3.8, "n06-folders1", (217, 160, 480, 258)), (4.3, 7.8, "n06-folders2", (500, 255, 1215, 358)),
+                            (8.3, 12.2, "n06-site-el", (505, 255, 1215, 305)), (8.3, 12.2, "n06-site-el", (217, 328, 480, 361))]))
+    S.append(scene_desk([(0, "n06-bld"), (4.5, "n06-bld-el"), (8.5, "n06-bld-other")], 12.5,
+                        [side(["418 Alder Court", "Architectural, Electrical and Other files."], 0.4, 4.3),
+                         side(["418 Alder Court › Electrical", "Electrical Letter of Assurance, 2026-05-28."], 4.7, 8.3),
+                         side(["418 Alder Court › Other files", "Building Permit, 2026-05-20."], 8.7, 12.2)],
+                        cam=track(12.5, [(0, D("n06-bld", (217, 160, 1215, 425), z=1.05)), (4.5, D("n06-bld-el", (217, 160, 1215, 425), z=1.05)),
+                                         (8.5, D("n06-bld-other", (217, 160, 1215, 435), z=1.05))]),
+                        hl=[(0.5, 4.3, "n06-bld", (505, 255, 1215, 410)), (0.5, 4.3, "n06-bld", (217, 295, 480, 428)),
+                            (4.8, 8.3, "n06-bld-el", (505, 255, 1215, 305)), (4.8, 8.3, "n06-bld-el", (217, 361, 480, 395)),
+                            (8.8, 12.2, "n06-bld-other", (505, 255, 1215, 305)), (8.8, 12.2, "n06-bld-other", (217, 395, 480, 428))]))
+    S.append(scene_desk([(0, "n06-crp"), (4.0, "n06-crp-loa")], 9.5,
+                        [side(["Documents before occupancy", "6 checklists. Letters of assurance: 1 of 8 on file."], 0.4, 3.8),
+                         side(["Letters of assurance", "Schedule C-B, electrical: the Electrical Letter of Assurance is on file."], 4.2, 9.2)],
+                        cam=track(9.5, [(0, D("n06-crp", (217, 160, 1215, 550), z=1.0)), (4.0, D("n06-crp-loa", (217, 160, 1215, 720), z=1.0))]),
+                        hl=[(0.5, 3.8, "n06-crp", (505, 205, 1215, 545)), (0.5, 3.8, "n06-crp", (217, 194, 480, 228)),
+                            (4.3, 9.2, "n06-crp-loa", (505, 520, 1215, 572)), (4.3, 9.2, "n06-crp-loa", (217, 261, 480, 294))]))
     # folders of your own, inside any folder, and a file filed into one
     S.append(scene_desk([(0, "n06-folders2"), (2.0, "n08-mkfolder"), (5.2, "n08-made")], 9.0,
                         [side(["New folder", "Make a folder of your own inside any folder. Here, Older issues, inside Site › Architectural."], 0.4, 8.7)],
