@@ -1,0 +1,60 @@
+{
+  "AR": [
+    {
+      "page": 1,
+      "sheet_number": "A-101",
+      "title": "SITE PLAN",
+      "level": null
+    },
+    {
+      "page": 2,
+      "sheet_number": "A-201",
+      "title": "MAIN FLOOR PLAN",
+      "level": "Main Floor",
+      "view": {
+        "x": 0.0887,
+        "y": 0.0521,
+        "w": 0.7176,
+        "h": 0.7986
+      }
+    },
+    {
+      "page": 3,
+      "sheet_number": "A-202",
+      "title": "UPPER FLOOR PLAN",
+      "level": "Upper Floor",
+      "view": {
+        "x": 0.0887,
+        "y": 0.0521,
+        "w": 0.7176,
+        "h": 0.7986
+      }
+    }
+  ],
+  "EL": [
+    {
+      "page": 1,
+      "sheet_number": "E-201",
+      "title": "MAIN FLOOR ELECTRICAL",
+      "level": "Main Floor",
+      "view": {
+        "x": 0.0887,
+        "y": 0.0521,
+        "w": 0.7176,
+        "h": 0.7986
+      }
+    },
+    {
+      "page": 2,
+      "sheet_number": "E-202",
+      "title": "UPPER FLOOR ELECTRICAL",
+      "level": "Upper Floor",
+      "view": {
+        "x": 0.0887,
+        "y": 0.0521,
+        "w": 0.7176,
+        "h": 0.7986
+      }
+    }
+  ]
+}
