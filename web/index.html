@@ -1401,7 +1401,9 @@ function renderExplorer(pr) {
       ${cur.items.map(row).join("")}
       ${outRows.length ? `<details class="outscope"><summary>${outRows.length} not in scope for this project</summary>${outRows.map(i => `<div class="xrow out"><i class="fi doc"></i><div><b>${esc(i.name)}</b><small>removed from the count</small></div><label class="scope"><input type="checkbox" checked data-scope="${esc(i.name)}"> Not in scope</label></div>`).join("")}</details>` : ""}
       ${!cur.folders.length && !cur.items.length && !cur.note ? `<p class="none">Empty folder.</p>` : ""}
-      ${(() => { const d = cur.code && String(cur.key).startsWith("site/") ? (pr.disciplines || []).find(x => x.code === cur.code) : null; return d && d.added_by === "engineer" && !cur.items.length ? `<div class="rmdisc"><span>You added this folder${d.added_at ? " " + esc(when(d.added_at)) : ""}. It is also on the Field review tab.</span><button type="button" class="btn quiet" data-rmdisc="${esc(d.code)}">Remove this folder</button></div>` : ""; })()}
+      ${(() => { const d = cur.code && String(cur.key).startsWith("site/") ? (pr.disciplines || []).find(x => x.code === cur.code) : null; return !(d && d.added_by === "engineer") ? "" : state.renDisc === d.code
+        ? `<form class="rmdisc" data-rendisc="${esc(d.code)}"><input name="name" value="${esc(d.name || "")}" maxlength="60" required autocomplete="off" aria-label="Folder name" style="flex:1;min-width:0;padding:8px 10px;border-radius:10px;border:1px solid var(--line-2);font:inherit;color:var(--ink);background:var(--bg)"><button class="btn primary">Save name</button><button type="button" class="btn quiet" data-rencancel>Cancel</button></form>`
+        : `<div class="rmdisc"><span>You added this folder${d.added_at ? " " + esc(when(d.added_at)) : ""}. It is also on the Field review tab.</span><span style="display:flex;gap:8px"><button type="button" class="btn quiet" data-rendisc-open="${esc(d.code)}">Rename</button>${cur.items.length ? "" : `<button type="button" class="btn quiet" data-rmdisc="${esc(d.code)}">Remove this folder</button>`}</span></div>`; })()}
     </section>
   </div>`;
 }
@@ -1434,6 +1436,15 @@ function pathOf(f, root) { const walk = (n, acc) => { if (n === f) return acc; f
 function wireExplorer() {
   const ex = $("#tab").querySelector(".explorer"); if (!ex) return;
   ex.querySelectorAll("[data-path]").forEach(el => el.onclick = e => { e.preventDefault(); state.folder = el.dataset.path ? el.dataset.path.split("|") : []; const y = scrollY; render(); scrollTo(0, y); });
+  ex.querySelectorAll("[data-rendisc-open]").forEach(b => b.onclick = () => { state.renDisc = b.dataset.rendiscOpen; render(); const i = $("form[data-rendisc] input"); if (i) { i.focus(); i.select(); } });
+  ex.querySelectorAll("[data-rencancel]").forEach(b => b.onclick = () => { state.renDisc = null; render(); });
+  ex.querySelectorAll("form[data-rendisc]").forEach(f => f.onsubmit = async e => {
+    e.preventDefault();
+    const code = f.dataset.rendisc, name = f.elements.namedItem("name").value.trim();
+    const r = await fetch(pUrl(state.slug, "/disciplines/" + encodeURIComponent(code)), { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ name }) }), j = await r.json().catch(() => ({}));
+    if (!r.ok) return toast(j.detail || "Could not rename the folder", true);
+    state.p.project.disciplines = j.disciplines; state.renDisc = null; toast(`${code} is now called ${name}`); render();
+  });
   ex.querySelectorAll("[data-rmdisc]").forEach(b => b.onclick = async () => {
     const r = await fetch(pUrl(state.slug, "/disciplines/" + encodeURIComponent(b.dataset.rmdisc)), { method: "DELETE" }), j = await r.json().catch(() => ({}));
     if (!r.ok) return toast(j.detail || "Could not remove the folder", true);
@@ -1706,7 +1717,7 @@ function projectDrop(title, text) {
   return `<div class="drop big" id="dropPrj" style="margin-top:24px"><div class="arrow">↓</div><h2>${esc(title)}</h2><p>${esc(text)}</p><input type="file" webkitdirectory multiple>${zipBtn("Upload the project zip")}</div><div class="status ${esc(state.run.kind)}" id="status"></div>`;
 }
 const EXTRA_GROUPS = { SP: "Sprinkler", BCH: "BC Hydro", PM: "Project management", DC: "Contracts and invoices", OTHER: "Other files" };
-const groupName = code => DISC_NAMES[code] || EXTRA_GROUPS[code] || ((state.p && state.p.project && state.p.project.disciplines || []).find(d => d.code === code) || {}).name || code;
+const groupName = code => (((state.p && state.p.project && state.p.project.disciplines || []).find(d => d.code === code && d.added_by === "engineer") || {}).name) || DISC_NAMES[code] || EXTRA_GROUPS[code] || ((state.p && state.p.project && state.p.project.disciplines || []).find(d => d.code === code) || {}).name || code;
 const baseName = d => d.rel_path.split("/").pop();
 /* The office writes the reason for an issue in the folder name: "260421_ADDED HOUSE PANEL", "250123_PL_Revised as per city comments". */
 function issueNote(d) {

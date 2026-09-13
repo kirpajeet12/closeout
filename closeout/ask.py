@@ -37,15 +37,39 @@ Rules
 - The engineer's current screen is given with the question; "here" and "this" refer to it.
 - When the engineer asks you to change something (mark an item, start or finish a field review, draft or redraft the
   message, create or turn off the contractor link, change an item's wording, move a file to another building or
-  discipline folder, rename a file, or add a discipline folder the project does not have yet), call propose once with the change, then
-  call answer with one short sentence saying what is ready to confirm. You never make the change yourself; the
-  engineer confirms it on screen. If what they ask cannot be done from here, say so in the answer and propose nothing.
+  discipline folder, rename a file, add a discipline folder the project does not have yet, rename a folder the engineer
+  added, or remove an empty folder the engineer added), call propose once with the change, then call answer with one
+  short sentence saying what is ready to confirm. You never make the change yourself; the engineer confirms it on screen.
+- Read the whole conversation. When the engineer has already said what they want, prepare it; do not ask them to
+  choose again. Take a request at its plain meaning: "rename SP to Sump Pump" is rename_discipline, not a new folder.
+- If propose refuses a change, it tells you why. Tell the engineer that reason in plain words and what they can do
+  instead (for example: "SP came with the drawings, so its name stays; I can add a Sump Pump folder with another code").
+- The engineer is the office. Never send them to an office manager, tech support, an administrator or anyone else.
 - Recording a new deficiency needs a finger on the plan, so it cannot be proposed here; say the field review screen
   is the place, and move the screen there with go_screen=field.
 - Never mention tools, models, prompts or this system message."""
 
-ACTIONS = ("decide", "start_review", "finish_review", "redraft_message", "create_link", "turn_off_link", "edit_item", "file_document", "add_discipline")
+ACTIONS = ("decide", "start_review", "finish_review", "redraft_message", "create_link", "turn_off_link", "edit_item", "file_document",
+           "add_discipline", "rename_discipline", "remove_discipline")
 DECISIONS = {"accept": "Ready to close", "hold": "On hold", "reject": "Not accepted"}
+
+
+def folder_name(facts: "Facts", code: str) -> str:
+    """What the project calls a folder: the engineer's own name for a folder they added, else the standard name."""
+    f = next((x for x in facts.view.get("disciplines") or [] if x.get("code") == code), None)
+    if f and f.get("added_by") == "engineer" and f.get("name"):
+        return f["name"]
+    return DISCIPLINES.get(code) or (f or {}).get("name") or code
+
+
+def ask_model_id(settings: Settings = SETTINGS) -> str:
+    """The chat takes changes as well as questions, so it runs on the main model unless CLOSEOUT_ASK_FAST=1."""
+    return settings.fast_model_id if _ask_fast() else settings.model_id
+
+
+def _ask_fast() -> bool:
+    import os
+    return os.environ.get("CLOSEOUT_ASK_FAST", "").strip() in ("1", "true", "yes")
 
 
 @dataclass
@@ -257,7 +281,9 @@ def make_ask_tools(ctx: AskContext, facts: Facts):
         turn_off_link (review), edit_item (item_id + the fields to change: location, description, evidence_required),
         file_document (file = a file name from documents, plus what changes: building = building name or "site" for none,
         discipline = discipline code, name = the new display name; leave the others empty to keep them),
-        add_discipline (discipline = a short code such as SP, name = what the folder is called, such as Sprinkler).
+        add_discipline (discipline = a short code such as SP, name = what the folder is called, such as Sprinkler),
+        rename_discipline (discipline = the folder's code, name = its new name; the code stays),
+        remove_discipline (discipline = the folder's code; only an empty folder the engineer added).
         The change is not made until the engineer confirms it."""
         k = kind.strip().lower()
         if k not in ACTIONS:
@@ -280,7 +306,7 @@ def make_ask_tools(ctx: AskContext, facts: Facts):
             folders = {x.get("code"): x.get("name") for x in facts.view.get("disciplines") or []}
             if code not in DISCIPLINES and code not in folders:
                 return _reject(ctx, f"no discipline {discipline!r}; codes are " + ", ".join(sorted(set(DISCIPLINES) | set(folders))))
-            dname = DISCIPLINES.get(code) or folders.get(code) or code
+            dname = folder_name(facts, code)
             live = next((r for r in facts.reviews if r["discipline"] == code and r["status"] == "active"), None)
             if live:
                 return _reject(ctx, f"{live['title']} ({dname}) is already in progress; open it instead of starting another")
@@ -289,7 +315,7 @@ def make_ask_tools(ctx: AskContext, facts: Facts):
         elif k in ("finish_review", "redraft_message", "create_link", "turn_off_link"):
             if not rv:
                 return _reject(ctx, f"no field review {review!r}; reviews are " + ", ".join(r["title"] for r in facts.reviews))
-            title = f"{rv['title']} ({DISCIPLINES.get(rv['discipline'], rv['discipline'])})"
+            title = f"{rv['title']} ({folder_name(facts, rv['discipline'])})"
             if k == "finish_review":
                 if rv["status"] != "active":
                     return _reject(ctx, f"{title} is already finished")
@@ -349,12 +375,12 @@ def make_ask_tools(ctx: AskContext, facts: Facts):
             if discipline.strip():
                 d = discipline.strip().upper()
                 codes = {x.get("code") for x in facts.view.get("disciplines") or []} | {s_.get("discipline") for s_ in facts.sheets}
-                by_name = {DISCIPLINES.get(c, c).lower(): c for c in codes if c}
+                by_name = {folder_name(facts, c).lower(): c for c in codes if c}
                 d = d if d in codes else by_name.get(d.lower(), d)
                 if d not in codes:
                     return _reject(ctx, "unknown discipline; the project has: " + ", ".join(sorted(c for c in codes if c)))
                 body["discipline"] = d
-                parts.append(f"under {DISCIPLINES.get(d, d)}")
+                parts.append(f"under {folder_name(facts, d)}")
             if name.strip():
                 body["name"] = " ".join(name.split())[:120]
                 parts.append(f"shown as “{body['name']}”")
@@ -368,13 +394,42 @@ def make_ask_tools(ctx: AskContext, facts: Facts):
                 return _reject(ctx, "give the folder a short code, such as SP")
             have = {x.get("code") for x in facts.view.get("disciplines") or []} | {s_.get("discipline") for s_ in facts.sheets}
             if code in have:
-                return _reject(ctx, f"{code} is already a folder on this project: Documents › Site › {DISCIPLINES.get(code, code)}, and it is on the Field review tab. "
+                return _reject(ctx, f"{code} is already a folder on this project: Documents › Site › {folder_name(facts, code)}, and it is on the Field review tab. "
                                     "Do not offer to add it; tell the engineer where it is")
             label_name = " ".join(name.split())[:60] or DISCIPLINES.get(code, "")
             if not label_name:
                 return _reject(ctx, "say what the folder is called, such as Sprinkler")
             a.update(discipline=code, name=label_name, label=f"Add a {label_name} folder ({code}) to the project", method="POST",
                      path="/disciplines", body={"code": code, "name": label_name}, then={"screen": "docs", "folder": ["prj", "site", "site/" + code]})
+        elif k in ("rename_discipline", "remove_discipline"):
+            want = discipline.strip()
+            folders = facts.view.get("disciplines") or []
+            f = next((x for x in folders if (x.get("code") or "").upper() == want.upper()), None) \
+                or (lambda hits: hits[0] if len(hits) == 1 else None)([x for x in folders if want and (x.get("name") or "").lower() == want.lower()])
+            drawn = {s_.get("discipline") for s_ in facts.sheets if s_.get("discipline")}
+            if not f and want.upper() in drawn:
+                return _reject(ctx, f"{want.upper()} ({folder_name(facts, want.upper())}) came with the drawings, so it cannot be renamed or removed; offer to add a new folder with another code instead")
+            if not f:
+                return _reject(ctx, "no such folder; the folders are " + ", ".join(f"{x.get('code')} ({folder_name(facts, x.get('code'))})" for x in folders))
+            code, old = f["code"], folder_name(facts, f["code"])
+            if f.get("added_by") != "engineer":
+                return _reject(ctx, f"{code} ({old}) came with the drawings, so it cannot be renamed or removed; offer to add a new folder with another code instead")
+            if k == "rename_discipline":
+                new = " ".join(name.split())[:60]
+                if len(new) < 2:
+                    return _reject(ctx, "say the folder's new name")
+                if new.lower() == (f.get("name") or "").lower():
+                    return _reject(ctx, f"{code} is already called {new}")
+                a.update(discipline=code, name=new, label=f"Rename the {code} folder from {old} to {new}", method="PATCH",
+                         path=f"/disciplines/{code}", body={"name": new}, then={"screen": "docs", "folder": ["prj", "site", "site/" + code]})
+            else:
+                if any(s_.get("discipline") == code for s_ in facts.sheets) or any(d.get("discipline") == code for d in facts.documents) \
+                        or any((x or {}).get("discipline") == code for x in facts.filings.values()):
+                    return _reject(ctx, f"{code} ({old}) has files in it; they have to be moved to another folder first")
+                if any(r["discipline"] == code for r in facts.reviews):
+                    return _reject(ctx, f"a field review was walked under {code} ({old}), so the folder stays; it can be renamed instead")
+                a.update(discipline=code, label=f"Remove the empty {code} folder ({old})", method="DELETE",
+                         path=f"/disciplines/{code}", body=None, then={"screen": "docs", "folder": ["prj", "site"]})
         ctx.proposed = a
         return "prepared; now call answer with one sentence saying it is ready to confirm"
 
@@ -399,13 +454,13 @@ def facts_text(facts: Facts, office: str) -> str:
     folders = v.get("disciplines") or []
     if folders:
         lines.append("FOLDERS ON THE PROJECT (Documents › Site, and each is on the Field review tab): " + ", ".join(
-            f"{f.get('name') or DISCIPLINES.get(f.get('code'), f.get('code'))} ({f.get('code')})"
-            + (" — added by the engineer, no files yet" if f.get("added_by") == "engineer" and not f.get("sheets") else "") for f in folders))
+            f"{folder_name(facts, f.get('code'))} ({f.get('code')})"
+            + (" — added by the engineer, can be renamed" + ("; empty, can be removed" if not f.get("sheets") else "") if f.get("added_by") == "engineer" else " — came with the drawings") for f in folders))
     if facts.reviews:
         lines.append("FIELD REVIEWS:")
         for r in facts.reviews:
             n = sum(1 for i in facts.items if i["item"].get("review_id") == r["id"])
-            lines.append(f"- {r['title']} ({DISCIPLINES.get(r['discipline'], r['discipline'])}): {r['status']}, {n} items, started {str(r.get('started_at') or '')[:10]}")
+            lines.append(f"- {r['title']} ({folder_name(facts, r['discipline'])}): {r['status']}, {n} items, started {str(r.get('started_at') or '')[:10]}")
     counts: dict[str, int] = {}
     for i in facts.items:
         counts[_state(i)] = counts.get(_state(i), 0) + 1
@@ -468,7 +523,7 @@ def ask(store: Store, project_id: str, question: str, where: dict | None = None,
         raise ValueError("ask something first")
     facts = gather(store, project_id)
     ctx = AskContext()
-    agent = Agent(model=model or make_model(settings, fast=True), tools=make_ask_tools(ctx, facts), system_prompt=ASK_SYSTEM,
+    agent = Agent(model=model or make_model(settings, fast=_ask_fast()), tools=make_ask_tools(ctx, facts), system_prompt=ASK_SYSTEM,
                   callback_handler=None)
     blocks = [{"text": facts_text(facts, office)}, {"text": f"ENGINEER IS ON: {where_text(where)}"}]
     if history_text(history):

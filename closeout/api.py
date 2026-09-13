@@ -185,6 +185,10 @@ class DisciplineIn(BaseModel):
     name: str = ""             # what the folder is called; a known code fills it in
 
 
+class DisciplineRename(BaseModel):
+    name: str                  # the folder's new name; the code stays
+
+
 class FilingIn(BaseModel):
     file: str                  # file name as listed in the project folder
     building: str | None = None    # None = keep the current one; "" = the site, no building
@@ -748,6 +752,26 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         st.set_project_model(prj["id"], {**prj["model"], "disciplines": discs})
         return {"disciplines": discs}
 
+    @app.patch("/api/projects/{slug}/disciplines/{code}")
+    def rename_discipline(slug: str, code: str, body: DisciplineRename) -> dict:
+        """The engineer renames a folder they added themselves (SP from Sprinkler to Sump Pump, say). The code stays, so
+        every file and review filed under it stays where it is. Folders the drawings brought keep their names."""
+        st = store()
+        prj = _project(st, slug)
+        code = code.strip().upper()
+        name = " ".join(body.name.split())[:60]
+        if len(name) < 2:
+            raise HTTPException(400, "say what the folder should be called")
+        discs = list(prj["model"].get("disciplines") or [])
+        d = next((x for x in discs if x.get("code") == code), None)
+        if (d is None and any(s.get("discipline") == code for s in st.sheets(prj["id"]))) or (d and d.get("added_by") != "engineer"):
+            raise HTTPException(400, f"{code} came with the drawings and keeps its name")
+        if d is None:
+            raise HTTPException(404, f"{code} is not a folder on this project")
+        discs = [{**x, "name": name, "renamed_at": now()} if x.get("code") == code else x for x in discs]
+        st.set_project_model(prj["id"], {**prj["model"], "disciplines": discs})
+        return {"disciplines": discs}
+
     @app.delete("/api/projects/{slug}/disciplines/{code}")
     def remove_discipline(slug: str, code: str) -> dict:
         """The engineer removes a folder they added themselves, while it is still empty: nothing filed into it, no
@@ -1012,14 +1036,14 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
 
     @app.post("/api/projects/{slug}/ask")
     def ask_project(slug: str, body: AskBody) -> dict:
-        """One call on the fast model: answer from the records, optionally move the screen. Reads only.
+        """One model call: answer from the records, optionally move the screen. Reads only.
         Every question and answer is kept in a conversation on the project, so it can be read or continued later."""
         st = store()
         prj = _project(st, slug)
         q = " ".join(str(body.question or "").split())
         conv = _conversation(st, prj, body.conversation_id) if body.conversation_id else None
         history = body.history or ([{"q": t["q"], "a": t["a"]} for t in st.turns(conv["id"])[-8:]] if conv else [])
-        run_id = st.create_run(prj["id"], batch_id="", model_id=settings.fast_model_id, kind="ask")
+        run_id = st.create_run(prj["id"], batch_id="", model_id=ask_mod.ask_model_id(settings), kind="ask")
         try:
             out = ask_mod.ask(st, prj["id"], q, body.where, settings, office=settings.office,
                               history=history, spoken=body.spoken)

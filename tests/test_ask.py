@@ -247,3 +247,42 @@ def test_a_spoken_new_discipline_folder_is_prepared_for_the_confirm_step(asking,
     r = asking.post(f"/api/projects/{slug}{a['path']}", json=a["body"])                # the Confirm button
     assert r.status_code == 200
     assert [d["code"] for d in asking.get(f"/api/projects/{slug}").json()["project"]["disciplines"]] == before + ["SP"]
+
+
+def test_a_folder_the_engineer_added_can_be_renamed_or_removed_through_the_confirm_step(asking, tmp_path):
+    slug, rev, _ = _finished_review(asking, tmp_path)
+    pv = asking.get(f"/api/projects/{slug}").json()["project"]
+    drawn = (pv["disciplines"] or [{"code": s["discipline"]} for s in pv["sheets"]])[0]["code"]
+    assert asking.post(f"/api/projects/{slug}/disciplines", json={"code": "SP", "name": "Sprinkler"}).status_code == 200
+    assert asking.post(f"/api/projects/{slug}/disciplines", json={"code": "SK", "name": "Sprinkler"}).status_code == 200
+    FakeAskAgent.proposals = [
+        {"kind": "rename_discipline", "discipline": drawn, "name": "Anything"},   # came with the drawings
+        {"kind": "rename_discipline", "discipline": "ZZ", "name": "Sump Pump"},     # no such folder
+        {"kind": "rename_discipline", "discipline": "SP", "name": ""},              # no new name
+        {"kind": "rename_discipline", "discipline": "sp", "name": "Sump Pump"},
+    ]
+    FakeAskAgent.answers = [{"text": "Ready to confirm: SP is renamed to Sump Pump."}]
+    j = asking.post(f"/api/projects/{slug}/ask", json={"question": "rename the sp folder to sump pump"}).json()
+    a = j["action"]
+    assert [r.startswith("REJECTED") for r in FakeAskAgent.replies] == [True, True, True, False]
+    assert "came with the drawings" in FakeAskAgent.replies[0]
+    assert a["kind"] == "rename_discipline" and a["method"] == "PATCH" and a["path"] == "/disciplines/SP" and a["body"] == {"name": "Sump Pump"}
+    assert a["label"] == "Rename the SP folder from Sprinkler to Sump Pump"
+    names = lambda: {d["code"]: d["name"] for d in asking.get(f"/api/projects/{slug}").json()["project"]["disciplines"]}
+    assert names()["SP"] == "Sprinkler"                                                  # nothing changed yet
+    assert asking.patch(f"/api/projects/{slug}{a['path']}", json=a["body"]).status_code == 200   # the Confirm button
+    assert names()["SP"] == "Sump Pump" and names()["SK"] == "Sprinkler"
+    assert asking.patch(f"/api/projects/{slug}/disciplines/{drawn}", json={"name": "Anything"}).status_code == 400
+
+    FakeAskAgent.replies = []
+    FakeAskAgent.proposals = [{"kind": "remove_discipline", "discipline": "Sprinkler"}]    # by its name
+    FakeAskAgent.answers = [{"text": "Ready to confirm: the empty SK folder is removed."}]
+    a = asking.post(f"/api/projects/{slug}/ask", json={"question": "delete the other sprinkler folder"}).json()["action"]
+    assert a["kind"] == "remove_discipline" and a["method"] == "DELETE" and a["path"] == "/disciplines/SK" and a["body"] is None
+    assert asking.delete(f"/api/projects/{slug}{a['path']}").status_code == 200
+    assert set(names()) >= {"SP"} and "SK" not in names()
+
+
+def test_the_chat_is_told_the_engineer_is_the_office():
+    assert "Never send them to an office manager" in ask_mod.ASK_SYSTEM
+    assert "rename_discipline" in ask_mod.ACTIONS and "remove_discipline" in ask_mod.ACTIONS
