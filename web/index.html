@@ -1114,7 +1114,7 @@ function renderProject(tab) {
 
 function renderOverview() {
   const p = state.p, pr = p.project, c = p.card, slug = state.slug, all = items(), blds = buildings();
-  const n = { ready: 0, needs: 0, unclear: 0, none: 0 }; all.forEach(i => n[status(i).k]++);
+  const n = { ready: 0, needs: 0, unclear: 0, none: 0 }; all.forEach(i => n[callPill(i).k]++);   // the engineer's call counts over the evidence reading
   const pct = k => all.length ? (n[k] / all.length * 100) + "%" : "0%";
   const plural = (k, one, many) => `${k} ${k === 1 ? one : many || one + "s"}`;
   const active = p.reviews.filter(r => r.status === "active"), done = p.reviews.filter(r => r.status === "finished");
@@ -1180,7 +1180,7 @@ function renderList() {
   const codes = [...new Set([...disciplines().map(d => d.code), ...p.register.map(d => d.discipline).filter(Boolean)])];
   const filtering = f.bld || f.disc || f.rv;
   const n = { ready: 0, needs: 0, unclear: 0, none: 0 };
-  list.forEach(i => n[status(i).k]++);
+  list.forEach(i => n[callPill(i).k]++);
   const pct = k => list.length ? (n[k] / list.length * 100) + "%" : "0%";
   const rid = p.latest_run_id;
   $("#tab").innerHTML = `

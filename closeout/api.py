@@ -306,10 +306,11 @@ def project_card(st: Store, prj: dict, active_run_id: str | None) -> dict:
     batch_runs = st.runs(pid, kind="batch")
     latest = batch_runs[-1] if batch_runs else None
     status = st.item_status_for_run(latest["id"]) if latest else {}
+    decisions = {d["item_id"]: d["decision"] for d in st.decisions(pid)}
+    call = {"accept": "complete", "reject": "incomplete", "hold": "needs_clarification"}   # the engineer's call counts over the evidence reading
     n = {"complete": 0, "incomplete": 0, "needs_clarification": 0, "no_evidence": 0}
     for d in items:
-        n[(status.get(d["item_id"]) or {}).get("completeness", "no_evidence")] += 1
-    decisions = {d["item_id"]: d["decision"] for d in st.decisions(pid)}
+        n[call.get(decisions.get(d["item_id"])) or (status.get(d["item_id"]) or {}).get("completeness", "no_evidence")] += 1
     m = prj["model"]
     runs = st.runs(pid)
     reviews, drafts, batches = st.reviews(pid), st.all_drafts(pid), st.batches(pid)
