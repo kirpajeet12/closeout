@@ -2104,16 +2104,14 @@ function renderField() {
       ${rv && state.confirmFinish === rv.id ? `<section class="finishask"><div class="fq"><span class="n">1</span><div><h3>Which units did you walk?</h3><p>Before ${esc(rv.title.toLowerCase())} is finished. Ticked from where you recorded deficiencies; add the ones you walked without finding anything.</p></div></div>${renderUnitsStrip(rv, true, "Walked in this review")}<div class="fq"><span class="n">2</span><div><h3>Finish and package</h3><p>The list is frozen for the contractor and the covering message is drafted. ${(rv.units || []).length ? `${(rv.units || []).length} unit${(rv.units || []).length === 1 ? " goes" : "s go"} on the report as walked.` : "No units marked yet."}</p></div><span class="acts"><button class="btn" id="finishNo">Not yet</button><button class="btn primary" id="finishGo">Finish ${esc(rv.title.toLowerCase())}</button></span></div></section>` : ""}
       ${capture}
       ${rv && state.confirmFinish !== rv.id ? renderUnitsStrip(rv, true) : ""}
-      ${shot && shot.disc === cur.code && shot.pick ? `<p class="pickhint"><span>Which sheet does this belong on?</span> Tap it; the photo comes with you.</p>` : ""}
-      ${rv ? items.length ? `<h3 class="sec">Recorded in ${esc(rv.title.toLowerCase())} · ${items.length}</h3>${renderByUnit(items)}` : `<p class="empty">Nothing recorded in this walk yet.</p>` : ""}
-      <h3 class="sec">Plans · tap one to mark the spot</h3>
-      ${renderGalleryGroups(cur)}
+      ${shot && shot.disc === cur.code && shot.pick ? `<p class="pickhint"><span>Which sheet does this belong on?</span> Tap it; the photo comes with you.</p>${renderGalleryGroups(cur)}` : ""}
+      ${rv ? `<h3 class="sec">Reported in ${esc(rv.title.toLowerCase())} · ${items.length}</h3>${items.length ? renderByUnit(items) : `<p class="empty">Nothing reported yet. Each deficiency you save lands here, and on the report.</p>`}` : ""}
     </section>` : head}
     ${!walking && !rv && state.starting && state.starting.code === cur.code ? renderStartPanel(cur, done) : ""}
     ${rv ? "" : renderBrief(cur)}
     ${STAGES_ON ? renderCoverage(cur) + renderUnitLog(cur) : ""}
     ${(() => { const show = state.finishing ? null : state.openReview ? done.find(x => x.id === state.openReview) : (!rv && done.length ? done[done.length - 1] : null); return show ? renderHandoff(show) : ""; })()}
-    ${!walking && rv && items.length ? `<h3 class="sec">Recorded so far in ${esc(rv.title.toLowerCase())}</h3>${renderByUnit(items)}` : ""}
+    ${!walking && rv && items.length ? `<h3 class="sec">Reported so far in ${esc(rv.title.toLowerCase())}</h3>${renderByUnit(items)}` : ""}
     ${done.length ? `<h3 class="sec">Earlier reviews</h3><table><tbody>${done.map(r => { const n = findingsIn(r.id).length, m = messageFor(r.id); return `<tr class="row" data-rv="${esc(r.id)}"><td class="id">${esc(r.title)}</td><td><div class="what">${esc(when(r.started_at))} → ${esc(when(r.finished_at))}</div><div class="where">${m ? "Message drafted for the contractor" : n ? "No message yet" : "Nothing recorded"}</div></td><td class="num">${n} item${n === 1 ? "" : "s"}</td><td class="go">›</td></tr>`; }).join("")}</tbody></table>` : ""}
     <footer><span>Numbers are ${esc(cur.code)}-01, ${esc(cur.code)}-02 … and never reused.</span><span>Closeout suggests the wording; you decide what is saved.</span></footer>`;
   $("#tab").querySelectorAll(".disc").forEach(d => d.onclick = () => { state.fieldDisc = d.dataset.code; const s = state.shot; if (s && !s.busy) { s.disc = d.dataset.code; s.pick = false; state.walk = d.dataset.code; } renderField(); });
