@@ -2577,7 +2577,7 @@ function renderSheet(sheetId) {
   $("#main").innerHTML = `
     <div class="viewer">
       <div class="vbar">
-        <a href="${pHash(slug, "/field")}" title="Back">‹</a>
+        <a href="${pHash(slug, "/field")}" title="${v.carry ? "Back to the walk, the photo and words come with you" : "Back"}">‹</a>
         <div class="ttl"><b>${esc(sh.sheet_number || sh.discipline + " p." + sh.page)}</b><span>${esc(sh.title || "")}</span></div>
         ${rv ? `<span class="rev">● ${esc(rv.title)}</span>` : ""}
         <div class="zoom"><button id="zOut">−</button><button id="zFit">Fit</button><button id="zIn">+</button></div>
@@ -2825,7 +2825,14 @@ function wireDrop(el, kind, slug) {
 }
 function zipBtn(text) { return `<label class="zipbtn">${esc(text)}<input type="file" accept=".zip,application/zip,application/x-zip-compressed"></label>`; }
 
-window.addEventListener("hashchange", () => { const r = route(); if (r.page === "home" && state.p) { state.p = null; } if (r.page !== "sheet") { resetDraft(); state.viewer = null; } if (!(r.page === "project" && r.tab === "field") && r.page !== "sheet" && state.shot) { URL.revokeObjectURL(state.shot.photoUrl); state.shot = null; } load(); });
+window.addEventListener("hashchange", () => { const r = route(); if (r.page === "home" && state.p) { state.p = null; }
+  // back from a plan with an unsaved photo or note: the write-up comes home to the walk panel instead of being thrown away
+  const v = state.viewer; if (r.page !== "sheet" && v && v.carry && (v.photo || (v.note || "").trim()) && r.page === "project" && r.tab === "field" && r.slug === state.slug) {
+    const unit = (v.sug && v.sug.unit) || "", b = unit ? buildings().find(x => x.units.some(u => u.label === unit)) : null;
+    state.shot = { disc: v.disc, photo: v.photo, photoUrl: v.photoUrl || "", bld: b ? b.key : "", unit, level: (v.sug && v.sug.level) || "", note: v.note || "", gps: v.gps || "", gpsText: "", busy: false, pick: false };
+    state.fieldDisc = v.disc; state.walk = v.disc; v.photoUrl = null; toast("Nothing was saved on the plan. Your photo and words are still here.");
+  }
+  if (r.page !== "sheet") { resetDraft(); state.viewer = null; } if (!(r.page === "project" && r.tab === "field") && r.page !== "sheet" && state.shot) { URL.revokeObjectURL(state.shot.photoUrl); state.shot = null; } load(); });
 load();
 
 /* ---- Ask Closeout ------------------------------------------------------ */
