@@ -241,7 +241,7 @@ def test_a_spoken_new_discipline_folder_is_prepared_for_the_confirm_step(asking,
     j = asking.post(f"/api/projects/{slug}/ask", json={"question": "create 1 more discipline sprinkler for this project"}).json()
     a = j["action"]
     assert [r.startswith("REJECTED") for r in FakeAskAgent.replies] == [True, True, False]
-    assert a["kind"] == "add_discipline" and a["method"] == "POST" and a["path"] == "/disciplines" and a["then"] == {"screen": "docs"}
+    assert a["kind"] == "add_discipline" and a["method"] == "POST" and a["path"] == "/disciplines" and a["then"] == {"screen": "docs", "folder": ["prj", "site", "site/SP"]}
     assert a["body"] == {"code": "SP", "name": "Sprinkler"} and a["label"] == "Add a Sprinkler folder (SP) to the project"
     assert [d["code"] for d in asking.get(f"/api/projects/{slug}").json()["project"]["disciplines"]] == before   # nothing added yet
     r = asking.post(f"/api/projects/{slug}{a['path']}", json=a["body"])                # the Confirm button

@@ -649,6 +649,8 @@
   .xrow.ghost .scope { color: var(--ink-2); }
   .outscope { margin: 8px 4px 0; } .outscope summary { cursor: pointer; font-size: 13px; color: var(--mute); padding: 6px 6px; } .xrow.out { opacity: .55; } .xrow.out b { text-decoration: line-through; font-weight: 500; }
   .folderpane .none { padding: 12px 10px; font-size: 13px; color: var(--mute); margin: 0; }
+  .rmdisc { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; padding: 12px 14px; border-radius: 12px; background: var(--card); border: 1px dashed var(--line-2); font-size: 13px; color: var(--mute); }
+  .standin { margin: 0 0 12px; padding: 10px 14px; border-radius: 12px; background: var(--card); border: 1px solid var(--line-2); font-size: 13px; color: var(--mute); }
   .newdisc { margin-top: 14px; } .newdisc .btn { font: inherit; font-size: 13px; padding: 8px 14px; border-radius: 999px; cursor: pointer; border: 1px solid var(--line-2); background: #fff; color: var(--ink); }
   .newdisc form { display: grid; grid-template-columns: 90px 1fr auto auto; gap: 10px 12px; align-items: end; padding: 14px 16px 12px; border-radius: 14px; background: var(--card); border: 1px solid var(--line-2); }
   .newdisc label { display: grid; gap: 4px; font-size: 12px; color: var(--mute); } .newdisc input { font: inherit; font-size: 14px; padding: 8px 10px; border-radius: 9px; border: 1px solid var(--line-2); background: #fff; color: var(--ink); min-width: 0; }
@@ -1292,7 +1294,7 @@ function folderTree(pr) {
   // the project folder: site, then one folder per building
   const site = folder("site", "Site", "everything that covers all buildings", { site: true });
   const siteDisc = {}, codes = [...new Set([...discs.map(d => d.code), ...docs.map(d => d.discipline)])];
-  codes.forEach(code => { const f = folder("site/" + code, groupName(code), "", { code }); siteDisc[code] = f; site.folders.push(f); });
+  codes.forEach(code => { const f = folder("site/" + code, groupName(code), code, { code }); siteDisc[code] = f; site.folders.push(f); });
   docs.forEach(d => { const pl = placed.get(baseName(d)); if (pl && pl.building) return; const code = (pl && pl.discipline) || d.discipline; (siteDisc[code] || siteDisc.OTHER || site).items.push(fileItem(d)); });
   missing.filter(m => !m.building).forEach(m => (siteDisc[m.discipline] || site).items.push(ghost(m, "agent")));
   const bfs = blds.map(b => {
@@ -1353,6 +1355,7 @@ function renderExplorer(pr) {
       ${cur.items.map(row).join("")}
       ${outRows.length ? `<details class="outscope"><summary>${outRows.length} not in scope for this project</summary>${outRows.map(i => `<div class="xrow out"><i class="fi doc"></i><div><b>${esc(i.name)}</b><small>removed from the count</small></div><label class="scope"><input type="checkbox" checked data-scope="${esc(i.name)}"> Not in scope</label></div>`).join("")}</details>` : ""}
       ${!cur.folders.length && !cur.items.length && !cur.note ? `<p class="none">Empty folder.</p>` : ""}
+      ${(() => { const d = cur.code && String(cur.key).startsWith("site/") ? (pr.disciplines || []).find(x => x.code === cur.code) : null; return d && d.added_by === "engineer" && !cur.items.length ? `<div class="rmdisc"><span>You added this folder${d.added_at ? " " + esc(when(d.added_at)) : ""}. It is also on the Field review tab.</span><button type="button" class="btn quiet" data-rmdisc="${esc(d.code)}">Remove this folder</button></div>` : ""; })()}
     </section>
   </div>`;
 }
@@ -1385,6 +1388,11 @@ function pathOf(f, root) { const walk = (n, acc) => { if (n === f) return acc; f
 function wireExplorer() {
   const ex = $("#tab").querySelector(".explorer"); if (!ex) return;
   ex.querySelectorAll("[data-path]").forEach(el => el.onclick = e => { e.preventDefault(); state.folder = el.dataset.path ? el.dataset.path.split("|") : []; const y = scrollY; render(); scrollTo(0, y); });
+  ex.querySelectorAll("[data-rmdisc]").forEach(b => b.onclick = async () => {
+    const r = await fetch(pUrl(state.slug, "/disciplines/" + encodeURIComponent(b.dataset.rmdisc)), { method: "DELETE" }), j = await r.json().catch(() => ({}));
+    if (!r.ok) return toast(j.detail || "Could not remove the folder", true);
+    state.p.project.disciplines = j.disciplines; state.folder = ["prj", "site"]; toast(`${groupName(b.dataset.rmdisc)} folder removed`); render();
+  });
   const refile = async (path, body, okMsg) => {
     const r = await fetch(pUrl(state.slug, path), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }), j = await r.json().catch(() => ({}));
     if (!r.ok) return toast(j.detail || "Could not file that", true);
@@ -1684,7 +1692,7 @@ function renderDocs() {
   const nf = $("#newDiscForm"); if (nf) nf.onsubmit = async e => { e.preventDefault(); const fd = new FormData(nf);
     const r = await fetch(pUrl(state.slug, "/disciplines"), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ code: String(fd.get("code") || "").trim(), name: String(fd.get("name") || "").trim() }) }), j = await r.json().catch(() => ({}));
     if (!r.ok) return toast(j.detail || "Could not add the folder", true);
-    state.p.project.disciplines = j.disciplines; state.newDisc = false; const d = j.disciplines[j.disciplines.length - 1]; toast(`${d.name} folder added`); renderDocs(); };
+    state.p.project.disciplines = j.disciplines; state.newDisc = false; const d = j.disciplines[j.disciplines.length - 1]; state.folder = ["prj", "site", "site/" + d.code]; toast(`${d.name} folder added · under Site, and on Field review`); renderDocs(); };
   wireExplorer();
   $$("button[data-cmp-new]").forEach(b => b.onclick = () => { const c = state.cmp || {};
     if (c.new === b.dataset.cmpNew && c.old === b.dataset.cmpOld) { state.cmp = null; renderDocs(); } else runCompare(b.dataset.cmpOld, b.dataset.cmpNew); });
@@ -2052,6 +2060,8 @@ const DISC_NAMES = { AR: "Architectural", EL: "Electrical", PL: "Plumbing", ME: 
 function disciplines() {
   const out = {};
   state.p.project.sheets.forEach(sh => { const d = out[sh.discipline] = out[sh.discipline] || { code: sh.discipline, name: sh.discipline_name || DISC_NAMES[sh.discipline] || sh.discipline, sheets: [] }; d.sheets.push(sh); });
+  // folders the engineer added by hand (a sprinkler set still to come, say) are walkable too: the architectural plans stand in
+  (state.p.project.disciplines || []).filter(d => d.added_by === "engineer" && !out[d.code]).forEach(d => { out[d.code] = { code: d.code, name: d.name || DISC_NAMES[d.code] || d.code, sheets: [], added: true }; });
   return Object.values(out);
 }
 const activeReview = code => state.p.reviews.find(r => r.discipline === code && r.status === "active") || null;
@@ -2068,7 +2078,7 @@ function renderField() {
   $("#tab").innerHTML = `
     ${shot && shot.disc === cur.code ? renderWhere(cur, rv) : `<label class="capture"><input type="file" accept="image/*" capture="environment" id="shotIn"><span class="ico">📷</span><span><b>Take a photo of the problem</b><small>${esc(cur.name)} · then say which unit and level you are in. Closeout finds the sheet and writes it up; you tap the spot and save.</small></span></label>`}
     <div class="discs">${discs.map(d => { const a = activeReview(d.code), n = p.register.filter(x => x.discipline === d.code && x.source === "field").length; return `
-      <div class="disc ${d.code === cur.code ? "on" : ""}" data-code="${esc(d.code)}"><span class="code">${esc(d.code)}</span><h2>${esc(d.name)}</h2><span class="n">${d.sheets.length} sheet${d.sheets.length === 1 ? "" : "s"} · ${n} deficienc${n === 1 ? "y" : "ies"}</span>
+      <div class="disc ${d.code === cur.code ? "on" : ""}" data-code="${esc(d.code)}"><span class="code">${esc(d.code)}</span><h2>${esc(d.name)}</h2><span class="n">${d.added && !d.sheets.length ? "no drawings yet · plans stand in" : `${d.sheets.length} sheet${d.sheets.length === 1 ? "" : "s"}`} · ${n} deficienc${n === 1 ? "y" : "ies"}</span>
         <div class="rv">${a ? `<span><i class="live"></i><b>${esc(a.title)}</b> in progress</span>` : `<span style="color:var(--mute)">${p.reviews.filter(r => r.discipline === d.code).length ? p.reviews.filter(r => r.discipline === d.code).length + " done" : "Not started"}</span>`}</div></div>`; }).join("")}</div>
     <div class="fr-head">
       <div><h2>${esc(cur.name)}${rv ? ` · ${esc(rv.title)}${rv.stage ? ` · ${esc(rv.stage)}` : ""}` : ""}</h2><p>${rv ? `Started ${esc(when(rv.started_at))} · ${items.length} deficienc${items.length === 1 ? "y" : "ies"} so far. Open a sheet, tap where the problem is, take the photo.` : done.length ? `${done.length} review${done.length === 1 ? "" : "s"} finished. Start the next one to add more deficiencies.` : "Nothing recorded yet for this discipline."}</p></div>
@@ -2144,6 +2154,7 @@ function renderGalleryGroups(cur) {
     const cards = [...(standIn ? [card(standIn, `${standIn.discipline} plan · stands in`)] : []), ...mine.map(sh => card(sh, ""))];
     groups.push(`<h4 class="grp">${esc(b.name)}<small>${esc(b.units.map(u => u.label.replace(/\s*\(.*$/, "")).join(", "))}</small></h4><div class="gallery">${cards.join("")}</div>`);
   }
+  if (cur.added && !cur.sheets.length) groups.unshift(`<p class="standin">${groups.length ? `No ${esc(cur.name.toLowerCase())} drawings are in the folder yet, so the architectural plans stand in: open one, tap where the problem is, take the photo. Drop the ${esc(cur.name.toLowerCase())} set on Documents when it arrives.` : `No ${esc(cur.name.toLowerCase())} drawings are in the folder yet and no floor plan can stand in. Drop the drawings on Documents first.`}</p>`);
   const rest = cur.sheets.filter(sh => !used.has(sh.id));
   if (rest.length) groups.push(`${groups.length ? `<h4 class="grp">Site &amp; general<small>${rest.length} sheet${rest.length === 1 ? "" : "s"}</small></h4>` : ""}<div class="gallery">${rest.map(sh => card(sh, "")).join("")}</div>`);
   const todo = p.project.sheets.filter(sh => isPlanSheet(sh) && !(sh.views || []).length && blds.some(b => sheetMentions(sh, b)));
@@ -2908,6 +2919,7 @@ function goLabel(go) {
   const names = { overview: "the overview", deficiencies: "the deficiencies", field: "the field review", drawings: "the drawings", docs: "the documents", messages: "the messages" };
   if (go.screen === "item") return `Opened ${go.item_id}`;
   if (go.screen === "sheet") return `Opened sheet ${go.sheet || ""}`;
+  if (go.screen === "docs" && Array.isArray(go.folder) && go.folder.length) { const k = go.folder[go.folder.length - 1].split("/").pop(); return `Opened the ${groupName(k)} folder under Site`; }
   const bits = [];
   if (go.building) { const b = buildings().find(x => x.key === go.building); bits.push(b ? b.name : go.building); }
   if (go.discipline) bits.push(DISC_NAMES[go.discipline] || go.discipline);
@@ -2923,6 +2935,7 @@ function applyGo(go) {
   else {
     if (go.screen === "deficiencies") state.filters = { bld: go.building || "", disc: go.discipline || "", rv: go.review || "" };
     if (go.screen === "field") { if (go.discipline) state.fieldDisc = go.discipline; if (go.review) state.openReview = go.review; }
+    if (go.screen === "docs" && Array.isArray(go.folder)) state.folder = go.folder.slice();
     hash = pHash(slug, go.screen === "overview" ? "" : "/" + go.screen);
   }
   if (location.hash === hash) render(); else location.hash = hash;
@@ -2932,6 +2945,11 @@ function applyGo(go) {
 async function askSend() {
   const input = $("#askq"), q = input.value.trim();
   if (!q || askState.busy) return;
+  const pending = askState.turns[askState.turns.length - 1];
+  if (pending && pending.action && !pending.done) {   // an offer is waiting on the screen: a plain yes or no answers it, no new question is asked
+    if (/^(yes|yes please|yep|yeah|ok|okay|sure|do it|go|go ahead|confirm|please do|ok do it|yes do it)[.! ]*$/i.test(q)) { input.value = ""; askConfirm(pending.action); return; }
+    if (/^(no|nope|cancel|stop|don't|dont|no thanks)[.! ]*$/i.test(q)) { input.value = ""; askDropAction(); toast("Nothing changed"); return; }
+  }
   askState.busy = true; $("#askbar").classList.add("busy"); $("#askgo").disabled = true;
   input.value = "";
   askPanel(q, "Looking through the records…", "", true);

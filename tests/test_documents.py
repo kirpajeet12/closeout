@@ -243,3 +243,19 @@ def test_the_engineer_adds_a_discipline_folder_the_drawings_never_brought(client
     # the new folder takes files like any other
     r = client.post(f"/api/projects/{slug}/filing", json={"file": "Fire Safety Plan rev2.pdf", "discipline": "SP"})
     assert r.status_code == 200 and r.json()["filings"]["Fire Safety Plan rev2.pdf"]["discipline"] == "SP"
+
+
+def test_an_empty_folder_the_engineer_added_can_be_removed_and_walked(client, tmp_path):
+    slug = _seed(client, tmp_path)
+    assert client.post(f"/api/projects/{slug}/disciplines", json={"code": "SK", "name": "Sprinkler"}).status_code == 200
+    # a folder the drawings brought stays
+    assert client.delete(f"/api/projects/{slug}/disciplines/AR").status_code == 400
+    assert client.delete(f"/api/projects/{slug}/disciplines/ZZ").status_code == 404
+    # the engineer's folder can be walked even though the office has no code for it: the plans stand in
+    r = client.post(f"/api/projects/{slug}/reviews", json={"discipline": "SK", "title": "Sprinkler review 1"})
+    assert r.status_code == 200 and r.json()["review"]["discipline"] == "SK"
+    assert client.delete(f"/api/projects/{slug}/disciplines/SK").status_code == 400   # a review was walked under it
+    assert client.post(f"/api/projects/{slug}/disciplines", json={"code": "SP", "name": "Sprinkler"}).status_code == 200
+    r = client.delete(f"/api/projects/{slug}/disciplines/SP")
+    assert r.status_code == 200 and [d["code"] for d in r.json()["disciplines"]] == ["AR", "EL", "SK"]
+    assert client.delete(f"/api/projects/{slug}/disciplines/SP").status_code == 404

@@ -58,6 +58,11 @@ CREATE TABLE IF NOT EXISTS sends (
   report TEXT NOT NULL DEFAULT '',   -- file name of the items report that went with it, '' when none
   at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS office_settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS mail_accounts (
   id TEXT PRIMARY KEY,
   address TEXT NOT NULL,
@@ -361,7 +366,8 @@ class Store:
                                 ("projects", "docs_scope_json", "TEXT"),
                                 ("batches", "via", "TEXT NOT NULL DEFAULT ''"),
                                 ("sends", "thread_id", "TEXT NOT NULL DEFAULT ''"),
-                                ("sends", "report", "TEXT NOT NULL DEFAULT ''")):
+                                ("sends", "report", "TEXT NOT NULL DEFAULT ''"),
+                                ("projects", "seen_json", "TEXT NOT NULL DEFAULT '{}'")):
             if col not in self._cols(table):
                 self.conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {ddl}")
         if "project_id" not in self._cols("deficiencies"):
@@ -996,6 +1002,30 @@ class Store:
 
     def rename_project(self, project_id: str, name: str) -> None:
         self.conn.execute("UPDATE projects SET name=?, updated_at=? WHERE id=?", (name, now(), project_id))
+        self.conn.commit()
+
+    def seen(self, project_id: str) -> dict:
+        r = self.conn.execute("SELECT seen_json FROM projects WHERE id=?", (project_id,)).fetchone()
+        return json.loads(r[0] or "{}") if r else {}
+
+    def mark_seen(self, project_id: str, what: str) -> dict:
+        d = self.seen(project_id)
+        d[what] = now()
+        self.conn.execute("UPDATE projects SET seen_json=? WHERE id=?", (json.dumps(d), project_id))
+        self.conn.commit()
+        return d
+
+    def setting(self, key: str) -> str:
+        r = self.conn.execute("SELECT value FROM office_settings WHERE key=?", (key,)).fetchone()
+        return r[0] if r else ""
+
+    def set_setting(self, key: str, value: str) -> None:
+        self.conn.execute("INSERT INTO office_settings(key, value, at) VALUES(?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value, at=excluded.at",
+                          (key, value, now()))
+        self.conn.commit()
+
+    def drop_setting(self, key: str) -> None:
+        self.conn.execute("DELETE FROM office_settings WHERE key=?", (key,))
         self.conn.commit()
 
     def touch_project(self, project_id: str) -> None:

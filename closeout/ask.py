@@ -277,12 +277,14 @@ def make_ask_tools(ctx: AskContext, facts: Facts):
                      then={"screen": "item", "item_id": it["item"]["item_id"]})
         elif k == "start_review":
             code = discipline.strip().upper()
-            if code not in DISCIPLINES:
-                return _reject(ctx, f"no discipline {discipline!r}; codes are " + ", ".join(sorted(DISCIPLINES)))
+            folders = {x.get("code"): x.get("name") for x in facts.view.get("disciplines") or []}
+            if code not in DISCIPLINES and code not in folders:
+                return _reject(ctx, f"no discipline {discipline!r}; codes are " + ", ".join(sorted(set(DISCIPLINES) | set(folders))))
+            dname = DISCIPLINES.get(code) or folders.get(code) or code
             live = next((r for r in facts.reviews if r["discipline"] == code and r["status"] == "active"), None)
             if live:
-                return _reject(ctx, f"{live['title']} ({DISCIPLINES[code]}) is already in progress; open it instead of starting another")
-            a.update(discipline=code, label=f"Start a new {DISCIPLINES[code].lower()} field review", method="POST", path="/reviews",
+                return _reject(ctx, f"{live['title']} ({dname}) is already in progress; open it instead of starting another")
+            a.update(discipline=code, label=f"Start a new {dname.lower()} field review", method="POST", path="/reviews",
                      body={"discipline": code}, then={"screen": "field", "discipline": code})
         elif k in ("finish_review", "redraft_message", "create_link", "turn_off_link"):
             if not rv:
@@ -366,12 +368,13 @@ def make_ask_tools(ctx: AskContext, facts: Facts):
                 return _reject(ctx, "give the folder a short code, such as SP")
             have = {x.get("code") for x in facts.view.get("disciplines") or []} | {s_.get("discipline") for s_ in facts.sheets}
             if code in have:
-                return _reject(ctx, f"{code} is already a folder on this project")
+                return _reject(ctx, f"{code} is already a folder on this project: Documents › Site › {DISCIPLINES.get(code, code)}, and it is on the Field review tab. "
+                                    "Do not offer to add it; tell the engineer where it is")
             label_name = " ".join(name.split())[:60] or DISCIPLINES.get(code, "")
             if not label_name:
                 return _reject(ctx, "say what the folder is called, such as Sprinkler")
             a.update(discipline=code, name=label_name, label=f"Add a {label_name} folder ({code}) to the project", method="POST",
-                     path="/disciplines", body={"code": code, "name": label_name}, then={"screen": "docs"})
+                     path="/disciplines", body={"code": code, "name": label_name}, then={"screen": "docs", "folder": ["prj", "site", "site/" + code]})
         ctx.proposed = a
         return "prepared; now call answer with one sentence saying it is ready to confirm"
 
@@ -393,6 +396,11 @@ def facts_text(facts: Facts, office: str) -> str:
     if by_disc:
         lines.append("DRAWINGS: " + ", ".join(f"{DISCIPLINES.get(k, k)} ({k}) {n} sheets" for k, n in sorted(by_disc.items())))
     lines.append(f"DOCUMENTS ON FILE: {len(facts.documents)}")
+    folders = v.get("disciplines") or []
+    if folders:
+        lines.append("FOLDERS ON THE PROJECT (Documents › Site, and each is on the Field review tab): " + ", ".join(
+            f"{f.get('name') or DISCIPLINES.get(f.get('code'), f.get('code'))} ({f.get('code')})"
+            + (" — added by the engineer, no files yet" if f.get("added_by") == "engineer" and not f.get("sheets") else "") for f in folders))
     if facts.reviews:
         lines.append("FIELD REVIEWS:")
         for r in facts.reviews:

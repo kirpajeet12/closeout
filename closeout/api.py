@@ -26,11 +26,14 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTex
 from pydantic import BaseModel
 
 from . import ask as ask_mod, documents as documents_mod, gmail as gmail_mod, inbox as inbox_mod, mail as mail_mod, drawings as drawings_mod, usage as usage_mod, pipeline, plans as plans_mod, project as project_mod, review as review_mod, revisions as revisions_mod
+import dataclasses
+
 from .config import SETTINGS, Settings
 from .ingest import _exif, _heic_to_jpeg
 from .packet import build_packet, packet_markdown
 from . import report as report_mod
 from . import notice as notice_mod
+from . import history as history_mod
 from . import brief as brief_mod
 from . import coverage as coverage_mod
 from .store import Store, now
@@ -509,19 +512,23 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
             b["files"] = len(files)
             b["duplicates"] = sum(1 for f in files if f["duplicate_of_name"])
             b["runs"] = [{k: r[k] for k in ("id", "status", "started_at", "finished_at", "usage_json")} for r in runs if r["batch_id"] == b["id"]]
-        return {"project": view, "card": project_card(st, prj, active), "register": st.deficiencies(pid),
+        out = {"project": view, "card": project_card(st, prj, active), "register": st.deficiencies(pid),
                 "runs": runs, "latest_run_id": latest, "active_run_id": active if any(r["id"] == active for r in runs) else None,
                 "packet": build_packet(st, latest) if latest else None, "batches": batches,
                 "messages": st.all_drafts(pid), "decisions": st.decisions(pid), "model_id": settings.model_id,
                 "reviews": coverage_mod.decorate_reviews(st, prj, st.reviews(pid)), "shares": st.shares(pid), "office": settings.office,
                 "sends": st.sends(pid), "inbound": st.inbound_for_project(pid),
-                "mail": {"from": settings.mail_from, "gmail": (st.mail_account() or {}).get("address", "") if gmail_mod.configured(settings) else "", "can_connect": gmail_mod.configured(settings)},
+                "mail": {"from": settings.mail_from, "gmail": (st.mail_account() or {}).get("address", "") if gmail_mod.configured(gs()) else "", "can_connect": gmail_mod.configured(gs())},
                 "stages": {code: coverage_mod.stages_for(prj, code) for code in sorted({*(prj.get("stages") or {}), *(r["discipline"] for r in st.reviews(pid)), *(d["discipline"] for d in st.documents(pid) if d.get("kind") == "drawing" and d.get("discipline"))})},
                 "units": coverage_mod.buildings(prj),
                 "docs_review": prj.get("docs_review"), "docs_scope": prj.get("docs_scope") or [],
                 "occupancy_docs": [list(row) for row in documents_mod.OCCUPANCY_DOCS],
                 "filings": st.filings(pid), "filing_history": st.filing_history(pid), "document_log": st.document_log(pid),
-                "drawings_reviews": st.drawings_reviews(pid)}
+                "drawings_reviews": st.drawings_reviews(pid), "seen": st.seen(pid)}
+        out["history"] = history_mod.build(sends=out["sends"], inbound=out["inbound"], batches=batches, shares=out["shares"], reviews=out["reviews"],
+                                           messages=out["messages"], filings=out["filing_history"], document_log=out["document_log"],
+                                           drawings_reviews=out["drawings_reviews"], runs=runs)
+        return out
 
     @app.get("/api/sheets/{sheet_id}/image")
     def sheet_image(sheet_id: str):
@@ -727,6 +734,29 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         st.set_project_model(prj["id"], {**prj["model"], "disciplines": discs})
         return {"disciplines": discs}
 
+    @app.delete("/api/projects/{slug}/disciplines/{code}")
+    def remove_discipline(slug: str, code: str) -> dict:
+        """The engineer removes a folder they added themselves, while it is still empty: nothing filed into it, no
+        drawings of it, no review walked under it. Folders the drawings brought cannot be removed."""
+        st = store()
+        prj = _project(st, slug)
+        pid = prj["id"]
+        code = code.strip().upper()
+        discs = list(prj["model"].get("disciplines") or [])
+        d = next((x for x in discs if x.get("code") == code), None)
+        if d is None:
+            raise HTTPException(404, f"{code} is not a folder on this project")
+        if d.get("added_by") != "engineer":
+            raise HTTPException(400, f"{code} came with the drawings and stays")
+        if any(s.get("discipline") == code for s in st.sheets(pid)) or any(x.get("discipline") == code for x in st.documents(pid)) \
+                or any((f or {}).get("discipline") == code for f in st.filings(pid).values()):
+            raise HTTPException(400, f"{code} has files in it; move them first")
+        if any(r["discipline"] == code for r in st.reviews(pid)):
+            raise HTTPException(400, f"a field review was walked under {code}; it stays")
+        discs = [x for x in discs if x.get("code") != code]
+        st.set_project_model(pid, {**prj["model"], "disciplines": discs})
+        return {"disciplines": discs}
+
     @app.get("/api/projects/{slug}/filing")
     def filing(slug: str) -> dict:
         """Where every file sits in the project folder tree now, and every move behind it."""
@@ -851,7 +881,7 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         st = store()
         prj = _project(st, slug)
         code = body.discipline.strip().upper()
-        if code not in project_mod.DISCIPLINES:
+        if code not in project_mod.DISCIPLINES and not any(d.get("code") == code for d in prj["model"].get("disciplines") or []):
             raise HTTPException(400, f"unknown discipline '{body.discipline}'")
         for r in st.reviews(prj["id"]):
             if r["discipline"] == code and r["status"] == "active":
@@ -1195,7 +1225,7 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         text = (body.body if body.body is not None else msg["body"]).strip()
         if "/c/" not in text:
             raise HTTPException(409, "the message must carry the contractor's link")
-        account = st.mail_account() if gmail_mod.configured(settings) else None
+        account = st.mail_account() if gmail_mod.configured(gs()) else None
         if body.via == "mail-app":
             via = "mail-app"
         elif account:
@@ -1241,8 +1271,16 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         return Response(pdf, media_type="application/pdf", headers={"content-disposition": f'inline; filename="{name}"'})
 
     # --- the office's mailbox: connected once, read only where Closeout is expected ---------------------------------
+    def gs() -> Settings:
+        """Settings with the Google client the office saved on its page, when the server's own is not set."""
+        if settings.google_client_id and settings.google_client_secret:
+            return settings
+        st = store()
+        cid, sec = st.setting("google_client_id"), st.setting("google_client_secret")
+        return dataclasses.replace(settings, google_client_id=cid, google_client_secret=sec) if cid and sec else settings
+
     def _gmail(account: dict) -> gmail_mod.Gmail:
-        return gmail_mod.Gmail(settings, account["refresh_token"], account["address"])
+        return gmail_mod.Gmail(gs(), account["refresh_token"], account["address"])
 
     def _mail_state(request: Request) -> str:
         return hmac.new(_access_token().encode(), b"connect-gmail", hashlib.sha256).hexdigest()[:32]
@@ -1272,7 +1310,7 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
     def _mail_check() -> dict:
         st = store()
         account = st.mail_account()
-        if not account or not gmail_mod.configured(settings):
+        if not account or not gmail_mod.configured(gs()):
             raise HTTPException(409, "no mailbox is connected")
         try:
             return inbox_mod.check(st, settings, _gmail(account), _run_batch)
@@ -1287,7 +1325,10 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         unplaced = []
         for r in st.inbound_unplaced():
             unplaced.append({k: r[k] for k in ("id", "from_addr", "subject", "text", "sent_at", "files", "at")})
-        return {"configured": gmail_mod.configured(settings), "label": settings.mail_label,
+        eff = gs()
+        client = {"where": "server" if settings.google_client_id and settings.google_client_secret else "office" if eff.google_client_id else "",
+                  "hint": eff.google_client_id[:8] if eff.google_client_id else ""}
+        return {"configured": gmail_mod.configured(eff), "label": settings.mail_label, "client": client,
                 "account": {"address": account["address"], "connected_at": account["connected_at"], "last_check": account["last_check"],
                             "last_error": account["last_error"]} if account else None,
                 "unplaced": unplaced, "projects": [{"slug": p["slug"], "name": p["name"]} for p in st.projects()]}
@@ -1296,23 +1337,58 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
     def mail_status() -> dict:
         return _mail_status()
 
+    class SeenIn(BaseModel):
+        what: str = "messages"
+
+    @app.post("/api/projects/{slug}/seen")
+    def mark_seen(slug: str, body: SeenIn) -> dict:
+        st = store()
+        prj = _project(st, slug)
+        return {"seen": st.mark_seen(prj["id"], body.what[:40])}
+
+    class ClientIn(BaseModel):
+        client_id: str
+        client_secret: str
+
+    @app.post("/api/mail/client")
+    def save_client(body: ClientIn) -> dict:
+        """The office pastes its Google client here once; both values stay in the database, never in a log or a page."""
+        if settings.google_client_id and settings.google_client_secret:
+            raise HTTPException(409, "the server already has a Google client; it is set on the server, not here")
+        cid, sec = body.client_id.strip(), body.client_secret.strip()
+        if not cid.endswith(".apps.googleusercontent.com") or len(sec) < 10:
+            raise HTTPException(400, "that does not look like a Google client id and secret")
+        st = store()
+        st.set_setting("google_client_id", cid)
+        st.set_setting("google_client_secret", sec)
+        return _mail_status()
+
+    @app.delete("/api/mail/client")
+    def drop_client() -> dict:
+        st = store()
+        if st.mail_account():
+            raise HTTPException(409, "disconnect the mailbox first")
+        st.drop_setting("google_client_id")
+        st.drop_setting("google_client_secret")
+        return _mail_status()
+
     @app.get("/api/mail/connect")
     def mail_connect(request: Request):
         """Hands the engineer to Google's own consent screen; the secret never reaches the browser."""
-        if not gmail_mod.configured(settings):
+        if not gmail_mod.configured(gs()):
             raise HTTPException(409, "the server has no Google client yet; see deploy/env.example")
-        return RedirectResponse(gmail_mod.auth_url(settings, _redirect_uri(request), _mail_state(request)), status_code=303)
+        return RedirectResponse(gmail_mod.auth_url(gs(), _redirect_uri(request), _mail_state(request)), status_code=303)
 
     @app.get("/api/mail/callback")
     def mail_callback(request: Request, code: str = "", state: str = "", error: str = ""):
         if error or not code or not hmac.compare_digest(state, _mail_state(request)):
             return RedirectResponse("/#/office?mail=refused", status_code=303)
         try:
-            tokens = gmail_mod.exchange_code(settings, code, _redirect_uri(request))
+            tokens = gmail_mod.exchange_code(gs(), code, _redirect_uri(request))
             refresh = tokens.get("refresh_token", "")
             if not refresh:
                 raise RuntimeError("no refresh token")
-            address = gmail_mod.Gmail(settings, refresh).profile()
+            address = gmail_mod.Gmail(gs(), refresh).profile()
         except Exception as e:
             log.warning("gmail connect failed: %s", type(e).__name__)
             return RedirectResponse("/#/office?mail=failed", status_code=303)
@@ -1351,12 +1427,12 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         while True:
             time.sleep(settings.mail_check_seconds)
             try:
-                if gmail_mod.configured(settings) and store().mail_account():
+                if gmail_mod.configured(gs()) and store().mail_account():
                     _mail_check()
             except Exception:  # already recorded on the account row
                 pass
 
-    if settings.mail_check_seconds > 0 and gmail_mod.configured(settings):
+    if settings.mail_check_seconds > 0:
         threading.Thread(target=_mail_poller, name="closeout-mail", daemon=True).start()
 
     @app.delete("/api/projects/{slug}/shares/{token}")
