@@ -1246,7 +1246,7 @@ function renderDrawings() {
     ${renderUnits(pr)}
     ${renderHierarchy(pr)}
     <p class="empty" style="margin-top:18px">Tap a sheet to open it. To record a deficiency on it, start a field review first.</p>
-    ${renderAsk(pr)}`
+    ${renderAskList(pr)}`
   : projectDrop("Add the project drawings", "Upload one zip of the project folder, or drop the folder here. Closeout files the sets, reads every current sheet and lists what is missing.");
   $("#tab").querySelectorAll(".sheet").forEach(s => s.onclick = () => location.hash = pHash(slug, "/field/" + s.dataset.id));
   const pb = $("#askPrint"); if (pb) pb.onclick = () => print();
@@ -1352,13 +1352,17 @@ function folderTree(pr) {
   const bfs = blds.map(b => {
     const units = b.units.map(u => u.label.replace(/\s*\(.*$/, "")).join(", ");
     const bf = folder("b/" + b.key, b.name, units || "named on the drawings", { bld: b.key, badge: b.key });
-    discs.forEach(d => {
+    // the project's disciplines, then any other group a file under this building belongs to (a permit is "Other files")
+    const mineHere = docs.filter(x => { const pl = placed.get(baseName(x)); return !inMine(x) && pl && pl.building === b.name; }),
+      codeOf = x => (placed.get(baseName(x)).discipline || x.discipline || "OTHER");
+    const here = [...new Set([...discs.map(d => d.code), ...mineHere.map(codeOf)])];
+    here.map(code => ({ code })).forEach(d => {
       const f = folder("b/" + b.key + "/" + d.code, dn(d.code), "", { code: d.code });
-      docs.filter(x => { const pl = placed.get(baseName(x)); return !inMine(x) && pl && pl.building === b.name && (pl.discipline || x.discipline) === d.code; }).forEach(x => f.items.push(fileItem(x)));
+      mineHere.filter(x => codeOf(x) === d.code).forEach(x => f.items.push(fileItem(x)));
       missing.filter(m => m.building === b.name && (m.discipline || "") === d.code).forEach(m => f.items.push(ghost(m, "agent")));
       if (f.items.length || mine.some(m => m.parentKey === f.key)) bf.folders.push(f);
     });
-    missing.filter(m => m.building === b.name && !discs.some(d => d.code === m.discipline)).forEach(m => bf.items.push(ghost(m, "agent")));
+    missing.filter(m => m.building === b.name && !here.includes(m.discipline || "")).forEach(m => bf.items.push(ghost(m, "agent")));
     if (!bf.folders.length && !bf.items.length) bf.note = "Nothing filed under this building yet.";
     return bf;
   });
@@ -1733,7 +1737,7 @@ async function runDrawingsReview(code, existing) {
   await load();
 }
 
-function renderAsk(pr) {
+function renderAskList(pr) {
   const need = docsNeeded(pr);
   const blds = buildings().length, discs = (pr.disciplines || []).length;
   const lead = need.length
