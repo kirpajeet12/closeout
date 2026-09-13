@@ -3,6 +3,7 @@
 
     python3 demo-video/assemble.py                 # full film -> output/closeout-demo.mp4
     python3 demo-video/assemble.py --preview 7     # one still per scene at its midpoint -> output/preview/
+    python3 demo-video/assemble.py --free          # the cut without the AI steps (stills from output/cap)
 """
 import json
 import math
@@ -14,10 +15,11 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 HERE = Path(__file__).resolve().parent
-CAP = HERE / "output" / "cap"
+FREE = "--free" in sys.argv
+CAP = HERE / "output" / ("cap" if FREE else "cap-ai")
 PHOTOS = Path.home() / "Documents/New project/PunchPilot/demo-assets/photos"
 SCORE = HERE / "audio" / "score.mp3"
-OUT = HERE / "output" / "closeout-demo.mp4"
+OUT = HERE / "output" / ("closeout-demo-free.mp4" if FREE else "closeout-demo.mp4")
 W, H, FPS, SS = 1920, 1080, 30, 2          # output size; stage is rendered SS times larger for crisp zooms
 SW, SH = W * SS, H * SS
 META = json.loads((CAP / "shots.json").read_text())
@@ -284,15 +286,15 @@ def scene_photo(photo, lines, dur):
 
 
 def scene_phone(beats, dur, cap, cam=None, taps=()):
-    """beats: [(t_start, still)]; cap: caption dicts; cam: camera keys; taps: [(t, still)] uses shots.json tap."""
+    """beats: [(t_start, still)]; cap: caption dicts; cam: camera keys; taps: [(t, still[, key])] uses shots.json tap (or key)."""
     cam = cam or [pz(0, 1.0), pz(dur, 1.06)]
 
     def draw(t):
         name = [b for b in beats if b[0] <= t][-1][1]
         st, m = phone_stage(name)
         fr, to_out = camera(st, cam, t)
-        for tt, nm in taps:
-            p = META[nm].get("tap")
+        for tt, nm, *key in taps:
+            p = META[nm].get(key[0] if key else "tap")
             if p:
                 sx, sy = phone_stage(nm)[1](p[0] * META[nm]["dsf"], p[1] * META[nm]["dsf"])
                 tap(fr, *to_out(sx, sy), t, tt)
@@ -301,19 +303,19 @@ def scene_phone(beats, dur, cap, cam=None, taps=()):
     return dur, draw
 
 
-def scene_desk(beats, dur, cap, cam=None, cur=None):
-    """cur: (t0, t1, click_t, still, start_out_xy) moves the cursor to that still's tap point."""
+def scene_desk(beats, dur, cap, cam=None, cur=None, lay=()):
+    """cur: (t0, t1, click_t, still, start_out_xy) moves the cursor to that still's tap point. lay: (top, width) of the window."""
     cam = cam or [(0, 0.5, 0.5, 1.0)]
 
     def draw(t):
         name = [b for b in beats if b[0] <= t][-1][1]
-        st, m = desk_stage(name)
+        st, m = desk_stage(name, *lay)
         fr, to_out = camera(st, cam, t)
         captions(fr, cap, t)
         if cur:
             t0, t1, ct, nm, start = cur
             p = META[nm]["tap"]
-            sx, sy = desk_stage(nm)[1](p[0] * META[nm]["dsf"], p[1] * META[nm]["dsf"])
+            sx, sy = desk_stage(nm, *lay)[1](p[0] * META[nm]["dsf"], p[1] * META[nm]["dsf"])
             if t >= t0 - 0.4:
                 cursor(fr, start, to_out(sx, sy), t, t0, t1, click=ct)
         return fr
@@ -372,6 +374,10 @@ def end_extra(fr, t):
 
 
 def build():
+    return build_free() if FREE else build_ai()
+
+
+def build_free():
     P = lambda nm, i=None: nm
     S = []
     S.append(scene_photo("site-access-2.jpg", ["A site walk ends with a list.", "Then the chasing starts."], 7.0))
@@ -423,6 +429,74 @@ def build():
                         cur=(0.4, 2.0, 2.4, "d09-item-evidence", (W * 0.7, H * 0.4))))
     S.append(scene_dual(8.0, [top(["The office and the contractor", "see the same list."], 0.4, 7.7, size=56)]))
     S.append(scene_black(["Closeout", "Walk it. Send it. Close it."], 12.0, extra=end_extra))
+    return S
+
+
+def build_ai():
+    S = []
+    S.append(scene_photo("site-access-2.jpg", ["A site walk ends with a list.", "Then the chasing starts."], 6.5))
+    S.append(scene_black(["Closeout", "From the walk to the last item closed."], 6.0))
+    S.append(scene_desk([(0, "d01-projects"), (3.2, "d02-docs")], 8.0,
+                        [top(["One project. Every drawing, filed."], 0.5, 7.6)],
+                        cam=[(0, 0.5, 0.5, 1.0), (3.2, 0.5, 0.5, 1.0), (8.0, 0.42, 0.55, 1.22)],
+                        cur=(0.7, 2.1, 2.4, "d01-projects", (W * 0.7, H * 0.8))))
+    S.append(scene_phone([(0, "p01-field"), (2.4, "p02-walk")], 6.0,
+                         [left(["On site,", "open the field tab.", "Start the review."], 0.4, 5.7)],
+                         taps=[(1.7, "p01-field"), (4.8, "p02-walk")]))
+    S.append(scene_phone([(0, "p03-photo"), (2.6, "p04-where")], 6.5,
+                         [left(["Take a photo.", "Say which unit and floor."], 0.3, 6.2)],
+                         taps=[(5.3, "p04-where")]))
+    S.append(scene_phone([(0, "p05-plan")], 5.5,
+                         [left(["The plan opens", "on your floor."], 0.3, 5.2)],
+                         cam=[pz(0, 1.0), pz(1.6, 1.0), pz(5.5, 1.55, 0.36)]))
+    S.append(scene_phone([(0, "p05-plan"), (1.4, "p06-tapped")], 6.5,
+                         [left(["Tap the spot.", "Ask Closeout to write it up."], 2.0, 6.3)],
+                         cam=[pz(0, 1.55, 0.36), pz(1.7, 1.55, 0.36), pz(3.1, 1.0)],
+                         taps=[(0.9, "p06-tapped"), (5.4, "p06-tapped", "ask")]))
+    S.append(scene_phone([(0, "p07-thinking"), (2.2, "p07-suggested"), (6.6, "p08-form")], 9.0,
+                         [left(["It reads the photo", "and the drawing,", "and writes it up."], 0.3, 5.6),
+                          left(["You check it.", "Nothing is saved", "until you save."], 5.9, 8.8)],
+                         cam=[pz(0, 1.0), pz(2.2, 1.0), pz(3.6, 1.5, 0.5), pz(6.3, 1.5, 0.5), pz(7.3, 1.0)],
+                         taps=[(8.2, "p08-form")]))
+    S.append(scene_phone([(0, "p07-type1"), (0.4, "p07-type2"), (0.8, "p07-type3"), (1.2, "p07-type4"), (1.9, "p08-typed")], 5.0,
+                         [left(["Or type it yourself."], 0.3, 4.8)],
+                         taps=[(4.1, "p08-typed")]))
+    S.append(scene_phone([(0, "p09-saved1"), (2.1, "p09-saved2"), (4.2, "p09-saved3")], 6.5,
+                         [left(["AR-01. AR-02. AR-03."], 0.3, 6.2),
+                          {"lines": ["Numbered, pinned to the plan,", "filed by unit."], "t0": 1.2, "t1": 6.2, "x": 170, "y": 500,
+                           "size": 44, "weight": "Regular", "color": GREY, "same": True}],
+                         cam=[pz(0, 1.2, 0.45), pz(6.5, 1.32, 0.42)]))
+    S.append(scene_phone([(0, "p10-list"), (2.6, "p11-finish-ask")], 7.0,
+                         [left(["Finish.", "It asks which units you walked."], 0.3, 6.7)],
+                         taps=[(2.0, "p10-list"), (6.0, "p11-finish-ask")]))
+    S.append(scene_phone([(0, "p11-drafting"), (2.4, "p12-finished")], 6.0,
+                         [left(["The list is frozen.", "Closeout drafts the", "message to the contractor."], 0.3, 5.7)]))
+    S.append(scene_desk([(0, "d05-deficiencies")], 6.0, [top(["Every item, where it is, and what it needs."], 0.4, 5.7, size=56)],
+                        cam=[(0, 0.5, 0.5, 1.0), (6.0, 0.5, 0.8, 1.3)]))
+    S.append(scene_report(9.5, [top(["The report is ready.", "Photos, plan pins, what closes each item."], 0.4, 9.0, size=56)]))
+    S.append(scene_desk([(0, "d07-messages")], 8.0,
+                        [top(["The message to the contractor is drafted.", "Nothing is sent until you send it."], 0.4, 7.7, size=56)],
+                        cam=[(0, 0.5, 0.5, 1.0), (1.5, 0.5, 0.5, 1.0), (8.0, 0.58, 0.62, 1.3)]))
+    S.append(scene_phone([(0, "p13-contractor"), (3.4, "p14-contractor-list")], 7.0,
+                         [left(["The contractor", "gets one link."], 0.3, 3.4),
+                          left(["No account.", "Just their items."], 3.7, 6.8)]))
+    S.append(scene_phone([(0, "p13-contractor"), (2.0, "p16-contractor-filing"), (4.6, "p17-contractor-filed")], 8.0,
+                         [left(["They send a photo.", "Closeout files it", "to the right item."], 0.3, 7.7)],
+                         taps=[(1.2, "p13-contractor")]))
+    S.append(scene_desk([(0, "d08-item-filed")], 9.0,
+                        [top(["It says what it could not confirm."], 0.4, 8.7, size=56)],
+                        cam=[(0, 0.5, 0.5, 1.0), (1.8, 0.5, 0.5, 1.0), (6.0, 0.42, 0.66, 1.5), (9.0, 0.42, 0.67, 1.55)],
+                        lay=(0.17, 0.62)))
+    S.append(scene_desk([(0, "d09-item-evidence"), (2.6, "d10-item-closed")], 7.0,
+                        [top(["The engineer decides what closes."], 0.4, 6.7)],
+                        cam=[(0, 0.5, 0.5, 1.0), (7.0, 0.36, 0.62, 1.35)],
+                        cur=(0.4, 1.9, 2.3, "d09-item-evidence", (W * 0.7, H * 0.4))))
+    S.append(scene_desk([(0, "d12-ask"), (2.2, "d12-ask-thinking"), (3.8, "d13-answer")], 9.0,
+                        [top(["Ask Closeout anything about the project."], 0.4, 8.7, size=56)],
+                        cam=[(0, 0.5, 0.5, 1.0), (2.4, 0.5, 0.5, 1.0), (4.6, 0.75, 0.37, 1.8), (9.0, 0.75, 0.37, 1.85)],
+                        cur=(0.5, 1.7, 2.0, "d12-ask", (W * 0.5, H * 0.5))))
+    S.append(scene_dual(7.0, [top(["The office and the contractor", "see the same list."], 0.4, 6.7, size=56)]))
+    S.append(scene_black(["Closeout", "Walk it. Send it. Close it."], 11.0, extra=end_extra))
     return S
 
 
