@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>NSCameraUsageDescription</key>
+	<string>Closeout uses the camera to photograph the problem you are standing in front of.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Closeout can attach a photo you already took.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Closeout uses your location to guess which unit you are in.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Closeout connects to the Closeout server on your Wi-Fi.</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+</dict>
+</plist>

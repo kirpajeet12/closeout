@@ -1,0 +1,31 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+data/
+inbox/
+.DS_Store
+*.egg-info/
+node_modules/
+web/dist/
+ios/build*/
+ios/artifacts/
+*.xcarchive
+xcuserdata/
+*.xcuserstate
+
+# demo film media (scripts are committed, media is not)
+demo-video/footage/
+demo-video/audio/
+demo-video/output/
+demo-video/music/
+
+# live server settings (never committed)
+deploy/.env
+deploy/.deploy
+demo-video/project/
+demo-video/data/
+demo-video/data-new/
+demo-video/project2/
+demo-video/preview-*.png
+demo-video/data-folders/

@@ -1,0 +1,12 @@
+boto3==1.43.90
+fastapi==0.141.1
+pillow==12.3.0
+pillow-heif==1.7.0
+pypdf==6.18.0
+pytest==9.1.1
+python-dotenv==1.2.3
+reportlab==5.0.1
+strands-agents==1.55.0
+strands-agents-tools==0.8.8
+uvicorn==0.52.4
+python-multipart==0.0.32

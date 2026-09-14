@@ -1,0 +1,24 @@
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    restart: unless-stopped
+    env_file: .env          # CLOSEOUT_ACCESS_CODE, CLOSEOUT_OFFICE, model ids; never committed
+    environment:
+      AWS_REGION: us-east-1   # Bedrock credentials come from the server's IAM role, not from files
+    volumes:
+      - /srv/closeout/data:/data
+    expose: ["8765"]
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    env_file: .env          # CLOSEOUT_HOST
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+volumes:
+  caddy_data:
+  caddy_config:
