@@ -74,6 +74,20 @@
   .eref > * { padding: 2px 10px; border-radius: 999px; background: var(--paper); border: 1px solid var(--line); color: var(--ink-2); }
   .eref a { color: var(--link); font-weight: 600; }
   .mopen .loose + pre { margin-top: 14px; }
+  .emode { margin-top: 18px; } .emode + .dmail { margin-top: 10px; }
+  .mtools { display: flex; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+  .mtools .btn.btn { padding: 5px 12px; font-size: 12.5px; min-height: 0; }
+  .ment.unread b { font-weight: 800; } .ment.unread::before { content: ""; position: absolute; left: 9px; top: 17px; width: 8px; height: 8px; border-radius: 50%; background: var(--link); }
+  .tmsg { border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; margin-bottom: 10px; background: var(--card); }
+  .tmsg.me { background: var(--paper); }
+  .tmsg pre { white-space: pre-wrap; word-break: break-word; margin: 10px 0 0; font: inherit; font-size: 14px; line-height: 1.5; color: var(--ink); }
+  .tmsg .tfiles { margin-top: 8px; font-size: 12.5px; color: var(--mute); }
+  .mform { display: grid; gap: 10px; margin-top: 14px; }
+  .mform label { display: grid; gap: 4px; font-size: 12px; color: var(--mute); font-weight: 600; }
+  .mform input, .mform textarea { font: inherit; font-size: 14px; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--line-2); width: 100%; color: var(--ink); background: var(--card); box-sizing: border-box; }
+  .mform input:focus, .mform textarea:focus { outline: none; border-color: var(--ink); }
+  .mform textarea { min-height: 150px; resize: vertical; line-height: 1.5; }
+  .mform .acts { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; } .mform .acts small { color: var(--mute); font-size: 12.5px; }
   .eacts { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); display: flex; gap: 8px; flex-wrap: wrap; }
   .dbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin: 20px 0 0; }
   .dsel { font: inherit; font-size: 13px; padding: 6px 10px; border-radius: 10px; border: 1px solid var(--line-2); background: var(--card); color: var(--ink); max-width: 100%; }
@@ -1236,7 +1250,7 @@ function dashHead(active) {
 }
 function wireDashHead() {
   const w = $("#main").querySelector("[data-wait]");
-  if (w) w.onclick = () => { state.emailF = Number(w.querySelector("b").textContent) ? "wait" : "all"; };
+  if (w) w.onclick = () => { const n = Number(w.querySelector("b").textContent); state.emailF = n ? "wait" : "all"; if (n) state.emailMode = "project"; };
 }
 const hlWords = () => (state.emailQ || "").trim().toLowerCase().split(/\s+/).filter(Boolean);
 function hl(text) {
@@ -1251,11 +1265,122 @@ function emailShown() {
   return a.emails.filter(e => (f === "all" || (f === "in" && e.dir === "in") || (f === "out" && e.dir === "out") || (f === "wait" && e.status === "unplaced"))
     && words.every(w => hay(e).includes(w)));
 }
+const modeBar = m => `<div class="emode chips" id="emailMode" role="tablist" aria-label="Which email"><button type="button" role="tab" data-m="box" class="${m === "box" ? "on" : ""}" aria-selected="${m === "box"}">Mailbox</button><button type="button" role="tab" data-m="project" class="${m === "project" ? "on" : ""}" aria-selected="${m === "project"}">Project mail</button></div>`;
+function wireMode() { $$("#emailMode button").forEach(b => b.onclick = () => { if (state.emailMode !== b.dataset.m) { state.emailMode = b.dataset.m; renderEmails(); } }); }
+async function mailJson(url, opts) {
+  try {
+    const r = await fetch(url, opts), j = await r.json().catch(() => ({}));
+    return { ok: r.ok, status: r.status, j, err: r.ok ? "" : (typeof j.detail === "string" ? j.detail.charAt(0).toUpperCase() + j.detail.slice(1) + "." : "That did not work; try again.") };
+  } catch { return { ok: false, status: 0, j: {}, err: "The server could not be reached. Check the connection and try again." }; }
+}
+function renderMailbox() {
+  const b = state.box || (state.box = { folder: "inbox", q: "", list: null, err: "", none: false, address: "", open: null, thread: null, threadErr: "", compose: null, reply: "", sending: false, seq: 0 });
+  $("#main").innerHTML = `${dashHead("emails")}${modeBar("box")}
+    <div class="mail dmail">
+      <aside class="mlist">
+        <form class="msearch" id="boxSearch">
+          <input type="search" id="boxQ" placeholder="Search the mailbox" value="${esc(b.q)}" autocomplete="off" aria-label="Search the mailbox">
+          <div class="mtools"><div class="chips" id="boxF"><button type="button" data-f="inbox" class="${b.folder === "inbox" ? "on" : ""}">Inbox</button><button type="button" data-f="sent" class="${b.folder === "sent" ? "on" : ""}">Sent</button></div>
+            <span><button type="button" class="btn" id="boxRefresh" aria-label="Refresh">Refresh</button> <button type="button" class="btn primary" id="boxNew">New email</button></span></div>
+        </form>
+        <div class="ments" id="boxList"></div>
+      </aside>
+      <section class="mopen msg" id="boxOpen"></section>
+    </div>`;
+  const draw = () => {
+    const list = b.list || [];
+    $("#boxList").innerHTML = b.list === null ? `<p class="empty" style="padding:18px 14px">Opening the mailbox…</p>`
+      : b.none ? `<p class="empty" style="padding:18px 14px">No mailbox is connected.</p>`
+      : (b.err ? `<p class="empty" style="padding:14px">${esc(b.err)}</p>` : "") + (list.length ? list.map(m => `<a class="ment ${m.id === b.open ? "on" : ""} ${m.unread ? "unread" : ""}" data-open="${esc(m.id)}" href="javascript:void 0">
+          <div class="l1"><span>${esc(b.folder === "sent" ? "To " + (m.to || "") : m.from)}</span><span>${esc(when(m.at))}</span></div>
+          <b>${esc(m.subject)}</b><small>${esc(m.snippet || "")}</small></a>`).join("")
+        : b.err ? "" : `<p class="empty" style="padding:18px 14px">${b.q ? `Nothing matches “${esc(b.q)}”.` : b.folder === "sent" ? "Nothing sent yet." : "The inbox is empty."}</p>`);
+    $$("#boxList .ment").forEach(a => a.onclick = ev => { ev.preventDefault(); openMsg(a.dataset.open); });
+    drawOpen();
+  };
+  const drawOpen = () => {
+    const el = $("#boxOpen");
+    if (b.none) { el.innerHTML = `<div class="empty-open"><b>Connect the office's email</b><p>Connect Gmail, Microsoft 365 or the office's work email in the Office. Then every email in that mailbox shows here, and you can read, reply and write new ones without leaving Closeout.</p><a class="btn primary" href="#/office">Open the Office</a></div>`; return; }
+    if (b.compose) {
+      const c = b.compose;
+      el.innerHTML = `<div class="mtop"><span>New email${b.address ? ` · from <b>${esc(b.address)}</b>` : ""}</span></div>
+        <form class="mform" id="boxCompose">
+          <label>To<input type="text" name="to" value="${esc(c.to)}" placeholder="name@company.com" autocomplete="off" required></label>
+          <label>Subject<input type="text" name="subject" value="${esc(c.subject)}" maxlength="190" required></label>
+          <label>Message<textarea name="body" required>${esc(c.body)}</textarea></label>
+          <div class="acts"><button type="submit" class="btn primary" ${b.sending ? "disabled" : ""}>${b.sending ? "Sending…" : "Send"}</button><button type="button" class="btn" id="boxCancel">Discard</button><small>Nothing is sent until you press Send.</small></div>
+        </form>`;
+      const f = $("#boxCompose");
+      f.oninput = () => { c.to = f.to.value; c.subject = f.subject.value; c.body = f.body.value; };
+      $("#boxCancel").onclick = () => { b.compose = null; drawOpen(); };
+      f.onsubmit = async ev => {
+        ev.preventDefault(); if (b.sending) return;
+        b.sending = true; drawOpen();
+        const r = await mailJson("/api/mail/box/send", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ to: c.to, subject: c.subject, body: c.body }) });
+        b.sending = false;
+        if (!r.ok) { drawOpen(); toast(r.err, true); return; }
+        b.compose = null; toast("Sent"); if (b.folder === "sent") load(); else drawOpen();
+      };
+      return;
+    }
+    if (!b.open) { el.innerHTML = `<div class="empty-open"><b>${b.list && b.list.length ? "Pick an email" : "Nothing open"}</b><p>Open an email on the left to read the conversation and reply, or write a new one.</p></div>`; return; }
+    if (!b.thread) { el.innerHTML = b.threadErr ? `<div class="empty-open"><b>This email could not be opened</b><p>${esc(b.threadErr)}</p></div>` : `<p class="empty" style="padding:20px">Opening…</p>`; return; }
+    const msgs = b.thread, last = msgs[msgs.length - 1] || {};
+    el.innerHTML = `<h4>${esc(last.subject || (msgs[0] || {}).subject || "(no subject)")}</h4>
+      <p class="eref"><span>${plural(msgs.length, "email")}</span></p>
+      ${msgs.map(m => `<article class="tmsg ${m.from_me ? "me" : ""}">
+        <div class="mtop"><span>From <b>${esc(m.from)}</b>${m.to ? ` · to ${esc(m.to)}` : ""}</span><span>${esc(when(m.at))}</span></div>
+        <pre>${esc(m.text || "")}</pre>${m.files && m.files.length ? `<div class="tfiles">Attached: ${m.files.map(esc).join(", ")}</div>` : ""}</article>`).join("")}
+      <form class="mform" id="boxReply">
+        <label>Reply to ${esc(last.from_me ? (last.to || "") : (last.from || ""))}<textarea name="body" placeholder="Write your reply" required>${esc(b.reply)}</textarea></label>
+        <div class="acts"><button type="submit" class="btn primary" ${b.sending ? "disabled" : ""}>${b.sending ? "Sending…" : "Send reply"}</button><small>Sent from the office's email, in the same conversation, only when you press Send.</small></div>
+      </form>`;
+    const f = $("#boxReply");
+    f.oninput = () => { b.reply = f.body.value; };
+    f.onsubmit = async ev => {
+      ev.preventDefault(); if (b.sending || !b.reply.trim()) return;
+      b.sending = true; drawOpen();
+      const r = await mailJson("/api/mail/box/send", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ reply_to: last.id || b.open, body: b.reply }) });
+      b.sending = false;
+      if (!r.ok) { drawOpen(); toast(r.err, true); return; }
+      b.reply = ""; toast("Reply sent"); openMsg(b.open, true);
+    };
+  };
+  const openMsg = async (id, keep) => {
+    b.open = id; b.compose = null; b.thread = null; b.threadErr = ""; if (!keep) b.reply = "";
+    const m = (b.list || []).find(x => x.id === id); if (m) m.unread = false;
+    draw();
+    if (matchMedia("(max-width: 760px)").matches) $("#boxOpen").scrollIntoView({ behavior: "smooth", block: "start" });
+    const r = await mailJson(`/api/mail/box/open?id=${encodeURIComponent(id)}`);
+    if (b.open !== id || !$("#boxOpen")) return;
+    if (r.ok) b.thread = r.j.messages; else b.threadErr = r.err;
+    drawOpen();
+  };
+  const load = async () => {
+    const seq = ++b.seq; b.err = "";
+    if (b.list === null || !$("#boxList")) draw(); else $("#boxRefresh").textContent = "Loading…";
+    const r = await mailJson(`/api/mail/box?folder=${b.folder}&q=${encodeURIComponent(b.q)}`);
+    if (seq !== b.seq || !$("#boxList")) return;
+    if (r.status === 409) { b.none = true; b.list = []; }
+    else if (r.ok) { b.none = false; b.list = r.j.messages; b.address = r.j.address; }
+    else { b.list = b.list || []; b.err = r.err; }
+    const btn = $("#boxRefresh"); if (btn) btn.textContent = "Refresh";
+    draw();
+  };
+  $("#boxSearch").onsubmit = ev => { ev.preventDefault(); b.q = $("#boxQ").value.trim(); b.list = null; load(); };
+  $("#boxQ").onsearch = () => { if (!$("#boxQ").value && b.q) { b.q = ""; b.list = null; load(); } };
+  $$("#boxF button").forEach(x => x.onclick = () => { if (b.folder === x.dataset.f) return; b.folder = x.dataset.f; b.list = null; b.open = null; b.thread = null; $$("#boxF button").forEach(y => y.classList.toggle("on", y === x)); load(); });
+  $("#boxRefresh").onclick = () => load();
+  $("#boxNew").onclick = () => { if (b.none) return; b.compose = b.compose || { to: "", subject: "", body: "" }; b.open = null; draw(); if (matchMedia("(max-width: 760px)").matches) $("#boxOpen").scrollIntoView({ behavior: "smooth", block: "start" }); };
+  wireMode(); wireDashHead();
+  draw(); load();
+}
 function renderEmails() {
+  if ((state.emailMode || "box") === "box") return renderMailbox();
   const a = state.activity, all = a ? a.emails : [], f = state.emailF || "all";
   const count = k => all.filter(e => k === "all" || (k === "in" && e.dir === "in") || (k === "out" && e.dir === "out") || (k === "wait" && e.status === "unplaced")).length;
   const F = [["all", "All"], ["in", "Received"], ["out", "Sent"], ["wait", "Needs a review"]];
-  $("#main").innerHTML = `${dashHead("emails")}
+  $("#main").innerHTML = `${dashHead("emails")}${modeBar("project")}
     <div class="mail dmail">
       <aside class="mlist">
         <div class="msearch">
@@ -1288,7 +1413,7 @@ function renderEmails() {
   };
   $("#emailQ").oninput = ev => { state.emailQ = ev.target.value; draw(); };
   $$("#emailF button").forEach(b => b.onclick = () => { state.emailF = b.dataset.f; $$("#emailF button").forEach(x => x.classList.toggle("on", x === b)); draw(); });
-  wireDashHead();
+  wireMode(); wireDashHead();
   draw();
 }
 function renderUpdates() {

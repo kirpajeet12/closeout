@@ -10,7 +10,9 @@ from dataclasses import dataclass, field
 from email import policy
 from email.message import EmailMessage
 from email.parser import BytesParser
-from email.utils import parseaddr
+from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timezone
+from email.utils import parseaddr, parsedate_to_datetime
 from urllib.parse import urlencode
 
 import httpx
@@ -48,12 +50,16 @@ def access_token(settings: Settings, refresh_token: str) -> str:
     return r.json()["access_token"]
 
 
-def build_message(from_addr: str, to: str, subject: str, body: str, attachments: list[tuple[str, bytes, str]] = ()) -> EmailMessage:
-    """One plain-text email with files attached: (file name, bytes, mime type) each."""
+def build_message(from_addr: str, to: str, subject: str, body: str, attachments: list[tuple[str, bytes, str]] = (),
+                  headers: dict | None = None) -> EmailMessage:
+    """One plain-text email with files attached: (file name, bytes, mime type) each. headers: In-Reply-To and the like."""
     msg = EmailMessage()
     msg["To"] = to
     msg["From"] = from_addr
     msg["Subject"] = subject
+    for k, v in (headers or {}).items():
+        if v:
+            msg[k] = v
     msg.set_content(body)
     for name, data, mime in attachments:
         maintype, _, subtype = (mime or "application/octet-stream").partition("/")
@@ -94,6 +100,39 @@ def parse_raw(raw: bytes, own_address: str = "") -> Incoming:
             files.append((name, data))
     return Incoming(id="", thread_id="", from_addr=sender, subject=m.get("Subject", "") or "", text=text,
                     sent_at=m.get("Date", "") or "", files=files, from_me=bool(own_address) and sender.lower() == own_address.lower())
+
+
+def _iso(date: str) -> str:
+    try:
+        return parsedate_to_datetime(date).astimezone(timezone.utc).isoformat()
+    except (TypeError, ValueError, IndexError):
+        return ""
+
+
+def view_raw(raw: bytes, own_address: str = "") -> dict:
+    """One message as the office's mailbox page shows it: who, when, the text and the names of the files."""
+    m = BytesParser(policy=policy.default).parsebytes(raw)
+    inc = parse_raw(raw, own_address)
+    return {"from": str(m.get("From", "") or ""), "to": str(m.get("To", "") or ""), "cc": str(m.get("Cc", "") or ""),
+            "subject": inc.subject, "at": _iso(inc.sent_at), "text": inc.text[:20000], "files": [n for n, _ in inc.files],
+            "from_me": inc.from_me, "message_id": str(m.get("Message-ID", "") or "").strip(),
+            "references": str(m.get("References", "") or "").strip(), "reply_to": str(m.get("Reply-To", "") or "")}
+
+
+def reply_parts(original: dict, own_address: str) -> tuple[str, str, dict]:
+    """Who a reply goes to, its subject and the headers that keep it in the same conversation."""
+    to = original["to"] if original["from_me"] else (original["reply_to"] or original["from"])
+    subject = original["subject"] if re.match(r"(?i)\s*re:", original["subject"] or "") else f"Re: {original['subject']}".strip()
+    mid = original["message_id"]
+    refs = " ".join(x for x in (original["references"], mid) if x)
+    return to, subject, {"In-Reply-To": mid, "References": refs}
+
+
+def summary(mid: str, thread: str, frm: str, to: str, subject: str, snippet: str, at: str, unread: bool, own_address: str = "") -> dict:
+    name, addr = parseaddr(frm)
+    return {"id": mid, "thread": thread, "from": name or addr or frm, "from_addr": addr, "to": to, "subject": subject or "(no subject)",
+            "snippet": (snippet or "")[:200], "at": at, "unread": unread,
+            "from_me": bool(own_address) and addr.lower() == own_address.lower()}
 
 
 class Gmail:
@@ -165,3 +204,44 @@ class Gmail:
         if remove:
             body["removeLabelIds"] = [self.label_id(remove)]
         self._post(f"messages/{message_id}/modify", body)
+
+    # --- the office's whole mailbox, for its Emails page -----------------------------------------------------------
+    def list_messages(self, folder: str = "inbox", q: str = "", limit: int = 30) -> list[dict]:
+        params: dict = {"labelIds": "SENT" if folder == "sent" else "INBOX", "maxResults": limit}
+        if q:
+            params["q"] = q
+        ids = [m["id"] for m in self._get("messages", **params).get("messages", [])]
+        self._headers()
+        with ThreadPoolExecutor(8) as ex:
+            metas = list(ex.map(lambda i: self._get(f"messages/{i}", format="metadata", metadataHeaders=["From", "To", "Subject", "Date"]), ids))
+        out = []
+        for m in metas:
+            h = {x["name"].lower(): x["value"] for x in m.get("payload", {}).get("headers", [])}
+            at = datetime.fromtimestamp(int(m.get("internalDate", "0")) / 1000, timezone.utc).isoformat() if m.get("internalDate") else _iso(h.get("date", ""))
+            out.append(summary(m["id"], m.get("threadId", ""), h.get("from", ""), h.get("to", ""), h.get("subject", ""),
+                               _unescape(m.get("snippet", "")), at, "UNREAD" in m.get("labelIds", []), self.address))
+        return out
+
+    def _raw(self, message_id: str) -> tuple[bytes, dict]:
+        out = self._get(f"messages/{message_id}", format="raw")
+        return base64.urlsafe_b64decode(out["raw"] + "=" * (-len(out["raw"]) % 4)), out
+
+    def open_thread(self, message_id: str) -> list[dict]:
+        thread = self._get(f"messages/{message_id}", format="minimal").get("threadId", "")
+        ids = [m["id"] for m in self._get(f"threads/{thread}", format="minimal").get("messages", [])][-20:] if thread else [message_id]
+        self._headers()
+        with ThreadPoolExecutor(6) as ex:
+            raws = list(ex.map(self._raw, ids))
+        return [{**view_raw(raw, self.address), "id": meta.get("id", "")} for raw, meta in raws]
+
+    def reply(self, message_id: str, body: str) -> dict:
+        raw, meta = self._raw(message_id)
+        to, subject, headers = reply_parts(view_raw(raw, self.address), self.address)
+        msg = build_message(self.address, to, subject, body, headers=headers)
+        out = self._post("messages/send", {"raw": base64.urlsafe_b64encode(msg.as_bytes()).decode(), "threadId": meta.get("threadId", "")})
+        return {"id": out.get("id", ""), "thread_id": out.get("threadId", "")}
+
+
+def _unescape(text: str) -> str:
+    import html
+    return html.unescape(text)
