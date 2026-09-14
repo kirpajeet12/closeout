@@ -108,7 +108,7 @@ microsoft-graph, javascript
 
 - Repository: https://github.com/kirpajeet12/closeout
 - Try it: https://try.closeout.getcrewbrew.com (made-up projects; the code is in the testing instructions)
-- Video: https://youtu.be/2GmUULieMVY
+- Video: https://youtu.be/aWSMyUljM04
 
 ---
 
@@ -139,4 +139,4 @@ writes "I did it" with no photo, Closeout shows the words next to what is still 
 It runs on EC2 with Claude on Amazon Bedrock through an IAM role, sends and reads mail from the office's own Gmail
 or Microsoft 365 mailbox, and works on a phone on site.
 
-Repository: https://github.com/kirpajeet12/closeout · Video: https://youtu.be/2GmUULieMVY
+Repository: https://github.com/kirpajeet12/closeout · Video: https://youtu.be/aWSMyUljM04
