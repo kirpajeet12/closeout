@@ -115,6 +115,16 @@ flowchart LR
 The server runs on an EC2 instance whose IAM role allows Bedrock model calls only; there are no AWS keys in the
 app. Mailbox sign-in uses Google and Microsoft OAuth; tokens stay in the server's database and are never logged.
 
+## Try it
+
+- **Judges' copy:** <https://try.closeout.getcrewbrew.com>. The code is in the Devpost testing instructions. It holds
+  two made-up projects, 418 Alder Court and Cedar Row Townhomes, with their drawings already filed, and nothing from
+  the office's real work. No mailbox is connected, so the send button opens the email in your own mail app.
+- **Upload a project yourself:** download [`samples/Alder Court.zip`](samples/Alder%20Court.zip) (made-up drawings,
+  a permit and a letter of assurance) and choose *Upload the project zip* on the Projects page. Closeout reads the
+  folder and every current sheet, so give it a few minutes.
+- **Field review:** open a project, then *Field review*: tap a spot on a plan, add a photo and a note.
+
 ## Run it locally
 
 ```bash

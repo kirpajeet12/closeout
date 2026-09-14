@@ -7,13 +7,34 @@ services:
     env_file: .env          # CLOSEOUT_ACCESS_CODE, CLOSEOUT_OFFICE, model ids; never committed
     environment:
       AWS_REGION: us-east-1   # Bedrock credentials come from the server's IAM role, not from files
+    image: closeout-app:latest
     volumes:
       - /srv/closeout/data:/data
+    expose: ["8765"]
+  # A second copy for hackathon judges: same code, its own folder of made-up projects and its own code. It never sees
+  # the office's data, and it has no mailbox or Google/Microsoft sign-in.
+  try:
+    image: closeout-app:latest
+    pull_policy: never
+    depends_on: [app]
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      AWS_REGION: us-east-1
+      CLOSEOUT_ACCESS_CODE: ${CLOSEOUT_TRY_ACCESS_CODE:?set CLOSEOUT_TRY_ACCESS_CODE in deploy/.env}
+      CLOSEOUT_OFFICE: "the engineer's office"
+      CLOSEOUT_GOOGLE_CLIENT_ID: ""
+      CLOSEOUT_GOOGLE_CLIENT_SECRET: ""
+      CLOSEOUT_MICROSOFT_CLIENT_ID: ""
+      CLOSEOUT_MICROSOFT_CLIENT_SECRET: ""
+      CLOSEOUT_MAIL_FROM: ""
+    volumes:
+      - /srv/closeout/try-data:/data
     expose: ["8765"]
   caddy:
     image: caddy:2.10-alpine
     restart: unless-stopped
-    env_file: .env          # CLOSEOUT_HOST
+    env_file: .env          # CLOSEOUT_HOST, CLOSEOUT_TRY_HOST
     ports: ["80:80", "443:443"]
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
