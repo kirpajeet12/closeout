@@ -101,7 +101,7 @@ microsoft-graph, javascript
 
 ## Links
 
-- Repository: (public repo URL, once published)
+- Repository: https://github.com/kirpajeet12/closeout
 - Live app: https://closeout.getcrewbrew.com (access code shared with judges in the testing instructions)
 - Video: (YouTube URL, once uploaded)
 
