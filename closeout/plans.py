@@ -40,7 +40,7 @@ For each floor plan drawing call record_plan once:
 - top_row / bottom_row: the first and last grid rows it covers (numbers, inclusive).
 Cover the whole drawing including its title, a little generous is better than cutting it. If two drawings share a level
 (for example, two units drawn separately), record both.
-- unit: when the drawing shows ONE unit only, the unit label as printed on it (e.g. "#2", "UNIT B", "#1 6895"). When one
+- unit: when the drawing shows ONE unit only, the unit label as printed on it (e.g. "#2", "UNIT B", "#1 104"). When one
   plan shows the whole building with several units inside it, leave unit empty. Use the unit list given to you.
 If there is no floor plan drawing on the sheet, call record_plan with title "none" and level "" and nothing else.
 """
@@ -51,7 +51,7 @@ def _norm(t: str) -> str:
 
 
 def unit_aliases(unit: dict) -> set[str]:
-    """Every short way a drawing might print this unit: 'unit c', 'c', '#2', '2', '#2 6893 laurel st'…"""
+    """Every short way a drawing might print this unit: 'unit c', 'c', '#2', '2', '#2 102 elm st'…"""
     out: set[str] = set()
     label, addr = _norm(unit.get("label", "")), _norm(unit.get("address", ""))
     for t in (label, re.sub(r"\s*\(.*$", "", label), addr):

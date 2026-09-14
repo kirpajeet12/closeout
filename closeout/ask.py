@@ -178,7 +178,7 @@ def make_ask_tools(ctx: AskContext, facts: Facts):
 
     @tool
     def list_items(building: str = "", discipline: str = "", review: str = "", state: str = "") -> str:
-        """The deficiencies, one line each, filtered. building: a street number such as 6895. discipline: a code such as EL,
+        """The deficiencies, one line each, filtered. building: a street number such as 104. discipline: a code such as EL,
         PL, AR, ME. review: a field review title such as "Field review 2". state: ready, needs, unclear or nothing."""
         bkey = facts.building_key(building) if building else ""
         rv = facts.review_by(review) if review else None

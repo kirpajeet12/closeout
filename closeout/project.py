@@ -5,7 +5,7 @@ render each sheet and pull its text layer and drawing index. Then one Strands jo
 shows (levels, units, rooms, elements) and one job summarises the project. What the model records is
 `model_observation`; what the text layer says is `document`. Nothing here is an engineering determination.
 
-    python -m closeout.project <folder> --slug laurel
+    python -m closeout.project <folder> --slug elm-street
 """
 from __future__ import annotations
 
@@ -116,7 +116,7 @@ def _discipline(rel: str) -> str:
     first = parts[0].upper()
     if first in DRAWING_CODES or first in ("BCH", "DC"):
         return first
-    for part in parts:  # "PM/DD/241125_EL_Sent for BC Hydro/…", "24-3672_PL_6891_…"
+    for part in parts:  # "PM/DD/241125_EL_Sent for BC Hydro/…", "00-1234_PL_104_…"
         m = re.search(r"(?:^|[_\-\s])(AR|ST|EL|PL|ME|CV|LA|FP|SP)(?=[_\-\s])", part.upper())
         if m:
             return m.group(1)
@@ -239,7 +239,7 @@ company names are fine.
 Rules:
 - sheet_number and title come from the title block; if the drawing index lists this sheet, use the index wording.
 - levels: the floors/levels this sheet shows, as printed (e.g. "Main floor", "Second floor", "Roof").
-- units: the unit or address labels shown (e.g. "#1 6895 Laurel St", "Unit D").
+- units: the unit or address labels shown (e.g. "#1 104 Elm St", "Unit D").
 - spaces: every labelled room or area on the sheet, with its unit and level when the sheet makes that clear.
 - elements: building elements, assemblies, systems and site items a field reviewer would later check on site
   (fire-rated walls, guards, stairs, roofing, cladding, service size, panels, EV charging, drainage, parking...).
@@ -286,7 +286,7 @@ def make_sheet_tools(ctx: ReadContext, sheet_id: str):
             summary: one or two sentences on what the sheet is for.
             levels: floors/levels shown, as printed.
             units: unit or address labels shown.
-            spaces: labelled rooms/areas: [{"name": "Kitchen", "unit": "#1 6895 Laurel St", "level": "Main floor"}]
+            spaces: labelled rooms/areas: [{"name": "Kitchen", "unit": "#1 104 Elm St", "level": "Main floor"}]
             elements: building elements, systems and site items a field reviewer would check, with printed values.
             levels_and_elevations: printed datum lines, e.g. "T/PLATE 292.55'".
         """
@@ -321,7 +321,7 @@ def make_project_tools(ctx: ReadContext, project_id: str, base: dict):
             city: city.
             building_type: one line, e.g. "Six-unit multiple dwelling, three storeys".
             description: two or three sentences.
-            units: [{"label": "Unit A", "address": "#1 6895 Laurel St", "levels": ["Main floor", "Second floor", "Third floor"]}]
+            units: [{"label": "Unit A", "address": "#1 104 Elm St", "levels": ["Main floor", "Second floor", "Third floor"]}]
             levels: [{"name": "Main floor", "elevation": "262.21'", "aliases": ["T/MAIN", "Main"]}], lowest first.
             parties: [{"role": "Architect", "company": "JOSS Design Inc."}] (companies only).
             key_facts: short facts a field reviewer must know.

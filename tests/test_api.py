@@ -258,6 +258,6 @@ def test_project_web_address_never_carries_the_contact_name_or_phone():
     from closeout.api import _slug
 
     assert _slug("24-3999_PL_1200_Elm St_CWK_Some Person_604-555-0100") == "24-3999-1200-elm-st-cwk"
-    assert _slug("24-3672_ELBCHPL_6891_Laurel St_VAN_Some Person_604-555-0100") == "24-3672-6891-laurel-st-van"
-    assert _slug("24-3672_EL_6891_Laurel St_604 555 0100") == "24-3672-6891-laurel-st"   # no city code, phone still dropped
+    assert _slug("00-1234_ELBCHPL_104_Elm St_VAN_Some Person_604-555-0100") == "00-1234-104-elm-st-van"
+    assert _slug("00-1234_EL_104_Elm St_604 555 0100") == "00-1234-104-elm-st"   # no city code, phone still dropped
     assert _slug("Row Houses phase 2") == "row-houses-phase-2"                            # plain names are untouched

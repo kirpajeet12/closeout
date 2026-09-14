@@ -38,7 +38,7 @@ def stages_for(project: dict, discipline: str) -> list[str]:
 
 
 def building_of(text: str) -> dict | None:
-    """'#1 6895 Elm St' → {key: '6895', name: '6895 Elm St'}. Same rule as the app's screen."""
+    """'#1 104 Elm St' → {key: '104', name: '104 Elm St'}. Same rule as the app's screen."""
     m = _BUILDING.search(str(text or ""))
     if not m:
         return None
@@ -65,7 +65,7 @@ def unit_labels(project: dict) -> list[str]:
 
 
 def short_unit(label: str) -> str:
-    """'Unit B (#1 – 6893 Elm St)' → 'Unit B'."""
+    """'Unit B (#1 – 102 Elm St)' → 'Unit B'."""
     return re.sub(r"\s*\(.*$", "", label).strip()
 
 

@@ -128,7 +128,7 @@ def truck(d):
 
 # 1. contractor cover note (text)
 (OUT / "cover_note.txt").write_text("""From: Site Super, Northgate Mechanical & General
-To: Voltas Engineering
+To: Elm Street Engineering
 Subject: Deficiency photos - Maple Ridge Commons, review of Aug 28
 
 Hi,
@@ -185,7 +185,7 @@ def main():
     c.setFont("Helvetica", 11)
     for i, line in enumerate([
         "Date: September 3, 2026",
-        "To: Northgate Mechanical & General / Voltas Engineering",
+        "To: Northgate Mechanical & General / Elm Street Engineering",
         "Re: Maple Ridge Commons - Suite 305 sprinkler head relocation",
         "",
         "This letter confirms that the pendent sprinkler head in the ceiling space of Suite 305",

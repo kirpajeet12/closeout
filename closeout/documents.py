@@ -78,7 +78,7 @@ DOC_FORBIDDEN = tuple(w for w in FORBIDDEN_WORDS if w != "certif")
 
 
 def building_of(text: str) -> dict | None:
-    """'#1 6895 Elm St' → {key: '6895', name: '6895 Elm St', street: 'laurel st'}."""
+    """'#1 104 Elm St' → {key: '104', name: '104 Elm St', street: 'elm st'}."""
     m = _BUILDING_RE.search(str(text or ""))
     if not m:
         return None

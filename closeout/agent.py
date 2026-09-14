@@ -99,7 +99,7 @@ Ask only for what the brief lists as missing or unresolved. Do not invent reques
 If a received file carries a flag (for example low_quality or measurement_not_visible), you may mention it under a separate
 "optional" line, quoting the flag, but the main request is the missing evidence.
 Do not say work is acceptable, compliant, approved or closed. Do not thank them for completing work you cannot verify.
-Plain, courteous, short. No greeting name, no signature name; sign as "Voltas Engineering".
+Plain, courteous, short. No greeting name, no signature name; sign as "The engineer's office".
 Call save_draft exactly once with a subject line and the body.
 """
 

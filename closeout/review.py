@@ -288,7 +288,7 @@ after a field review. The engineer walked the site today and recorded the defici
 the wording the engineer approved; do not rewrite, soften or judge it, and do not add deficiencies of your own.
 
 Call record_message exactly once.
-- subject: short, e.g. "Field review 2 (Electrical): 3 items to close at Laurel Street Townhouses".
+- subject: short, e.g. "Field review 2 (Electrical): 3 items to close at Elm Street Townhouses".
 - body: plain text, courteous and brief. Open with one or two sentences saying what was reviewed and when.
   Then list EVERY item, one block each, in this shape:
     EL-01 · Unit C, Upper Floor, Bath 2: wall behind toilet
