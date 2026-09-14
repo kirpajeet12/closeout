@@ -6,7 +6,7 @@ Each row is one module from the idea (`00-prompt.md`) and how far it exists toda
 
 | Idea module | Today | Where |
 |---|---|---|
-| 1. Project creation + drawing ingestion | Built. A project folder is scanned; drawing sets are split into sheets; each sheet is read once by the agent (title, kind, building, levels, what it shows). Readings are stored, never re-bought. | `closeout/project.py`, `closeout/service.py`, sheet readings in SQLite |
+| 1. Project creation + drawing ingestion | Built. A project folder is scanned; drawing sets are split into sheets; each sheet is read once by the agent (title, kind, building, levels, what it shows). Readings are stored, never re-bought. | `closeout/project.py`, sheet readings in SQLite |
 | 2. AI field-review preparation | Not built. Ideas confirmed and parked: a readiness check per discipline before a review; checklists per review type seeded from the office's existing lists. Building-code text: not started (see plan, part D). | — |
 | 3. Drawing-first site interface | Built. Field review tab → building → unit → floor → that floor's plan opens zoomed, other sheets of the building underneath. Pan, pinch, tap to pin. Where a discipline has no floor plans, the architectural plans stand in. | `web/index.html` viewer, `closeout/plans.py` (per-floor boxes on a sheet, one agent call per sheet, fixable by hand) |
 | 4. Indoor position tracking | Not built. Only what a phone gives for free: GPS on https, used to pre-select the unit from the nearest earlier item. Nothing indoors. | — |
