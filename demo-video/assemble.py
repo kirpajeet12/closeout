@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Cut the Closeout demo film: stills from capture.py in device frames, camera moves, taps, captions, score.
 
-    python3 demo-video/assemble.py                 # full film -> output/closeout-demo.mp4
-    python3 demo-video/assemble.py --preview 7     # one still per scene at its midpoint -> output/preview/
+    python3 demo-video/gen_voice.py                # the narration clips first (audio/vo/)
+    python3 demo-video/assemble.py                 # the narrated film -> output/closeout-demo.mp4
+    python3 demo-video/assemble.py --preview       # two stills per scene -> output/preview/
+    python3 demo-video/assemble.py --captions      # the earlier captions-only cut with two scores
     python3 demo-video/assemble.py --free          # the cut without the AI steps (stills from output/cap)
 """
 import json
@@ -20,6 +22,7 @@ CAP = HERE / "output" / ("cap" if FREE else "cap-ai")
 PHOTOS = Path.home() / "Documents/New project/PunchPilot/demo-assets/photos"
 SCORE = HERE / "audio" / "score.mp3"       # the site walk
 SCORE2 = HERE / "audio" / "score2.mp3"     # the office and the contractor
+VO_DIR = HERE / "audio" / "vo"             # narration from gen_voice.py
 OUT = HERE / "output" / ("closeout-demo-free.mp4" if FREE else "closeout-demo.mp4")
 W, H, FPS, SS = 1920, 1080, 30, 2          # output size; stage is rendered SS times larger for crisp zooms
 SW, SH = W * SS, H * SS
@@ -432,7 +435,7 @@ def scene_desk(beats, dur, cap, cam=None, cur=None, hl=()):
         if cur:
             t0, t1, ct, nm, start, *key = cur
             p = META[nm].get(key[0] if key else "tap")
-            if p and t0 - 0.4 <= t <= ct + 1.2:
+            if p and t0 - 0.4 <= t <= ct + 1.2 and name == nm:     # the pointer leaves with the page it clicked
                 cursor(fr, start, m(p[0] * META[nm]["dsf"], p[1] * META[nm]["dsf"]), t, t0, t1, click=ct)
         return fr
     return dur, draw
@@ -509,7 +512,9 @@ top = side   # the free cut's captions sit in the same column
 
 
 def build():
-    return build_free() if FREE else build_ai()
+    if FREE:
+        return build_free()
+    return build_ai() if "--captions" in sys.argv else build_story()
 
 
 def build_free():
@@ -741,6 +746,172 @@ def build_ai():
     return S, split
 
 
+VO_LEAD, VO_TAIL = 0.8, 0.6     # the voice starts once the crossfade has settled, and the scene holds a beat after it
+
+
+def vo(key):
+    """Scene length for narration clip `key`, and at(phrase): the scene time that phrase is spoken."""
+    d = json.loads((VO_DIR / f"{key}.json").read_text())
+    at = lambda phrase: VO_LEAD + d["starts"][d["text"].index(phrase)]
+    return VO_LEAD + audio_len(VO_DIR / f"{key}.mp3") + VO_TAIL, at
+
+
+def build_story():
+    """The narrated cut: a project from upload to closing items, the field review one short part of it."""
+    S, voice = [], []
+
+    def add(key, scene):
+        if key:
+            voice.append((len(S), VO_DIR / f"{key}.mp3"))
+        S.append(scene)
+
+    dur, at = vo("title")
+    add("title", scene_black(["Closeout", "Drawings, documents, field reviews and the contractor, in one project."], dur, sizes=(120, 40)))
+
+    # a new project: the whole folder as one zip
+    dur, at = vo("upload")
+    t1 = at("Closeout reads") - 0.3
+    add("upload", scene_desk([(0, "n01-home")] + progress_beats(t1, dur - 0.4), dur,
+                             [side(["New project", "The project folder, uploaded as one zip."], 0.4, t1),
+                              side(["Closeout reads every file", "and files it by building and discipline."], t1 + 0.3, dur - 0.3)],
+                             cam=track(dur, [(0, D("n01-home", (579, 480, 861, 552), z=1.06)), (t1, D("n02-progress03", (208, 228, 1232, 278), z=1.0))], move=0.7),
+                             cur=(0.5, t1 - 1.0, t1 - 0.6, "n01-home", (W * 0.62, H * 0.9)),
+                             hl=[(0.3, t1, "n01-home", (579, 480, 861, 552)), (t1 + 0.2, dur - 0.3, None, (208, 228, 1232, 278))]))
+
+    # drawings: the site's sheets, then the building's
+    dur, at = vo("drawings")
+    ta, tb, tc = at("The site plan"), at("the site electrical"), at("The floor plans") - 0.3
+    add("drawings", scene_desk([(0, "n05-site"), (tc, "n05-building")], dur,
+                               [side(["Drawings › Site", "A-101 site plan. E-201 and E-202, site electrical."], 0.4, tc),
+                                side(["Drawings › 418 Alder Court", "A-201 and A-202, the floor plans."], tc + 0.3, dur - 0.3)],
+                               cam=track(dur, [(0, D("n05-site", (208, 40, 1232, 880), z=1.0)), (tb - 0.8, D("n05-site", (208, 560, 1000, 870), z=1.1)),
+                                               (tc, D("n05-building", (208, 50, 1000, 480), z=1.1))], move=0.7),
+                               hl=[(ta - 0.2, tb, "n05-site", (231, 160, 548, 532)), (tb, tc, "n05-site", (231, 572, 712, 856)),
+                                   (tc + 0.3, dur - 0.3, "n05-building", (231, 140, 712, 422))]))
+
+    # documents: the same folders, one file at a time
+    dur, at = vo("documents")
+    ta, tb, tc = at("The electrical set") - 0.2, at("the letter") - 0.2, at("the building permit") - 0.2
+    add("documents", scene_desk([(0, "n06-folders1"), (ta, "n06-site-el"), (tb, "n06-bld-el"), (tc, "n06-bld-other")], dur,
+                                [side(["Documents", "The site, and one folder per building."], 0.4, ta),
+                                 side(["Site › Electrical", "Electrical Set, issued 2026-09-02."], ta + 0.2, tb),
+                                 side(["418 Alder Court › Electrical", "Electrical Letter of Assurance."], tb + 0.2, tc),
+                                 side(["418 Alder Court › Other files", "Building Permit."], tc + 0.2, dur - 0.3)],
+                                cam=track(dur, [(0, D("n06-folders1", (217, 160, 480, 258), z=1.1)), (ta, D("n06-site-el", (217, 160, 1215, 425), z=1.05)),
+                                                (tb, D("n06-bld-el", (217, 160, 1215, 425), z=1.05)), (tc, D("n06-bld-other", (217, 160, 1215, 435), z=1.05))],
+                                           move=0.6),
+                                hl=[(0.4, ta, "n06-folders1", (217, 160, 480, 258)),
+                                    (ta + 0.2, tb, "n06-site-el", (505, 255, 1215, 305)), (ta + 0.2, tb, "n06-site-el", (217, 328, 480, 361)),
+                                    (tb + 0.2, tc, "n06-bld-el", (505, 255, 1215, 305)), (tb + 0.2, tc, "n06-bld-el", (217, 361, 480, 395)),
+                                    (tc + 0.2, dur - 0.3, "n06-bld-other", (505, 255, 1215, 305)), (tc + 0.2, dur - 0.3, "n06-bld-other", (217, 395, 480, 428))]))
+
+    dur, at = vo("occupancy")
+    ta = at("Here") - 0.2
+    add("occupancy", scene_desk([(0, "n06-crp"), (ta, "n06-crp-loa")], dur,
+                                [side(["Documents before occupancy", "6 checklists."], 0.4, ta),
+                                 side(["Letters of assurance", "1 of 8 on file: Schedule C-B, electrical."], ta + 0.2, dur - 0.3)],
+                                cam=track(dur, [(0, D("n06-crp", (217, 160, 1215, 550), z=1.0)), (ta, D("n06-crp-loa", (217, 160, 1215, 720), z=1.0))], move=0.6),
+                                hl=[(0.5, ta, "n06-crp", (505, 205, 1215, 545)), (0.5, ta, "n06-crp", (217, 194, 480, 228)),
+                                    (ta + 0.3, dur - 0.3, "n06-crp-loa", (505, 520, 1215, 572)), (ta + 0.3, dur - 0.3, "n06-crp-loa", (217, 261, 480, 294))]))
+
+    dur, at = vo("folders")
+    ta, tb = at("and move") - 0.1, at("Every move") - 0.2
+    add("folders", scene_desk([(0, "n08-made"), (ta, "n08-move"), (tb, "n08-filed")], dur,
+                              [side(["Your own folders", "Older issues › June 2026 issue."], 0.4, ta),
+                               side(["Move…", "The June set goes into June 2026 issue."], ta + 0.2, tb),
+                               side(["Filed", "Every move can be undone."], tb + 0.2, dur - 0.3)],
+                              cam=track(dur, [(0, D("n08-made", (283, 250, 1215, 365), z=1.06)), (ta, D("n08-move", (505, 250, 1215, 630), z=1.06)),
+                                              (tb, D("n08-filed", (217, 250, 1215, 400), z=1.06))], move=0.6),
+                              hl=[(0.3, ta, "n08-made", (505, 255, 1215, 300)), (0.3, ta, "n08-made", (283, 328, 480, 361)),
+                                  (ta + 0.2, tb, "n08-move", (556, 465, 1198, 510)),
+                                  (tb + 0.2, dur - 0.3, "n08-filed", (505, 255, 1215, 305)), (tb + 0.2, dur - 0.3, "n08-filed", (217, 361, 480, 395))]))
+
+    # the overview of a project already under way
+    dur, at = vo("overview")
+    ta, tb, tc = at("opens on") - 0.1, at("how many"), at("what to do")
+    add("overview", scene_desk([(0, "n07-home-after"), (ta, "d04-overview")], dur,
+                               [side(["Projects", "Cedar Row Townhomes."], 0.4, ta),
+                                side(["Overview", "0 of 3 ready to close. Next: send the review to the contractor."], ta + 0.2, dur - 0.3)],
+                               cam=track(dur, [(0, D("n07-home-after", (208, 232, 1232, 698), z=1.0)), (ta, D("d04-overview", (208, 160, 1232, 763), z=1.0))],
+                                         move=0.6),
+                               cur=(0.3, ta - 0.6, ta - 0.3, "n07-home-after", (W * 0.78, H * 0.8), "cedar"),
+                               hl=[(0.3, ta, "n07-home-after", (556, 232, 884, 698)), (tb - 0.1, tc, "d04-overview", (208, 259, 729, 443)),
+                                   (tc, dur - 0.3, "d04-overview", (758, 255, 1232, 472))]))
+
+    # the field review, on a phone
+    dur, at = vo("walk")
+    ta, tb = at("Take a photo") - 0.1, at("tap where") - 0.1
+    add("walk", scene_phone([(0, "p02-walk"), (ta, "p03-photo"), (tb, "p05-plan"), (tb + 1.1, "p06-tapped")], dur,
+                            [left(["Field review", "On a phone, on site."], 0.3, ta),
+                             left(["Take a photo."], ta + 0.2, tb),
+                             left(["Tap the spot", "on the drawing."], tb + 0.2, dur - 0.3)],
+                            cam=[pz(0, 1.0), pz(tb + 0.3, 1.0), pz(tb + 1.1, 1.55, 0.36), pz(dur, 1.6, 0.36)],
+                            taps=[(ta - 0.5, "p02-walk"), (tb + 1.0, "p06-tapped")],
+                            hl=[(0.3, ta, "p02-walk", (31, 659, 359, 819)), (ta + 0.1, tb, "p03-photo", (31, 659, 359, 844)),
+                                (tb + 1.2, dur - 0.2, "p06-tapped", (185, 327, 233, 375))]))
+
+    dur, at = vo("writeup")
+    ta, tb = at("Check it") - 0.2, at("and it is pinned") - 0.2
+    add("writeup", scene_phone([(0, "p07-thinking"), (0.6, "p07-suggested"), (ta, "p08-form"), (tb, "p09-saved3")], dur,
+                               [left(["Closeout writes it up."], 0.3, ta),
+                                left(["Check it, save it."], ta + 0.2, tb),
+                                left(["AR-01. AR-02. AR-03.", "Pinned to the plan."], tb + 0.2, dur - 0.3)],
+                               cam=[pz(0, 1.0), pz(0.6, 1.0), pz(1.4, 1.4, 0.5), pz(ta, 1.4, 0.5), pz(tb, 1.0), pz(tb + 0.6, 1.2, 0.45), pz(dur, 1.28, 0.43)],
+                               taps=[(tb - 0.4, "p08-form")],
+                               hl=[(0.7, ta, "p07-suggested", (16, 421, 373, 780)), (ta + 0.1, tb, "p08-form", (17, 783, 148, 827)),
+                                   (tb + 0.5, dur - 0.2, "p09-saved3", (72, 250, 125, 302)), (tb + 0.5, dur - 0.2, "p09-saved3", (256, 404, 310, 456))]))
+
+    # the office: the list and the report
+    dur, at = vo("office")
+    ta = at("The report") - 0.2
+    rep = shot("d06-report")
+    top_f = DESK_H / DESK_W * rep.width / DESK_Z / 2 / rep.height
+    add("office", scene_desk([(0, "d05-deficiencies"), (ta, "d06-report")], dur,
+                             [side(["Deficiencies", "0 of 3 ready to close. Each with its unit, floor and sheet."], 0.4, ta),
+                              side(["The report", "Each item with its photo and plan pin."], ta + 0.2, dur - 0.3)],
+                             cam=track(ta, [(0, D("d05-deficiencies", (200, 190, 740, 450), z=1.1)), (2.2, D("d05-deficiencies", (208, 690, 1232, 900), z=1.05))])
+                                 + [(ta, 0.5, top_f, 1.0), (ta + 1.2, 0.5, top_f, 1.0), (dur, 0.5, 0.45, 1.0)],
+                             hl=[(0.4, 2.6, "d05-deficiencies", (200, 262, 460, 392)), (2.8, ta, "d05-deficiencies", (208, 772, 1232, 900))]))
+
+    # the contractor: one link, an upload filed on its item
+    dur, at = vo("contractor")
+    ta, tb, tc = at("with no account") - 0.3, at("They upload") - 0.1, at("Closeout files") - 0.1
+    add("contractor", scene_phone([(0, "p13-contractor"), (ta, "p14-contractor-list"), (tb, "p16-contractor-filing"), (tc, "p17-contractor-filed")], dur,
+                                  [left(["The contractor", "gets one link."], 0.3, ta),
+                                   left(["No account.", "Only their items."], ta + 0.2, tb),
+                                   left(["They upload a photo.", "Closeout files it", "on item AR-01."], tb + 0.2, dur - 0.3)],
+                                  cam=track(dur, [(0, P("p13-contractor", (17, 282, 373, 516), z=1.12)), (ta, P("p14-contractor-list", (8, 133, 385, 844), z=1.0)),
+                                                  (tb, P("p16-contractor-filing", (16, 535, 374, 580), z=1.15)), (tc, P("p17-contractor-filed", (8, 133, 385, 478), z=1.12))],
+                                            move=0.5),
+                                  hl=[(0.3, ta, "p13-contractor", (17, 282, 373, 516)), (ta + 0.1, tb, "p14-contractor-list", (8, 140, 385, 836)),
+                                      (tb + 0.1, tc, "p16-contractor-filing", (16, 535, 374, 580)), (tc + 0.1, dur - 0.2, "p17-contractor-filed", (8, 133, 385, 478))]))
+
+    # the engineer decides
+    dur, at = vo("decide")
+    ta, tb = at("The engineer") - 0.3, at("ready to close") - 0.3
+    add("decide", scene_desk([(0, "d08-item-filed"), (ta, "d09-item-evidence"), (tb, "d10-item-closed")], dur,
+                             [side(["Location not confirmed", "The photo matches AR-01, but nothing in it shows where it was taken."], 0.4, ta),
+                              side(["The engineer decides", "Ready to close, hold, or not accepted."], ta + 0.2, dur - 0.3)],
+                             cam=track(dur, [(0, D("d08-item-filed", (208, 300, 1232, 600), z=1.08)), (ta, D("d09-item-evidence", (228, 300, 900, 600), z=1.1)),
+                                             (tb, D("d10-item-closed", (228, 400, 900, 600), z=1.2))], move=0.6),
+                             cur=(ta + 0.1, tb - 0.5, tb - 0.2, "d09-item-evidence", (W * 0.7, H * 0.4)),
+                             hl=[(0.4, ta, "d08-item-filed", (228, 360, 690, 440)), (ta + 0.2, tb, "d09-item-evidence", (228, 420, 607, 480)),
+                                 (tb + 0.1, dur - 0.3, "d10-item-closed", (228, 420, 390, 480)), (tb + 0.1, dur - 0.3, "d10-item-closed", (228, 545, 570, 572))]))
+
+    # ask about the project
+    dur, at = vo("ask")
+    ta, tb = at("What does") - 0.2, at("Closeout lists") - 0.3
+    add("ask", scene_desk([(0, "d12-ask"), (ta + 1.2, "d12-ask-thinking"), (tb, "d13-answer")], dur,
+                          [side(["Ask about the project", "“What does the contractor still need to send?”"], 0.4, tb),
+                           side(["The answer", "AR-02 and AR-03: nothing received yet."], tb + 0.2, dur - 0.3)],
+                          cam=[(0, 0.5, 0.5, 0.77), (ta + 1.0, 0.5, 0.5, 0.77), (tb + 0.8, 0.8, 0.37, 1.45), (dur, 0.8, 0.37, 1.5)],
+                          cur=(0.4, ta + 0.4, ta + 0.8, "d12-ask", (W * 0.5, H * 0.5)),
+                          hl=[(0.3, ta + 1.2, "d12-ask", (1023, 835, 1428, 892)), (tb + 0.6, dur - 0.2, "d13-answer", (1028, 140, 1398, 295))]))
+
+    add(None, scene_black(["Closeout"], 4.0))
+    return S, voice
+
+
 def audio_len(path):
     out = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(path)],
                          capture_output=True, text=True).stdout
@@ -759,20 +930,31 @@ def render(scenes, split, preview=None):
         for i, ((dur, fn), s) in enumerate(zip(scenes, starts)):
             for frac in (0.3, 0.85):
                 fn(dur * frac).save(HERE / "output" / "preview" / f"s{i:02d}-{int(frac * 100)}.jpg", quality=85)
-        print("preview scenes", len(scenes), "total", round(total, 1), "s; second score from", round(starts[split], 1), "s")
+        print("preview scenes", len(scenes), "total", round(total, 1), "s")
+        print("starts", [round(x, 1) for x in starts])
         return
-    # two scores: the calm one under the site walk, the brighter one from the office on, crossfaded over XA seconds.
-    # The second is trimmed from its start so its resolved ending lands on the end card.
-    XA, fade_out = 2.0, 2.5
-    t2 = starts[split] - XA / 2
-    len2 = total - t2
-    off2 = max(0.0, audio_len(SCORE2) - len2 - 0.5)
-    af = (f"[1:a]atrim=0:{t2 + XA:.2f},afade=t=in:d=1.2,afade=t=out:st={t2:.2f}:d={XA}[a1];"
-          f"[2:a]atrim={off2:.2f}:{off2 + len2:.2f},asetpts=PTS-STARTPTS,afade=t=in:d={XA},"
-          f"afade=t=out:st={len2 - fade_out:.2f}:d={fade_out},adelay={round(t2 * 1000)}:all=1[a2];"
-          f"[a1][a2]amix=inputs=2:normalize=0:duration=longest,loudnorm=I=-16:TP=-1.5:LRA=11[a]")
+    if isinstance(split, list):
+        # narration: each clip VO_LEAD into its scene, over one low bed that fades out on the end card
+        inputs, parts = ["-i", str(SCORE)], [f"[1:a]atrim=0:{total:.2f},volume=0.16,afade=t=in:d=1.5,afade=t=out:st={total - 3.5:.2f}:d=3.5[m]"]
+        for k, (i, path) in enumerate(split):
+            inputs += ["-i", str(path)]
+            parts.append(f"[{k + 2}:a]adelay={round((starts[i] + VO_LEAD) * 1000)}:all=1[v{k}]")
+        mix = "[m]" + "".join(f"[v{k}]" for k in range(len(split)))
+        af = ";".join(parts) + f";{mix}amix=inputs={len(split) + 1}:normalize=0:duration=first,loudnorm=I=-16:TP=-1.5:LRA=11[a]"
+    else:
+        # two scores: the calm one under the site walk, the brighter one from the office on, crossfaded over XA seconds.
+        # The second is trimmed from its start so its resolved ending lands on the end card.
+        XA, fade_out = 2.0, 2.5
+        t2 = starts[split] - XA / 2
+        len2 = total - t2
+        off2 = max(0.0, audio_len(SCORE2) - len2 - 0.5)
+        inputs = ["-i", str(SCORE), "-i", str(SCORE2)]
+        af = (f"[1:a]atrim=0:{t2 + XA:.2f},afade=t=in:d=1.2,afade=t=out:st={t2:.2f}:d={XA}[a1];"
+              f"[2:a]atrim={off2:.2f}:{off2 + len2:.2f},asetpts=PTS-STARTPTS,afade=t=in:d={XA},"
+              f"afade=t=out:st={len2 - fade_out:.2f}:d={fade_out},adelay={round(t2 * 1000)}:all=1[a2];"
+              f"[a1][a2]amix=inputs=2:normalize=0:duration=longest,loudnorm=I=-16:TP=-1.5:LRA=11[a]")
     cmd = ["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}",
-           "-r", str(FPS), "-i", "-", "-i", str(SCORE), "-i", str(SCORE2), "-filter_complex", af,
+           "-r", str(FPS), "-i", "-", *inputs, "-filter_complex", af,
            "-map", "0:v", "-map", "[a]", "-t", f"{total:.2f}",
            "-c:v", "libx264", "-preset", "slow", "-crf", "17", "-pix_fmt", "yuv420p", "-movflags", "+faststart",
            "-c:a", "aac", "-b:a", "192k", str(OUT)]

@@ -1,7 +1,8 @@
 # Closeout demo film
 
-About 3 min, 1920×1080 at 30 fps. Keynote style: music and captions, no voice. Captions sit
-beside the screen, never on top of it. Every screen is a real Closeout screen from two fictional
+About 1 min 40 s, 1920×1080 at 30 fps. Narrated: one voice says what each screen is doing, over a low
+score. It shows Closeout as project management — upload, drawings, documents, the overview, the contractor
+and closing items — with the field review as one short part. Captions sit beside the screen, never on top of it. Every screen is a real Closeout screen from two fictional
 projects, **Cedar Row Townhomes** and **418 Alder Court**. No real project, address or person appears.
 Everything Closeout writes on screen is its real output from the filming runs; nothing is typed in for it.
 
@@ -15,8 +16,9 @@ Everything Closeout writes on screen is its real output from the filming runs; n
 | 2a. Rehearse the upload for free | `DEMO_PORT=8778 DEMO_DATA=demo-video/data-new demo-video/serve.sh && python3 demo-video/capture_new.py` | free |
 | 2b. Film the folders: where every drawing sheet and document was filed, then your own folders and a set filed into one | `rm -rf demo-video/data-folders && cp -R demo-video/data-new demo-video/data-folders`, serve it on port 8779, then `python3 demo-video/capture_folders.py` | free |
 | 3. Music (once each; skipped if the file exists) | `python3 demo-video/gen_music.py` → `audio/score.mp3`; `python3 demo-video/gen_music.py 2` → `audio/score2.mp3` | ElevenLabs music |
+| 3a. Narration (only changed lines are voiced again) | `python3 demo-video/gen_voice.py` → `audio/vo/<scene>.mp3` + `.json` word timings | ElevenLabs, about 1,300 characters |
 | 4. Contact-sheet check | `python3 demo-video/assemble.py --preview` → `output/preview/` | free |
-| 5. Render | `python3 demo-video/assemble.py` → `output/closeout-demo.mp4` (`--free` → `closeout-demo-free.mp4`) | free |
+| 5. Render | `python3 demo-video/assemble.py` → `output/closeout-demo.mp4` (`--captions` → the earlier captions-only cut; `--free` → `closeout-demo-free.mp4`) | free |
 
 `film-ai.sh` resets Cedar Row, serves it with the real AWS credentials, films, prints what it cost
 (`demo-video/cost.py`), then puts the server back in free mode. `capture.py --paid` lets exactly one
@@ -30,7 +32,29 @@ without that folder `assemble.py` uses the free rehearsal stills in `output/cap-
 
 Media (`audio/`, `output/`, `data/`, `data-new/`, `data-folders/`, `project/`, `project2/`) is not committed.
 
-## Beats
+## Narrated beats (the default cut)
+
+Each scene is as long as its line plus a beat; highlights and still changes are timed to the words
+(`vo(key)` in `assemble.py` reads the word timings). One low score under the voice. Scenes overlap by 0.6 s.
+
+| # | Clip | Screen | Voice | Captions |
+|---|---|---|---|---|
+| 1 | title | Black title card | Closeout keeps a building project in one place: the drawings, the documents, the field reviews, and the contractor. | Closeout / Drawings, documents, field reviews and the contractor, in one project. |
+| 2 | upload | New project, zip upload and progress | Start a new project by uploading the project folder as one zip. Closeout reads every file, and files it by building and discipline. | New project / Closeout reads every file |
+| 3 | drawings | Drawings › Site, then › 418 Alder Court | Drawings land where they belong. The site plan and the site electrical under Site. The floor plans under the building. | A-101, E-201, E-202 / A-201, A-202 |
+| 4 | documents | Documents: Site › Electrical, building Electrical, Other files | Documents get the same folders. The electrical set, the letter of assurance, and the building permit, each in its place. | Electrical Set / Electrical Letter of Assurance / Building Permit |
+| 5 | occupancy | Documents before occupancy, Letters of assurance | Documents needed before occupancy are kept as checklists. Here, one of eight letters of assurance is on file. | 6 checklists / 1 of 8 on file |
+| 6 | folders | Own folder, Move…, Filed | Make folders of your own, and move files into them. Every move can be undone. | Older issues › June 2026 issue / Every move can be undone. |
+| 7 | overview | Projects → Cedar Row overview | Every project opens on its overview: how many items are ready to close, and what to do next. | 0 of 3 ready to close. Next: send the review to the contractor. |
+| 8 | walk | Phone: field review, photo, tap on the plan | The field review is done on a phone. Take a photo, and tap where it is on the drawing. | Field review / Take a photo. / Tap the spot |
+| 9 | writeup | Phone: write-up, check and save, pins | Closeout writes up the deficiency. Check it, save it, and it is pinned to the plan. | Closeout writes it up. / AR-01. AR-02. AR-03. |
+| 10 | office | Deficiencies list, report scroll | In the office, every deficiency is listed with its unit, floor and sheet. The report shows each one with its photo and plan pin. | Deficiencies / The report |
+| 11 | contractor | Contractor link, list, upload filed | The contractor gets one link, with no account. They upload a photo, and Closeout files it on the item. | One link. No account. / Closeout files it on item AR-01. |
+| 12 | decide | Item with filed photo, Your call | Closeout checks the photo against the item. The engineer makes the call: ready to close, hold, or not accepted. | Location not confirmed / The engineer decides |
+| 13 | ask | Ask panel and answer | And you can ask about the project. What does the contractor still need to send? Closeout lists the two items with nothing received. | What does the contractor still need to send? / AR-02 and AR-03 |
+| 14 | — | End card | — | Closeout |
+
+## Captions-only cut (`--captions`)
 
 Two scores: the calm one under the new project and the site walk, the brighter one from the office on,
 crossfaded over 2 s. Scenes overlap by 0.6 s.
