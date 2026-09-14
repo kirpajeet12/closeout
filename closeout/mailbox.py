@@ -14,7 +14,7 @@ from email import policy
 from email.parser import BytesParser
 from email.utils import make_msgid
 
-from .gmail import Incoming, build_message, parse_raw
+from .gmail import Incoming, build_message, parse_raw, reply_parts, summary, view_raw
 
 # provider presets by the part after @: (imap host, imap port, smtp host, smtp port)
 PRESETS: dict[str, tuple[str, int, str, int]] = {
@@ -188,3 +188,122 @@ class ImapMail:
     def mark(self, message_id: str, add: str, remove: str = "") -> None:
         """Nothing to label in plain IMAP; the inbound record already stops a second read."""
         return None
+
+    # --- the office's whole mailbox, for its Emails page -----------------------------------------------------------
+    # Ids here are "<inbox|sent>:<validity>:<uid>". The inbox is selected again afterwards, so filing reads as before.
+    def _sent_name(self, box: imaplib.IMAP4) -> str:
+        typ, rows = box.list()
+        names = []
+        for row in rows or []:
+            line = row.decode(errors="replace") if isinstance(row, bytes) else str(row)
+            name = re.search(r'(?:"([^"]+)"|(\S+))\s*$', line)
+            name = (name.group(1) or name.group(2)) if name else ""
+            if "\\Sent" in line:
+                return name
+            names.append(name)
+        for guess in ("Sent", "Sent Items", "Sent Messages", "[Gmail]/Sent Mail", "INBOX.Sent"):
+            if guess in names:
+                return guess
+        raise MailError("the sent folder could not be found in this mailbox")
+
+    def _select(self, folder: str) -> tuple[imaplib.IMAP4, str]:
+        box = self._open()
+        name = self._sent_name(box) if folder == "sent" else "INBOX"
+        typ, _ = box.select(f'"{name}"', readonly=True)
+        if typ != "OK":
+            raise MailError(f"the {folder} folder could not be opened")
+        v = box.response("UIDVALIDITY")[1]
+        return box, (v[0].decode() if v and isinstance(v[0], bytes) else str(v[0] if v else "")) or "0"
+
+    def _back_to_inbox(self) -> None:
+        if self._imap is not None:
+            try:
+                self._imap.select("INBOX", readonly=True)
+            except Exception:
+                self.close()
+
+    def list_messages(self, folder: str = "inbox", q: str = "", limit: int = 30) -> list[dict]:
+        folder = "sent" if folder == "sent" else "inbox"
+        try:
+            box, validity = self._select(folder)
+            crit = ("TEXT", f'"{q.replace(chr(34), " ")}"') if q else ("ALL",)
+            typ, data = box.uid("SEARCH", *crit)
+            uids = (data[0].split() if typ == "OK" and data and data[0] else [])[-limit:]
+            if not uids:
+                return []
+            typ, data = box.uid("FETCH", b",".join(uids).decode(), "(UID FLAGS BODY.PEEK[HEADER.FIELDS (FROM TO SUBJECT DATE)])")
+            out = []
+            for part in data or []:
+                if not isinstance(part, tuple):
+                    continue
+                info = part[0].decode(errors="replace")
+                uid = re.search(r"UID (\d+)", info)
+                if not uid:
+                    continue
+                h = BytesParser(policy=policy.default).parsebytes(part[1], headersonly=True)
+                from .gmail import _iso
+                out.append(summary(f"{folder}:{validity}:{uid.group(1)}", "", str(h.get("From", "") or ""), str(h.get("To", "") or ""),
+                                   str(h.get("Subject", "") or ""), "", _iso(str(h.get("Date", "") or "")), "\\Seen" not in info, self.address))
+            out.sort(key=lambda m: m["at"], reverse=True)
+            return out
+        finally:
+            self._back_to_inbox()
+
+    def _fetch(self, box: imaplib.IMAP4, uid: str) -> bytes:
+        typ, data = box.uid("FETCH", uid, "(BODY.PEEK[])")
+        return next((part[1] for part in data or [] if isinstance(part, tuple)), b"")
+
+    def open_thread(self, message_id: str) -> list[dict]:
+        folder, _, rest = message_id.partition(":")
+        validity, _, uid = rest.partition(":")
+        try:
+            box, now = self._select(folder)
+            if now != validity:
+                raise MailError("the mailbox was rebuilt by the provider; look again")
+            first = view_raw(self._fetch(box, uid), self.address)
+            root = (REFS.findall(first["references"]) or [first["message_id"]])[0]
+            if not root:
+                return [{**first, "id": message_id}]
+            seen, out = set(), []
+            for name in ("inbox", "sent"):
+                try:
+                    box, v = self._select(name)
+                except MailError:
+                    continue
+                typ, data = box.uid("SEARCH", "OR", "HEADER", "Message-ID", f'"{root}"', "HEADER", "References", f'"{root}"')
+                for u in (data[0].split() if typ == "OK" and data and data[0] else [])[-20:]:
+                    msg = view_raw(self._fetch(box, u.decode()), self.address)
+                    if msg["message_id"] and msg["message_id"] in seen:
+                        continue
+                    seen.add(msg["message_id"])
+                    out.append({**msg, "id": f"{name}:{v}:{u.decode()}"})
+            if not any(m["id"] == message_id for m in out) and first["message_id"] not in seen:
+                out.append({**first, "id": message_id})
+            out.sort(key=lambda m: m["at"])
+            return out[-20:]
+        finally:
+            self._back_to_inbox()
+
+    def reply(self, message_id: str, body: str) -> dict:
+        folder, _, rest = message_id.partition(":")
+        validity, _, uid = rest.partition(":")
+        try:
+            box, now = self._select(folder)
+            if now != validity:
+                raise MailError("the mailbox was rebuilt by the provider; look again")
+            original = view_raw(self._fetch(box, uid), self.address)
+        finally:
+            self._back_to_inbox()
+        to, subject, headers = reply_parts(original, self.address)
+        msg = build_message(self.address, to, subject, body, headers=headers)
+        mid = make_msgid(domain=self.address.rsplit("@", 1)[-1])
+        msg["Message-ID"] = mid
+        s = self._smtp()
+        try:
+            s.send_message(msg)
+        finally:
+            try:
+                s.quit()
+            except Exception:
+                pass
+        return {"id": mid, "thread_id": headers["References"].split()[0] if headers["References"] else mid}

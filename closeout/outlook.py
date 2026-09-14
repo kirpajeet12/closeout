@@ -13,7 +13,7 @@ from urllib.parse import quote, urlencode
 import httpx
 
 from .config import Settings
-from .gmail import Incoming, parse_raw
+from .gmail import Incoming, parse_raw, summary, view_raw
 from .mailbox import REFS, MailError
 
 SCOPE = "offline_access openid email User.Read Mail.ReadWrite Mail.Send"
@@ -164,6 +164,42 @@ class Outlook:
     def mark(self, message_id: str, add: str, remove: str = "") -> None:
         """Nothing is changed in the office's mailbox; the inbound record already stops a second read."""
         return None
+
+    # --- the office's whole mailbox, for its Emails page -----------------------------------------------------------
+    def list_messages(self, folder: str = "inbox", q: str = "", limit: int = 30) -> list[dict]:
+        params = {"$top": limit, "$select": "id,conversationId,from,toRecipients,subject,bodyPreview,receivedDateTime,isRead"}
+        if q:
+            params["$search"] = '"' + q.replace('"', " ") + '"'
+        else:
+            params["$orderby"] = "receivedDateTime desc"
+        path = "mailFolders/sentitems/messages" if folder == "sent" else "mailFolders/inbox/messages"
+        out = []
+        for m in self._call("GET", path, params=params).json().get("value", []):
+            sender = (m.get("from") or {}).get("emailAddress") or {}
+            frm = f'{sender.get("name", "")} <{sender.get("address", "")}>' if sender.get("address") else sender.get("name", "")
+            to = ", ".join((r.get("emailAddress") or {}).get("address", "") for r in m.get("toRecipients") or [])
+            out.append(summary(m["id"], m.get("conversationId", ""), frm, to, m.get("subject", ""), m.get("bodyPreview", ""),
+                               m.get("receivedDateTime", ""), not m.get("isRead", True), self.address))
+        return out
+
+    def open_thread(self, message_id: str) -> list[dict]:
+        meta = self._call("GET", f"messages/{quote(message_id, safe='')}", params={"$select": "id,conversationId"}).json()
+        ids = [meta["id"]]
+        if meta.get("conversationId"):
+            found = self._call("GET", "messages", params={"$filter": f"conversationId eq '{_quoted(meta['conversationId'])}'",
+                                                          "$select": "id,receivedDateTime", "$top": 50}).json().get("value", [])
+            found.sort(key=lambda m: m.get("receivedDateTime") or "")
+            ids = [m["id"] for m in found][-20:] or ids
+        out = []
+        for gid in ids:
+            raw = self._call("GET", f"messages/{quote(gid, safe='')}/$value").content
+            out.append({**view_raw(raw, self.address), "id": gid})
+        return out
+
+    def reply(self, message_id: str, body: str) -> dict:
+        """Microsoft keeps the reply in the same conversation and in Sent Items."""
+        self._call("POST", f"messages/{quote(message_id, safe='')}/reply", json={"comment": body})
+        return {"id": "", "thread_id": ""}
 
 
 def _key(m: dict) -> str:

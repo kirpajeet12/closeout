@@ -209,6 +209,13 @@ class SendIn(BaseModel):
     body: str | None = None
 
 
+class ComposeIn(BaseModel):
+    to: str = ""
+    subject: str = ""
+    body: str
+    reply_to: str = ""         # the id of the email being answered; empty for a new email
+
+
 class PlaceIn(BaseModel):
     slug: str
     review_id: str
@@ -1714,6 +1721,56 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
     def mail_check_now() -> dict:
         out = _mail_check()
         return {"check": out, **_mail_status()}
+
+    # --- the whole mailbox on the Emails page: read, reply and write, each send only on the engineer's press -------------
+    def _box_call(what: str, fn):
+        account = _usable_account(store())
+        if not account:
+            raise HTTPException(409, "no mailbox is connected; connect one on the Office page")
+        mb = _mailbox(account)
+        try:
+            return fn(mb)
+        except mailbox_mod.MailError as e:  # a sentence the office can act on; never the password or the mail
+            log.warning("mailbox %s failed: %s", what, type(e).__name__)
+            raise HTTPException(502, f"the mailbox could not be {what}: {e}")
+        except HTTPException:
+            raise
+        except Exception as e:
+            log.warning("mailbox %s failed: %s", what, type(e).__name__)
+            raise HTTPException(502, f"the mailbox could not be {what} just now; try again")
+        finally:
+            mb.close()
+
+    @app.get("/api/mail/box")
+    def mail_box(folder: str = "inbox", q: str = "") -> dict:
+        folder = "sent" if folder == "sent" else "inbox"
+        items = _box_call("read", lambda mb: mb.list_messages(folder, " ".join(q.split())[:200], 40))
+        return {"folder": folder, "address": (_usable_account(store()) or {}).get("address", ""), "messages": items}
+
+    @app.get("/api/mail/box/open")
+    def mail_box_open(id: str) -> dict:
+        if not id or len(id) > 1000:
+            raise HTTPException(400, "no such email")
+        return {"id": id, "messages": _box_call("read", lambda mb: mb.open_thread(id))}
+
+    @app.post("/api/mail/box/send")
+    def mail_box_send(body: ComposeIn) -> dict:
+        """One email from the office's own mailbox: a reply in its conversation, or a new email. Only when Send is pressed."""
+        text = body.body.strip()
+        if not text:
+            raise HTTPException(400, "write the email before sending")
+        if body.reply_to:
+            out = _box_call("sent", lambda mb: mb.reply(body.reply_to, text))
+        else:
+            to = body.to.strip()
+            if not all(mail_mod.valid_address(a.strip()) for a in to.split(",") if a.strip()) or not to.strip(", "):
+                raise HTTPException(400, "give the email address to send to")
+            subject = " ".join(body.subject.split())[:190]
+            if not subject:
+                raise HTTPException(400, "give the email a subject")
+            out = _box_call("sent", lambda mb: mb.send(to, subject, text))
+        log.info("mailbox email sent")
+        return {"sent": True, "id": out.get("id", "")}
 
     @app.post("/api/mail/{inbound_id}/place")
     def mail_place(inbound_id: str, body: PlaceIn) -> dict:
