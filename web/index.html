@@ -2367,7 +2367,8 @@ function mailEntries(p) {
   const latestFor = latestMessages(p), sends = p.sends || [], e = [];
   (p.inbound || []).filter(x => x.status !== "unplaced").forEach(x => e.push({ key: "in:" + x.id, kind: "in", at: x.at, x }));
   sends.forEach(x => e.push({ key: "sent:" + x.id, kind: "sent", at: x.at, x }));
-  Object.values(latestFor).forEach(m => { if (!m.review_id || !sends.some(s => s.review_id === m.review_id)) e.push({ key: "draft:" + m.id, kind: "draft", at: m.updated_at || m.created_at, m }); });
+  // a draft stays in the list until it is sent; one written after the last send (the review was finished again) is unsent
+  Object.values(latestFor).forEach(m => { const at = m.updated_at || m.created_at; if (!m.review_id || !sends.some(s => s.review_id === m.review_id && s.at >= at)) e.push({ key: "draft:" + m.id, kind: "draft", at, m }); });
   e.sort((a, b) => (a.at || "") < (b.at || "") ? 1 : (a.at || "") > (b.at || "") ? -1 : 0);
   return e;
 }
