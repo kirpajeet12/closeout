@@ -43,6 +43,8 @@ def review_report(store: Store, project_id: str, review_id: str, office: str = "
             "sheet": d.get("sheet", ""), "sheet_title": sh.get("title", ""), "sheet_id": d.get("sheet_id", ""),
             "pin": [d["pin_x"], d["pin_y"]] if d.get("pin_x") is not None else None,
             "photo_url": f"/api/projects/{slug}/register/{d['item_id']}/reference" if d.get("reference_photo") else "",
+            "more_photo_urls": [f"/api/projects/{slug}/register/{d['item_id']}/photos/{n}"
+                                for n, _ in enumerate(meta.get("more_photos") or [], start=2)] if d.get("reference_photo") else [],
             "plan_url": f"/api/projects/{slug}/items/{d['item_id']}/pin.jpg" if d.get("pin_x") is not None and sh else "",
             "taken_at": meta.get("taken_at", ""),
             "status": CALLS.get((call or {}).get("decision", ""), OPEN),
@@ -115,6 +117,8 @@ def report_html(data: dict) -> str:
             pics = '<div class="pics">'
             if i["photo_url"]:
                 pics += f'<figure><img src="{e(i["photo_url"])}" alt=""><figcaption>Photo on site{(" · " + _when(i["taken_at"])) if i["taken_at"] else ""}</figcaption></figure>'
+            for n, url in enumerate(i.get("more_photo_urls") or [], start=2):
+                pics += f'<figure><img src="{e(url)}" alt=""><figcaption>Photo {n} on site</figcaption></figure>'
             if i["plan_url"]:
                 pics += f'<figure><img src="{e(i["plan_url"])}" alt=""><figcaption>Sheet {e(i["sheet"])}{(" · " + e(i["sheet_title"].title())) if i["sheet_title"] else ""}</figcaption></figure>'
             pics += "</div>"

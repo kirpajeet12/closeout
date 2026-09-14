@@ -108,6 +108,10 @@ def _item_block(d: dict, sheets: dict) -> list:
     photo = _photo_bytes(d.get("reference_photo") or "")
     if photo:
         pics.append((photo, "Photo on site"))
+        for n, m in enumerate((d.get("ref_meta") or {}).get("more_photos") or [], start=2):
+            more = _photo_bytes(m.get("path") or "")
+            if more:
+                pics.append((more, f"Photo {n} on site"))
     sh = sheets.get(d.get("sheet_id") or "")
     if sh and d.get("pin_x") is not None and Path(sh.get("image_path", "")).exists():
         try:
@@ -117,14 +121,24 @@ def _item_block(d: dict, sheets: dict) -> list:
             pass
     cells = []
     for data, cap in pics:
-        img = _fit(data, (WIDTH - 12) / 2 if len(pics) == 2 else WIDTH * 0.6, 2.7 * inch)
+        img = _fit(data, (WIDTH - 12) / 2 if len(pics) >= 2 else WIDTH * 0.6, 2.7 * inch)
         cells.append([img, Paragraph(escape(cap), S["cap"])])
     body = head
     if cells:
-        widths = [(WIDTH - 12) / 2] * 2 if len(cells) == 2 else [WIDTH]
-        t = Table([[c[0] for c in cells], [c[1] for c in cells]], colWidths=widths, hAlign="LEFT")
-        t.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP"), ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 12),
-                               ("TOPPADDING", (0, 0), (-1, -1), 0), ("BOTTOMPADDING", (0, 0), (-1, 0), 3), ("BOTTOMPADDING", (0, 1), (-1, 1), 6)]))
+        pair = len(cells) >= 2
+        widths = [(WIDTH - 12) / 2] * 2 if pair else [WIDTH]
+        rows = []
+        for k in range(0, len(cells), 2 if pair else 1):   # two pictures to a row: photos first, the plan close-up last
+            chunk = cells[k:k + 2] if pair else cells[k:k + 1]
+            if pair and len(chunk) == 1:
+                chunk = chunk + [["", ""]]
+            rows += [[c[0] for c in chunk], [c[1] for c in chunk]]
+        t = Table(rows, colWidths=widths, hAlign="LEFT")
+        style = [("VALIGN", (0, 0), (-1, -1), "TOP"), ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 12),
+                 ("TOPPADDING", (0, 0), (-1, -1), 0)]
+        for r in range(0, len(rows), 2):
+            style += [("BOTTOMPADDING", (0, r), (-1, r), 3), ("BOTTOMPADDING", (0, r + 1), (-1, r + 1), 6)]
+        t.setStyle(TableStyle(style))
         body = body + [t]
     rows = [[Paragraph("WHERE", S["label"]), Paragraph(escape(d["location"]), S["body"])],
             [Paragraph("WHAT IS WRONG", S["label"]), Paragraph(escape(d["description"]), S["body"])],

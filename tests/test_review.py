@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import io
 import json
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -404,3 +405,43 @@ def test_the_message_may_quote_the_engineers_wording_but_not_add_judgement_words
     ctx = MessageContext()
     record = make_message_tools(ctx, ["AR-02"])[0]   # nothing quoted: the old rule stands
     assert "forbidden" in record(subject="Field review 1: 1 item to close", body=body)
+
+
+def test_place_reads_only_the_spot_when_the_pin_goes_down(client, tmp_path):
+    slug, sid = _seed(client, tmp_path)
+    FakeFieldAgent.proposals = [
+        {"location": "Unit C, Upper Floor, Bath 2: wall beside the basin", "description": "Location only: receptacle beside the basin",
+         "evidence_required": "photo: the work at this spot", "discipline": "EL", "unit": "Unit C", "level": "Upper Floor", "space": "Bath 2"}]
+    # a photo sent by mistake is not read; the place comes off the sheet alone
+    r = client.post(f"/api/projects/{slug}/findings/suggest", data={"sheet_id": sid, "pin_x": 0.62, "pin_y": 0.41, "place": "true"},
+                    files={"photo": ("IMG_0001.jpg", _jpeg_bytes(), "image/jpeg")})
+    assert r.status_code == 200, r.text
+    s = r.json()["suggestion"]
+    assert s["unit"] == "Unit C" and s["level"] == "Upper Floor" and s["space"] == "Bath 2" and s["location"].startswith("Unit C")
+    assert "ONLY PUT THE PIN DOWN" in FakeFieldAgent.system
+    content = FakeFieldAgent.calls[-1]
+    assert len([c for c in content if "image" in c]) == 2, "pin close-up and whole sheet only"
+    assert "No photo was taken" not in " ".join(c["text"] for c in content if "text" in c)
+
+
+def test_one_item_keeps_several_photos_and_deleting_it_removes_them(client, tmp_path):
+    slug, sid = _seed(client, tmp_path)
+    rev = client.post(f"/api/projects/{slug}/reviews", json={"discipline": "EL"}).json()["review"]
+    body = {"sheet_id": sid, "pin_x": 0.62, "pin_y": 0.41, "review_id": rev["id"], "location": "Unit C, Upper Floor, Bath 2",
+            "description": "Receptacle beside the basin has no GFCI protection.", "evidence_required": "photo: GFCI receptacle installed",
+            "unit": "Unit C", "level": "Upper Floor", "space": "Bath 2"}
+    files = [("photo", ("a.jpg", _jpeg_bytes(), "image/jpeg")), ("more_photos", ("b.jpg", _jpeg_bytes(), "image/jpeg")),
+             ("more_photos", ("c.jpg", _jpeg_bytes(), "image/jpeg"))]
+    item = client.post(f"/api/projects/{slug}/findings", data=body, files=files).json()["item"]
+    more = item["ref_meta"]["more_photos"]
+    assert item["reference_photo"] and [m["original_name"] for m in more] == ["b.jpg", "c.jpg"]
+    base = f"/api/projects/{slug}/register/{item['item_id']}"
+    assert client.get(base + "/photos/2").status_code == 200 and client.get(base + "/photos/3").status_code == 200
+    assert client.get(base + "/photos/4").status_code == 404 and client.get(base + "/photos/1").status_code == 404
+    # extra photos without a first one: the first that came becomes the reference
+    only = client.post(f"/api/projects/{slug}/findings", data={**body, "location": "Unit C, Main Floor, Kitchen"},
+                       files=[("more_photos", ("d.jpg", _jpeg_bytes(), "image/jpeg"))]).json()["item"]
+    assert only["reference_photo"] and only["ref_meta"]["original_name"] == "d.jpg" and not only["ref_meta"].get("more_photos")
+    paths = [item["reference_photo"]] + [m["path"] for m in more]
+    assert client.delete(base.replace("/register/", "/findings/")).status_code == 200
+    assert not any(Path(p).exists() for p in paths)

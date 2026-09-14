@@ -42,6 +42,7 @@ log = logging.getLogger("closeout.api")
 
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 TERMINAL_EVENTS = {"packet", "project_ready", "run_error"}
+MORE_PHOTOS = 7                      # photos after the first on one deficiency
 
 
 class RunFeed:
@@ -657,6 +658,16 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         if not p.exists():
             raise HTTPException(404, "reference photo file missing")
         return FileResponse(p, media_type=mimetypes.guess_type(p.name)[0] or "application/octet-stream")
+
+    @app.get("/api/projects/{slug}/register/{item_id}/photos/{n}")
+    def more_photo(slug: str, item_id: str, n: int):
+        """Photo n (2, 3, ...) of a deficiency; photo 1 is the reference above."""
+        st = store()
+        d = st.deficiency(_project(st, slug)["id"], item_id)
+        more = ((d or {}).get("ref_meta") or {}).get("more_photos") or []
+        if not 2 <= n < len(more) + 2 or not Path(more[n - 2]["path"]).exists():
+            raise HTTPException(404, "no such photo")
+        return FileResponse(Path(more[n - 2]["path"]), media_type="image/jpeg")
 
     # --- field review ---------------------------------------------------
     def _field_photo_path(slug: str, item_id: str) -> Path:
@@ -1799,7 +1810,7 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
 
     @app.post("/api/projects/{slug}/findings/suggest")
     async def suggest_finding(slug: str, sheet_id: str = Form(...), pin_x: float = Form(...), pin_y: float = Form(...),
-                              note: str = Form(""), discipline: str = Form(""), tidy: bool = Form(False),
+                              note: str = Form(""), discipline: str = Form(""), tidy: bool = Form(False), place: bool = Form(False),
                               photo: UploadFile | None = File(None)) -> dict:
         """One model call: photo + pinned sheet -> proposed location / wording / evidence. The reviewer edits and saves.
         With tidy, the reviewer's own words are the record: Closeout only puts them in order, and needs no photo."""
@@ -1812,7 +1823,7 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
             raise HTTPException(400, "pin must be inside the sheet")
         if tidy and len(" ".join(note.split())) < 3:
             raise HTTPException(400, "write or say what you saw first; tidying works on your words")
-        raw, _ = await _read_photo(photo)
+        raw, _ = await _read_photo(photo) if not place else (None, "")
         photo_bytes = None
         if raw and not tidy:
             from PIL import Image
@@ -1823,7 +1834,7 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
                 buf = io.BytesIO(); im.save(buf, "JPEG", quality=85); photo_bytes = buf.getvalue()
         try:
             out = review_mod.suggest_field_note(st, prj["id"], sheet_id, pin_x, pin_y, photo_bytes, note, settings,
-                                                discipline_hint=discipline.strip().upper(), tidy=tidy)
+                                                discipline_hint=discipline.strip().upper(), tidy=tidy, place=place and not tidy)
         except Exception as e:  # noqa: BLE001 - the reviewer sees why and can still write it by hand
             raise HTTPException(502, f"agent could not suggest: {type(e).__name__}: {e}") from e
         return {"suggestion": out, "model_id": settings.model_id}
@@ -1859,8 +1870,8 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
                            review_id: str = Form(...), location: str = Form(...), description: str = Form(...),
                            evidence_required: str = Form(...), discipline: str = Form(""), unit: str = Form(""),
                            level: str = Form(""), space: str = Form(""), note: str = Form(""), gps: str = Form(""),
-                           photo: UploadFile | None = File(None)) -> dict:
-        """The reviewer's confirmed deficiency: numbered, photo kept as the reference. The sheet and the pin on it are
+                           photo: UploadFile | None = File(None), more_photos: list[UploadFile] | None = File(None)) -> dict:
+        """The reviewer's confirmed deficiency: numbered, photo kept as the reference, and any more photos of the same spot. The sheet and the pin on it are
         optional: the photo, the unit, the level and the words are enough to record it; a pin can be added later."""
         from .register import RegisterError, parse_slots
         st = store()
@@ -1896,6 +1907,20 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
             p.write_bytes(raw)
             ref_path = str(p)
             meta = {**_exif(p), "original_name": original}
+        more = []
+        for n, extra in enumerate((more_photos or [])[:MORE_PHOTOS], start=2):
+            data, name = await _read_photo(extra)
+            if not data:
+                continue
+            q = _field_photo_path(prj["slug"], f"{item_id}-{n}")
+            q.write_bytes(data)
+            more.append({"path": str(q), "original_name": name, "taken_at": _exif(q).get("taken_at", "")})
+        if more:
+            if not ref_path:                 # the first photo that came is the reference
+                first = more.pop(0)
+                ref_path, meta = first["path"], {**_exif(Path(first["path"])), "original_name": first["original_name"]}
+            if more:
+                meta["more_photos"] = more
         if gps.strip():
             meta["gps"] = gps.strip()[:80]
         st.add_field_item(pid, item_id, location, description, evidence_required, slots, code, review_id,
@@ -1930,8 +1955,9 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         if not d or d.get("source") != "field":
             raise HTTPException(404, "no such field finding")
         st.delete_deficiency(pid, item_id)
-        if d.get("reference_photo"):
-            Path(d["reference_photo"]).unlink(missing_ok=True)
+        for f in [d.get("reference_photo")] + [m.get("path") for m in (d.get("ref_meta") or {}).get("more_photos") or []]:
+            if f:
+                Path(f).unlink(missing_ok=True)
         return {"deleted": item_id}
 
     # --- site photos and notes ------------------------------------------

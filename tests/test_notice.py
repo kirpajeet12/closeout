@@ -64,3 +64,24 @@ def test_the_report_goes_with_the_email_and_is_kept_on_file(gclient, tmp_path):
     pdfs = [p for p in parts if p.get_content_type() == "application/pdf"]
     assert len(pdfs) == 1 and pdfs[0].get_filename() == record["report"]
     assert "/c/" in _text(pdfs[0].get_payload(decode=True))
+
+
+def test_every_photo_of_an_item_goes_in_the_report(client, tmp_path):
+    from PIL import Image
+    from tests.test_review import _seed
+
+    def jpg(shade):
+        buf = io.BytesIO()
+        Image.new("RGB", (640, 480), (shade, 90, 60)).save(buf, "JPEG")
+        return buf.getvalue()
+    slug, sid = _seed(client, tmp_path)
+    rev = client.post(f"/api/projects/{slug}/reviews", json={"discipline": "EL"}).json()["review"]
+    client.post(f"/api/projects/{slug}/findings", data={"sheet_id": sid, "pin_x": 0.3, "pin_y": 0.4, "review_id": rev["id"],
+                "location": "Unit C, Upper Floor, Bath 2", "description": "Receptacle beside the basin has no cover plate.",
+                "evidence_required": "photo: completed", "unit": "Unit C", "level": "Upper Floor"},
+                files=[("photo", ("a.jpg", jpg(40), "image/jpeg")), ("more_photos", ("b.jpg", jpg(140), "image/jpeg")),
+                       ("more_photos", ("c.jpg", jpg(240), "image/jpeg"))])
+    pdf = client.get(f"/api/projects/{slug}/reviews/{rev['id']}/items.pdf").content
+    text = _text(pdf)
+    assert "Photo 2 on site" in text and "Photo 3 on site" in text
+    assert len([im for page in PdfReader(io.BytesIO(pdf)).pages for im in page.images]) == 4   # three photos and the plan close-up

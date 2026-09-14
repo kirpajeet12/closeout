@@ -598,6 +598,16 @@
   .shot .take input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
   .shot .take .ico { font-size: 24px; display: block; margin-bottom: 2px; }
   .shot .note { flex: 1; }
+  .panel .pics { display: flex; gap: 8px; flex-wrap: wrap; margin: 4px 0 12px; }
+  .panel .pics .take { position: relative; flex: none; width: calc((100% - 24px) / 4); max-width: 84px; height: auto; aspect-ratio: 1; border-radius: 14px; border: 2px dashed var(--line-2); background: #fff; display: grid; place-items: center; text-align: center; font-size: 12px; color: var(--ink-2); font-weight: 600; overflow: hidden; }
+  .panel .pics .take:has(img) { border-style: solid; }
+  .panel .pics .take img { width: 100%; height: 100%; object-fit: cover; }
+  .panel .pics .take input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .panel .pics .take small { display: block; font-weight: 500; }
+  .panel .pics .rm { position: absolute; top: 4px; right: 4px; width: 26px; height: 26px; border-radius: 50%; border: 0; background: rgba(18,19,20,.78); color: #fff; font-size: 15px; line-height: 1; cursor: pointer; display: grid; place-items: center; }
+  .panel:has(.pics) .acts { margin-bottom: 64px; }
+  .panel .placing { font-size: 12px; color: var(--mute); margin: 8px 0 -4px; min-height: 16px; }
+  .panel .acts .again { background: #fff; border: 1px solid var(--line-2); color: var(--ink); }
   .thinking { display: flex; align-items: center; gap: 12px; padding: 16px 0; font-size: 15px; }
   /* handoff: what goes to the contractor after a review is finished */
   .handoff { margin: 18px 0 8px; border-radius: 18px; background: #fff; border: 1px solid var(--line-2); box-shadow: 0 10px 30px rgba(18,19,20,.08); overflow: hidden; }
@@ -647,7 +657,7 @@
   .agentnote b { color: var(--hot); }
   .pinned { position: relative; display: block; }
   .pinned .pin { width: 26px; height: 26px; }
-  @media (min-width: 900px) { .viewer { flex-direction: row; } .viewer .vbar { position: absolute; left: 0; right: 0; top: 0; z-index: 2; } .viewer .floors { position: absolute; left: 0; right: 0; top: 56px; z-index: 2; } .canvas { padding-top: 56px; } .viewer:has(.floors) .canvas { padding-top: 107px; } .panel { width: 420px; max-height: none; border-top: 0; border-left: 1px solid var(--line-2); padding-top: 72px; } }
+  @media (min-width: 900px) { .viewer { flex-direction: row; } .viewer .vbar { position: absolute; left: 0; right: 0; top: 0; z-index: 2; } .viewer .floors { position: absolute; left: 0; right: 0; top: 56px; z-index: 2; } .canvas { padding-top: 56px; } .viewer:has(.floors) .canvas { padding-top: 107px; } .panel { width: 420px; flex: none; max-height: none; border-top: 0; border-left: 1px solid var(--line-2); padding-top: 18px; } .viewer:has(.panel) .vbar, .viewer:has(.panel) .floors { right: 420px; } }
   @media (max-width: 760px) { .panel .row { grid-template-columns: 1fr; } .discs { grid-template-columns: 1fr 1fr; } }
 
   .capture { display: flex; align-items: center; gap: 16px; margin: 18px 0 18px; padding: 18px 20px; border-radius: 18px; background: var(--ink); color: #fff; cursor: pointer; position: relative; overflow: hidden; box-shadow: 0 14px 34px rgba(18,19,20,.22); }
@@ -2429,6 +2439,7 @@ function renderItem(id) {
       <section class="box"><h2>Where it is</h2>
         <div class="refs">
           ${d.reference_photo ? `<figure><img src="${pUrl(slug, "/register/" + encodeURIComponent(d.item_id) + "/reference")}" alt=""><figcaption>Engineer's photo at the field review${d.review_date ? ", " + esc(d.review_date) : ""}</figcaption></figure>` : ""}
+          ${d.reference_photo ? ((d.ref_meta || {}).more_photos || []).map((_, k) => `<figure><img src="${pUrl(slug, "/register/" + encodeURIComponent(d.item_id) + "/photos/" + (k + 2))}" alt="" loading="lazy"><figcaption>Photo ${k + 2}</figcaption></figure>`).join("") : ""}
           ${sheet ? `<figure><a class="pinned" href="${pHash(slug, "/field/" + sheet.id)}"><img src="${sheet.image_url}" alt="" loading="lazy">${hasPin ? `<i class="pin" style="left:${d.pin_x * 100}%;top:${d.pin_y * 100}%"></i>` : ""}</a><figcaption>Sheet ${esc(sheet.sheet_number)} · ${esc(sheet.title)}${hasPin ? " · pinned where it was found" : ""}</figcaption></figure>` : `<p class="empty">No sheet ${esc(d.sheet || "")} in the project drawings.</p>`}
         </div>
       </section>
@@ -3249,7 +3260,7 @@ function renderSheet(sheetId) {
 function captureForm() {
   const v = state.viewer; if (!v || !$("#fDesc")) return;
   const val = (id, was) => { const el = $(id); return el ? el.value : was; }, w = v.sug || {};
-  v.sug = { ...w, location: val("#fLoc", w.location), description: $("#fDesc").value, evidence_required: val("#fEv", w.evidence_required), unit: $("#fUnit").value, level: $("#fLevel").value, space: $("#fSpace").value };
+  v.sug = { ...w, description: $("#fDesc").value, evidence_required: val("#fEv", w.evidence_required), unit: $("#fUnit").value, level: $("#fLevel").value, space: $("#fSpace").value };
 }
 function tapSheet(sh, x, y) {
   const v = state.viewer;
@@ -3257,32 +3268,76 @@ function tapSheet(sh, x, y) {
   captureForm(); v.carry = false;
   const code = v.disc || sh.discipline;
   if (!v.kind) v.kind = "def";
-  if (!activeReview(code)) { startReview(code).then(r => { if (r) { v.draft = { x, y }; v.step = "form"; render(); } }); return; }
-  v.draft = { x, y }; v.step = "form"; render();
+  const moved = !!v.draft;
+  if (!activeReview(code)) { startReview(code).then(r => { if (r) { v.draft = { x, y }; v.step = "form"; placeFromPlan(sh, x, y, moved); render(); readPlace(sh, x, y); } }); return; }
+  v.draft = { x, y }; v.step = "form"; placeFromPlan(sh, x, y, moved); render(); readPlace(sh, x, y);
+}
+/* The place fills itself in: unit and floor straight from the plan box under the pin, then the room and the spot read off the
+   sheet. Every box stays his to change; nothing he typed is overwritten. */
+function placeFromPlan(sh, x, y, moved) {
+  const v = state.viewer, w = v.sug || {}, units = state.p.project.units.map(u => u.label || u.name || u);
+  const box = (sh.views || []).filter(b => x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h).sort((a, b) => a.w * a.h - b.w * b.h)[0];
+  const unit = box && units.includes(box.unit) ? box.unit : (sh.units || []).length === 1 && units.includes(sh.units[0]) ? sh.units[0] : "";
+  const level = box ? box.level || "" : "";
+  const pick = (had, got) => moved ? got || (had === (v.place || {}).auto ? "" : had) : (had || "").trim() ? had : got;
+  v.sug = { ...w, unit: moved ? unit || "" : pick(w.unit, unit), level: moved ? level : pick(w.level, level), space: moved ? "" : w.space || "" };
+  v.place = { seq: ((v.place || {}).seq || 0) + 1, busy: true, unit: v.sug.unit, level: v.sug.level, space: v.sug.space, location: "" };
+}
+async function readPlace(sh, x, y) {
+  const v = state.viewer, pl = v.place, seq = pl.seq;
+  const fd = new FormData(); fd.append("sheet_id", sh.id); fd.append("pin_x", x); fd.append("pin_y", y); fd.append("place", "true");
+  const rv = activeReview(v.disc || sh.discipline); fd.append("discipline", rv ? rv.discipline : sh.discipline);
+  let t = null;
+  try { const r = await fetch(pUrl(state.slug, "/findings/suggest"), { method: "POST", body: fd }); if (r.ok) t = (await r.json()).suggestion; } catch (e) { /* the boxes stay as they are */ }
+  if (state.viewer !== v || !v.place || v.place.seq !== seq) return;
+  v.place.busy = false;
+  if (t) {
+    captureForm(); const w = v.sug || {}, untouched = k => !(w[k] || "").trim() || w[k] === pl[k];
+    v.sug = { ...w, unit: untouched("unit") && t.unit ? t.unit : w.unit, level: untouched("level") && t.level ? t.level : w.level, space: untouched("space") && t.space ? t.space : w.space };
+    Object.assign(v.place, { unit: v.sug.unit, level: v.sug.level, space: v.sug.space, location: t.location || "" });
+  }
+  if ($("#panel")) renderPanel(sh, activeReview(v.disc || sh.discipline));
+}
+/* The contractor's line: the spot as read off the sheet while the boxes still say what was read, otherwise the boxes themselves */
+function placeLine(sh) {
+  const v = state.viewer, pl = v.place || {}, unit = $("#fUnit").value, level = $("#fLevel").value, space = $("#fSpace").value.trim();
+  const line = pl.location && unit === pl.unit && level === pl.level && space === (pl.space || "") ? pl.location : [unit, level, space].filter(Boolean).join(", ");
+  return line.length >= 4 ? line : `As pinned on sheet ${sh.sheet_number || sh.discipline + " p." + sh.page}`;
 }
 function renderPanel(sh, rv) {
   const v = state.viewer, p = state.p, el = $("#panel"), s = v.sug || v.typed || {}, note = v.kind === "note";
   const units = p.project.units.map(u => u.label || u.name || u), levels = [...new Set([...p.project.levels.map(l => l.name || l), ...p.project.units.flatMap(u => (u.levels || []).map(l => l.name || l))])];
   const opts = (list, cur) => `<option value="">—</option>` + list.map(x => `<option ${x === cur ? "selected" : ""}>${esc(x)}</option>`).join("");
   const code = rv ? rv.discipline : sh.discipline, next = `${code}-${String(nextNumber(code)).padStart(2, "0")}`;
+  const photos = [...(v.photoUrl ? [{ url: v.photoUrl }] : []), ...(v.more || [])];
   el.innerHTML = `
       <div class="whead"><h3>On ${esc(sh.sheet_number || "this sheet")}</h3>${kindToggle(v.kind, "fKind")}</div>
       <div class="sub">${note ? "Kept for the record and shown in the report. It is not numbered and not sent to the contractor." : `Numbered ${esc(next)} and put on the contractor's list.`}${v.draft ? "" : " <b>Tap the spot on the sheet</b> to pin it."}</div>
-      <div class="shot">
-        <div class="take ${v.photoUrl ? "" : "none"}">${v.photoUrl ? `<img src="${v.photoUrl}" alt="">` : `<span>＋<small>photo, optional</small></span>`}<input type="file" accept="image/*" capture="environment" id="photoIn"></div>
-        <div class="note"><label style="margin-top:0">What you saw</label><div class="said"><textarea id="fDesc" placeholder="${note ? "e.g. insulation in, vapour barrier not up yet" : "e.g. no GFCI on the receptacle beside the basin, cover plate missing"}">${esc(s.description || "")}</textarea>${micButton("fDesc")}</div>
-          <div class="tidyrow"><button class="lnk" id="tidy" ${v.tidying ? "disabled" : ""}>${v.tidying ? "Tidying…" : "Tidy the wording"}</button><span>${v.tidying ? "" : v.draft ? "Puts your own words in order. Adds nothing." : "Tap the spot first to tidy."}</span></div></div>
-      </div>
+      <div class="placing">${v.place && v.place.busy ? "Reading the spot off the plan…" : ""}</div>
       <div class="row">
         <div><label>Unit</label><select id="fUnit">${opts(units, s.unit || "")}</select></div>
         <div><label>Level</label><select id="fLevel">${opts(levels, s.level || "")}</select></div>
         <div><label>Room</label><input id="fSpace" value="${esc(s.space || "")}" placeholder="Bath 2"></div>
       </div>
-      ${note ? "" : `<label>Location a contractor can walk to</label><input id="fLoc" value="${esc(s.location || "")}" placeholder="Unit C, Upper Floor, Bath 2: wall behind toilet">
-      <label>What the contractor must send to close it</label><input id="fEv" value="${esc(s.evidence_required || "photo: the corrected work at this spot")}" placeholder="photo: repaired; report: test sheet">
+      <label>Photos</label>
+      <div class="pics">
+        ${photos.map((ph, i) => `<div class="take"><img src="${ph.url}" alt="Photo ${i + 1}"><button type="button" class="rm" data-rm="${i}" aria-label="Remove photo ${i + 1}">×</button></div>`).join("")}
+        ${note && photos.length ? "" : `<div class="take none"><span>＋<small>${photos.length ? "another" : "photo, optional"}</small></span><input type="file" accept="image/*" capture="environment" ${note ? "" : "multiple"} id="photoIn" aria-label="Add a photo"></div>`}
+      </div>
+      <label style="margin-top:4px">What you saw</label><div class="said"><textarea id="fDesc" placeholder="${note ? "e.g. insulation in, vapour barrier not up yet" : "e.g. no GFCI on the receptacle beside the basin, cover plate missing"}">${esc(s.description || "")}</textarea>${micButton("fDesc")}</div>
+      <div class="tidyrow"><button class="lnk" id="tidy" ${v.tidying ? "disabled" : ""}>${v.tidying ? "Tidying…" : "Tidy the wording"}</button><span>${v.tidying ? "" : v.draft ? "Puts your own words in order. Adds nothing." : "Tap the spot first to tidy."}</span></div>
+      ${note ? "" : `<label>What the contractor must send to close it</label><input id="fEv" value="${esc(s.evidence_required || "photo: the corrected work at this spot")}" placeholder="photo: repaired; report: test sheet">
       <div class="agentnote">Separate several with “;”</div>`}
-      <div class="acts"><button class="btn primary" id="save">${note ? "Save the note" : `Save as ${esc(next)}`}</button><button class="cancel" id="cancel">Cancel</button></div>`;
-  const pin = $("#photoIn"); if (pin) pin.onchange = () => { const f = pin.files[0]; if (!f) return; captureForm(); v.photo = f; if (v.photoUrl) URL.revokeObjectURL(v.photoUrl); v.photoUrl = URL.createObjectURL(f); renderPanel(sh, rv); };
+      <div class="acts"><button class="btn primary" id="save">${note ? "Save the note" : `Save as ${esc(next)}`}</button>${v.draft ? `<button class="btn again" id="saveAgain">Save, add another here</button>` : ""}<button class="cancel" id="cancel">${v.saved ? "Done" : "Cancel"}</button></div>`;
+  const pin = $("#photoIn"); if (pin) pin.onchange = () => {
+    const files = [...pin.files]; if (!files.length) return; captureForm();
+    for (const f of files) { if (!v.photo) { v.photo = f; v.photoUrl = URL.createObjectURL(f); } else if (!note && (v.more || []).length < 7) (v.more = v.more || []).push({ file: f, url: URL.createObjectURL(f) }); }
+    renderPanel(sh, rv); };
+  el.querySelectorAll(".pics .rm").forEach(b => b.onclick = () => { captureForm(); const i = +b.dataset.rm;
+    if (i === 0) { URL.revokeObjectURL(v.photoUrl); const n = (v.more || []).shift(); v.photo = n ? n.file : null; v.photoUrl = n ? n.url : null; }
+    else { const [gone] = v.more.splice(i - 1, 1); URL.revokeObjectURL(gone.url); }
+    renderPanel(sh, rv); });
+  const again = $("#saveAgain"); if (again) again.onclick = () => note ? saveNoteOnSheet(sh, rv, true) : saveFinding(sh, rv, true);
   el.querySelectorAll("#fKind button[data-kind]").forEach(b => b.onclick = () => { captureForm(); v.kind = b.dataset.kind; render(); });
   $("#cancel").onclick = () => { resetDraft(); render(); };
   $("#tidy").onclick = () => tidyWords(sh, rv);
@@ -3314,7 +3369,7 @@ function wireDictate(root) {
   });
 }
 function nextNumber(code) { let n = 0; state.p.register.forEach(d => { const m = d.item_id.match(new RegExp("^" + code + "-(\\d+)$")); if (m) n = Math.max(n, +m[1]); }); return n + 1; }
-function resetDraft() { const v = state.viewer; if (!v) return; if (dictation) dictation.stop(); if (v.photoUrl) URL.revokeObjectURL(v.photoUrl); Object.assign(v, { draft: null, step: "idle", photo: null, photoUrl: null, note: "", sug: null, typed: null, busy: false, tidying: false, gps: "", carry: false }); }
+function resetDraft() { const v = state.viewer; if (!v) return; if (dictation) dictation.stop(); if (v.photoUrl) URL.revokeObjectURL(v.photoUrl); (v.more || []).forEach(m => URL.revokeObjectURL(m.url)); Object.assign(v, { draft: null, step: "idle", photo: null, photoUrl: null, more: [], place: null, saved: 0, note: "", sug: null, typed: null, busy: false, tidying: false, gps: "", carry: false }); }
 /* Only on his press: his own words put in order for the record. Nothing is added, and the photo is not read. */
 async function tidyWords(sh, rv) {
   const v = state.viewer; captureForm();
@@ -3337,7 +3392,14 @@ async function tidyWords(sh, rv) {
   } catch (e) { toast("Lost the connection; your words are kept", true); }
   v.tidying = false; v.busy = false; renderPanel(sh, rv);
 }
-async function saveNoteOnSheet(sh, rv) {
+/* After a save with "add another here": the pin and the place stay; the words and the photos are cleared for the next one */
+function keepSpot() {
+  const v = state.viewer; if (dictation) dictation.stop();
+  const keep = { unit: $("#fUnit").value, level: $("#fLevel").value, space: $("#fSpace").value };
+  if (v.photoUrl) URL.revokeObjectURL(v.photoUrl); (v.more || []).forEach(m => URL.revokeObjectURL(m.url));
+  Object.assign(v, { photo: null, photoUrl: null, more: [], note: "", typed: null, sug: keep, busy: false, tidying: false, carry: false, saved: (v.saved || 0) + 1 });
+}
+async function saveNoteOnSheet(sh, rv, again) {
   const v = state.viewer; if (!rv) return toast("Start a field review first", true);
   const words = $("#fDesc").value.trim();
   if (!v.photo && words.length < 2) return toast("Write or say what you saw first", true);
@@ -3349,24 +3411,24 @@ async function saveNoteOnSheet(sh, rv) {
   $("#save").disabled = true;
   const r = await fetch(pUrl(state.slug, "/notes"), { method: "POST", body: fd }), j = await r.json().catch(() => ({}));
   if (!r.ok) { $("#save").disabled = false; return toast(j.detail || "Could not save the note", true); }
-  toast(`Note kept for the record${v.draft ? " · marked on " + (sh.sheet_number || "the sheet") : ""}`); resetDraft(); await load();
+  toast(`Note kept for the record${v.draft ? " · marked on " + (sh.sheet_number || "the sheet") : ""}${again ? ". Add the next one at this spot" : ""}`); if (again) keepSpot(); else resetDraft(); await load();
 }
-async function saveFinding(sh, rv) {
+async function saveFinding(sh, rv, again) {
   const v = state.viewer; if (!rv) return toast("Start a field review first", true);
   const fd = new FormData(); if (v.gps) fd.append("gps", v.gps);
   fd.append("sheet_id", sh.id); if (v.draft) { fd.append("pin_x", v.draft.x); fd.append("pin_y", v.draft.y); } fd.append("review_id", rv.id);
-  const loc = $("#fLoc").value.trim() || [$("#fUnit").value, $("#fLevel").value, $("#fSpace").value].filter(Boolean).join(", ");
+  const loc = placeLine(sh);
   if ($("#fDesc").value.trim().length < 4) return toast("Write or say what you saw first", true);
-  if (loc.length < 4) return toast("Say where it is: the unit, floor or room", true);
   fd.append("location", loc); fd.append("description", $("#fDesc").value); fd.append("evidence_required", $("#fEv").value.trim() || "photo: the corrected work at this spot");
   fd.append("unit", $("#fUnit").value); fd.append("level", $("#fLevel").value); fd.append("space", $("#fSpace").value); fd.append("note", v.note);
   fd.append("discipline", v.sug && v.sug.discipline ? v.sug.discipline : rv.discipline);
   if (v.photo) fd.append("photo", v.photo, v.photo.name || "photo.jpg");
-  $("#save").disabled = true;
+  (v.more || []).forEach((m, i) => fd.append("more_photos", m.file, m.file.name || `photo-${i + 2}.jpg`));
+  $("#save").disabled = true; if ($("#saveAgain")) $("#saveAgain").disabled = true;
   const r = await fetch(pUrl(state.slug, "/findings"), { method: "POST", body: fd });
   const j = await r.json().catch(() => ({}));
-  if (!r.ok) { $("#save").disabled = false; return toast(j.detail || "Could not save", true); }
-  toast(`${j.item.item_id} saved · ${j.item.location}`); resetDraft(); await load();
+  if (!r.ok) { $("#save").disabled = false; if ($("#saveAgain")) $("#saveAgain").disabled = false; return toast(j.detail || "Could not save", true); }
+  toast(`${j.item.item_id} saved · ${j.item.location}${again ? ". Add the next one at this spot" : ""}`); if (again) keepSpot(); else resetDraft(); await load();
 }
 
 /* ---- live run feed --------------------------------------------------- */

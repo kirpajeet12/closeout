@@ -170,22 +170,23 @@ def _sheet_context(store: Store, project_id: str, sheet: dict) -> tuple[str, set
 
 def suggest_field_note(store: Store, project_id: str, sheet_id: str, pin_x: float, pin_y: float,
                        photo_bytes: bytes | None, note: str = "", settings: Settings = SETTINGS, model=None,
-                       discipline_hint: str = "", tidy: bool = False) -> dict:
-    """One synchronous model call. Returns the proposal plus usage; raises RuntimeError if the agent recorded nothing."""
+                       discipline_hint: str = "", tidy: bool = False, place: bool = False) -> dict:
+    """One synchronous model call. Returns the proposal plus usage; raises RuntimeError if the agent recorded nothing.
+    With place, only the spot is read off the sheet (unit, level, room, location) the moment the pin goes down."""
     sheet = store.sheet(sheet_id)
     if not sheet or sheet["project_id"] != project_id:
         raise ValueError("sheet not in this project")
     context, units, levels = _sheet_context(store, project_id, sheet)
     ctx = FieldContext()
     agent = Agent(model=model or make_model(settings), tools=make_field_tools(ctx, units, levels),
-                  system_prompt=TIDY_SYSTEM if tidy else FIELD_SYSTEM, callback_handler=None)
+                  system_prompt=TIDY_SYSTEM if tidy else PLACE_SYSTEM if place else FIELD_SYSTEM, callback_handler=None)
     crop, whole = pin_images(Path(sheet["image_path"]), pin_x, pin_y)
-    if tidy:
+    if tidy or place:
         photo_bytes = None
     content: list[dict] = []
     if photo_bytes:
         content += [{"text": "Engineer's photo at the pin:"}, {"image": {"format": "jpeg", "source": {"bytes": photo_bytes}}}]
-    elif not tidy:
+    elif not tidy and not place:
         content.append({"text": "No photo was taken; work from the sheet and the note."})
     content += [
         {"text": "Sheet close-up around the pin (orange circle):"}, {"image": {"format": "jpeg", "source": {"bytes": crop}}},
@@ -210,6 +211,15 @@ THIS TIME THE ENGINEER HAS ALREADY WRITTEN IT. Their words (the ENGINEER'S NOTE)
 - location / unit / level / space: from the pin and the sheet context, as usual; their words win when they name the place.
 - evidence_required: only what their words ask for; otherwise the minimum "photo: the work at this spot".
 There is no photo in this request; do not describe one.
+"""
+
+
+PLACE_SYSTEM = FIELD_SYSTEM + """
+THIS TIME THE ENGINEER HAS ONLY PUT THE PIN DOWN. Nothing has been written yet and there is no photo.
+Your job is only the place: location, unit, level and space, read from the pin, the sheet and the project context.
+- location: the line a contractor can walk to, ending with what is drawn at the pin ("Unit 2, Upper Floor, Bath: wall beside the basin").
+- description: "Location only: " followed by what is drawn at the pin, in a few words. Do not describe any problem.
+- evidence_required: "photo: the work at this spot".
 """
 
 
