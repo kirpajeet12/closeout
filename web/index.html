@@ -617,6 +617,31 @@
   .handoff .ms .acts .btn { min-height: 40px; padding: 8px 14px; font-size: 14px; }
   .handoff .ms .note { color: var(--mute); font-size: 13px; margin: 10px 0 0; }
   .handoff .ms .why { margin: 0 0 10px; font-size: 14px; }
+  .handoff .ms .field { margin-bottom: 10px; } .handoff .ms .field input { margin-bottom: 0; }
+  .handoff .ms h4.again { margin: 0 0 12px; font-size: 15px; }
+  .handoff .ms .waiting + h4.again { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
+  .handoff .attach { display: flex; align-items: center; gap: 12px; padding: 10px 12px; margin-top: 2px; border: 1px solid var(--line-2); border-radius: 12px; background: #fff; }
+  .handoff .attach .pdf { flex: none; width: 38px; height: 46px; border-radius: 6px; background: var(--hot); color: #fff; font-size: 11px; font-weight: 800; letter-spacing: .06em; display: grid; place-items: center; }
+  .handoff .attach div { flex: 1; min-width: 0; font-size: 14px; } .handoff .attach small { display: block; color: var(--mute); font-size: 13px; margin-top: 1px; }
+  .handoff .attach a.btn { text-decoration: none; min-height: 36px; padding: 6px 12px; font-size: 13px; }
+  .handoff .waiting { display: flex; gap: 12px; align-items: flex-start; }
+  .handoff .waiting i { flex: none; width: 12px; height: 12px; margin-top: 5px; border-radius: 50%; background: var(--mute); }
+  .handoff .waiting i.live { background: var(--hot); animation: pulse .9s infinite alternate; }
+  .handoff .waiting.got i { background: #1f8a4c; }
+  .handoff .waiting b { font-size: 16px; } .handoff .waiting small { display: block; color: var(--mute); font-size: 13px; margin-top: 3px; max-width: 640px; }
+  .handoff .reply { margin: 12px 0 0 24px; padding: 12px 14px; border-radius: 12px; background: #fff; border: 1px solid var(--line-2); font-size: 14px; }
+  .handoff .reply .rt { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; } .handoff .reply .rt span { color: var(--mute); font-size: 13px; }
+  .handoff .reply p { margin: 6px 0 0; } .handoff .reply > a { display: inline-block; margin-top: 8px; font-size: 13px; }
+  .handoff h4.pkh { margin: 0; padding: 14px 20px 6px; font-size: 12px; color: var(--mute); text-transform: uppercase; letter-spacing: .1em; border-top: 1px solid var(--line); }
+  .handoff .btn.quiet { color: var(--mute); border-color: transparent; text-decoration: none; }
+  .finishask .which { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; margin-top: 6px; font-size: 14px; color: rgba(255,255,255,.7); }
+  .finishask .which b { color: #fff; font-size: 16px; }
+  .finishask .whichstage { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 10px; } .finishask .whichstage small { color: rgba(255,255,255,.6); font-size: 13px; }
+  .finishask .chip { background: rgba(255,255,255,.08); color: #fff; border-color: rgba(255,255,255,.18); } .finishask .chip.on { background: #fff; color: var(--ink); border-color: #fff; }
+  .finishask .grow { flex: 1; min-width: 0; }
+  .finishask input#finishTo { display: block; width: 100%; max-width: 420px; margin-top: 10px; font: inherit; font-size: 16px; padding: 11px 13px; border-radius: 10px; border: 1px solid rgba(255,255,255,.25); background: #fff; color: var(--ink); }
+  .finishask .fine2 { font-size: 13px; } .finishask .fine2 a { color: #fff; }
+  .finishask .fq.end { justify-content: flex-end; }
   .thinking .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--hot); animation: pulse .6s infinite alternate; flex: none; }
   .agentnote { font-size: 13px; color: var(--mute); margin-top: 6px; }
   .agentnote b { color: var(--hot); }
@@ -1031,7 +1056,7 @@ const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt
 const when = s => { const d = new Date(s); return isNaN(d) ? String(s ?? "") : d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }); };
 const fileUrl = (id, page) => `/api/evidence/${id}/file` + (page ? `#page=${page}` : "");
 const isImg = name => /\.(jpe?g|png|heic|heif|webp)$/i.test(name || "");
-const state = { home: null, p: null, slug: null, es: null, run: { kind: "idle", text: "", done: 0, total: 0 }, fieldDisc: null, walk: null, rmNote: null, filing: null, viewer: null, shot: null, openReview: null, mailOpen: null, finishing: null, confirmFinish: null, drafting: null, mapping: null, docsAsking: false, filters: { bld: "", disc: "", rv: "" }, folder: [], pinMode: "", brief: {}, briefOpen: {}, starting: null, cov: {}, unitLog: null, stagesEdit: null };
+const state = { home: null, p: null, slug: null, es: null, run: { kind: "idle", text: "", done: 0, total: 0 }, fieldDisc: null, walk: null, rmNote: null, filing: null, viewer: null, shot: null, openReview: null, mailOpen: null, finishing: null, confirmFinish: null, finishTo: null, hoEdit: null, resend: null, sending: null, drafting: null, mapping: null, docsAsking: false, filters: { bld: "", disc: "", rv: "" }, folder: [], pinMode: "", brief: {}, briefOpen: {}, starting: null, cov: {}, unitLog: null, stagesEdit: null };
 
 function toast(msg, err) { if (typeof msg !== "string") msg = Array.isArray(msg) ? "Fill in " + msg.map(e => String((e.loc || []).slice(-1)[0] || "").replace(/_/g, " ")).filter(Boolean).join(", ") : "Something went wrong"; const t = $("#toast"); t.textContent = msg; t.className = "toast show" + (err ? " err" : ""); setTimeout(() => t.className = "toast", 3200); }
 function route() {
@@ -2534,7 +2559,7 @@ function renderField() {
       <div class="disc ${d.code === cur.code ? "on" : ""}" data-code="${esc(d.code)}"><span class="code">${esc(d.code)}</span><h2>${esc(d.name)}</h2><span class="n">${d.added && !d.sheets.length ? "no drawings yet · plans stand in" : `${d.sheets.length} sheet${d.sheets.length === 1 ? "" : "s"}`} · ${n} deficienc${n === 1 ? "y" : "ies"}</span>
         <div class="rv">${a ? `<span><i class="live"></i><b>${esc(a.title)}</b> in progress</span>` : `<span style="color:var(--mute)">${p.reviews.filter(r => r.discipline === d.code).length ? p.reviews.filter(r => r.discipline === d.code).length + " done" : "Not started"}</span>`}</div></div>`; }).join("")}</div>
     ${walking ? `<section class="walk">${head}
-      ${rv && state.confirmFinish === rv.id ? `<section class="finishask"><div class="fq"><span class="n">1</span><div><h3>Which units did you walk?</h3><p>Before ${esc(rv.title.toLowerCase())} is finished. Ticked from where you recorded deficiencies; add the ones you walked without finding anything.</p></div></div>${renderUnitsStrip(rv, true, "Walked in this review")}<div class="fq"><span class="n">2</span><div><h3>Finish and package</h3><p>The list is frozen for the contractor and the covering message is drafted. ${(rv.units || []).length ? `${(rv.units || []).length} unit${(rv.units || []).length === 1 ? " goes" : "s go"} on the report as walked.` : "No units marked yet."}</p></div><span class="acts"><button class="btn" id="finishNo">Not yet</button><button class="btn primary" id="finishGo">Finish ${esc(rv.title.toLowerCase())}</button></span></div></section>` : ""}
+      ${rv && state.confirmFinish === rv.id ? renderFinishAsk(rv, cur, items) : ""}
       ${capture}
       ${rv && state.confirmFinish !== rv.id ? renderUnitsStrip(rv, true) : ""}
       ${shot && shot.disc === cur.code && shot.pick ? `<p class="pickhint"><span>Which sheet does this belong on?</span> Tap it; the photo comes with you.</p>${renderGalleryGroups(cur)}` : ""}
@@ -2547,7 +2572,7 @@ function renderField() {
     ${!walking && rv && items.length ? `<h3 class="sec">Reported so far in ${esc(rv.title.toLowerCase())}</h3>${renderByUnit(items)}` : ""}
     ${!walking && rv ? renderSiteNotes(rv, false) : ""}
     ${!walking ? (() => { const pins = cur.sheets.reduce((n, sh) => n + findingsOn(sh.id).length, 0); return `<h3 class="sec">Plans${pins ? ` · ${pins} spot${pins === 1 ? "" : "s"} marked across the field reviews` : ""}</h3>${renderGalleryGroups(cur)}`; })() : ""}
-    ${done.length ? `<h3 class="sec">Earlier reviews</h3><table><tbody>${done.map(r => { const n = findingsIn(r.id).length, m = messageFor(r.id); return `<tr class="row" data-rv="${esc(r.id)}"><td class="id">${esc(r.title)}</td><td><div class="what">${esc(when(r.started_at))} → ${esc(when(r.finished_at))}</div><div class="where">${m ? "Message drafted for the contractor" : n ? "No message yet" : "Nothing recorded"}</div></td><td class="num">${n} item${n === 1 ? "" : "s"}</td><td class="go">›</td></tr>`; }).join("")}</tbody></table>` : ""}
+    ${done.length ? `<h3 class="sec">Earlier reviews</h3><table><tbody>${done.map(r => { const n = findingsIn(r.id).length, m = messageFor(r.id); return `<tr class="row" data-rv="${esc(r.id)}"><td class="id">${esc(r.title)}</td><td><div class="what">${esc(when(r.started_at))} → ${esc(when(r.finished_at))}</div><div class="where">${(() => { const sn = (p.sends || []).filter(x => x.review_id === r.id), got = (p.inbound || []).some(x => x.review_id === r.id && x.status !== "unplaced"); return sn.length ? `Sent to ${esc(sn[sn.length - 1].to_addr)} · ${got ? "reply received" : "waiting for the reply"}` : m ? "Email written, not sent yet" : n ? "No email yet" : "Nothing recorded"; })()}</div></td><td class="num">${n} item${n === 1 ? "" : "s"}</td><td class="go">›</td></tr>`; }).join("")}</tbody></table>` : ""}
     <footer><span>Numbers are ${esc(cur.code)}-01, ${esc(cur.code)}-02 … and never reused.</span><span>You write what you saw. Closeout tidies the wording only when you ask.</span></footer>`;
   $("#tab").querySelectorAll(".disc").forEach(d => d.onclick = () => { state.fieldDisc = d.dataset.code; const s = state.shot; if (s && !s.busy) { s.disc = d.dataset.code; s.pick = false; state.walk = d.dataset.code; } renderField(); });
   $("#tab").querySelectorAll(".sheet").forEach(s => s.onclick = () => { if (shot && shot.disc === cur.code) { const sh = p.project.sheets.find(x => x.id === s.dataset.id), lv = shot.level; carryShot(s.dataset.id, sh && lv ? (sh.views || []).find(v => v.level === lv) || null : null); } else location.hash = pHash(slug, "/field/" + s.dataset.id); });
@@ -2557,9 +2582,11 @@ function renderField() {
   const st = $("#startRv"); if (st) st.onclick = () => { if (!STAGES_ON) { state.walk = cur.code; return startReview(cur.code, ""); } state.starting = { code: cur.code, stage: "", other: false }; renderField(); };
   const wo = $("#walkOpen"); if (wo) wo.onclick = () => { state.walk = cur.code; renderField(); const w = $("#tab").querySelector(".walk"); if (w) w.scrollIntoView({ behavior: "smooth", block: "start" }); };
   const wc = $("#walkClose"); if (wc) wc.onclick = () => { state.walk = null; if (shot && shot.disc === cur.code) { if (shot.photoUrl) URL.revokeObjectURL(shot.photoUrl); state.shot = null; } renderField(); };
-  const fi = $("#finishRv"); if (fi) fi.onclick = () => { if (!hasUnits()) return finishReview(rv); state.confirmFinish = rv.id; renderField(); const ask = $("#tab").querySelector(".finishask"); if (ask) ask.scrollIntoView({ behavior: "smooth", block: "center" }); };
-  const fg = $("#finishGo"); if (fg) fg.onclick = () => { state.confirmFinish = null; finishReview(rv); };
-  const fn = $("#finishNo"); if (fn) fn.onclick = () => { state.confirmFinish = null; renderField(); };
+  const fi = $("#finishRv"); if (fi) fi.onclick = () => { state.confirmFinish = rv.id; if (state.finishTo == null) state.finishTo = lastRecipient(); renderField(); const ask = $("#tab").querySelector(".finishask"); if (ask) ask.scrollIntoView({ behavior: "smooth", block: "start" }); const t = $("#finishTo"); if (t && !t.value) t.focus({ preventScroll: true }); };
+  const ft = $("#finishTo"); if (ft) ft.oninput = () => { state.finishTo = ft.value; };
+  $("#tab").querySelectorAll(".finishask [data-finstage]").forEach(b => b.onclick = () => patchReview(rv.id, { stage: rv.stage === b.dataset.finstage ? "" : b.dataset.finstage }));
+  const fg = $("#finishGo"); if (fg) fg.onclick = () => { const to = ($("#finishTo") || {}).value ? $("#finishTo").value.trim() : ""; if (to && !looksLikeEmail(to)) { toast("That email address does not look right", true); return $("#finishTo").focus(); } state.confirmFinish = null; state.finishTo = null; finishReview(rv, to); };
+  const fn = $("#finishNo"); if (fn) fn.onclick = () => { state.confirmFinish = null; state.finishTo = null; renderField(); };
   if (!rv) wireBrief(cur); wireStart(cur); wireUnitsStrip(); if (STAGES_ON) wireCoverage(cur);
   const si = $("#shotIn"); if (si) si.onchange = () => { const f = si.files[0]; if (!f) return; beginShot(cur.code, f); };
   const ns = $("#noShot"); if (ns) ns.onclick = e => { e.preventDefault(); beginShot(cur.code, null); };
@@ -2631,15 +2658,36 @@ function renderGalleryGroups(cur) {
 }
 /* ---- finishing a review: the package for the contractor + the agent's covering message ---- */
 function messageFor(reviewId) { return state.p.messages.find(m => m.review_id === reviewId) || null; }
-async function finishReview(rv) {
+async function finishReview(rv, to) {
   state.finishing = rv.id; renderField();
-  const r = await fetch(pUrl(state.slug, `/reviews/${rv.id}/finish`), { method: "POST" });
+  const r = await fetch(pUrl(state.slug, `/reviews/${rv.id}/finish`), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ to: to || "" }) });
   const j = await r.json().catch(() => ({}));
   state.finishing = null;
   if (!r.ok) { toast(j.detail || "Could not finish", true); return renderField(); }
-  state.openReview = rv.id; if (state.walk === rv.discipline) state.walk = null;
-  toast(j.message ? `${rv.title} finished · message drafted` : `${rv.title} finished`, false);
+  state.openReview = rv.id; state.resend = null; if (state.walk === rv.discipline) state.walk = null;
+  toast(j.message ? `${rv.title} finished · email ready to send` : `${rv.title} finished`, !j.message && !!j.error);
   await load();
+  const box = $("#tab") && $("#tab").querySelector(".handoff"); if (box) box.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+function looksLikeEmail(v) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v); }
+function lastRecipient() {
+  const p = state.p, s = (p.sends || [])[(p.sends || []).length - 1], d = (p.messages || []).find(m => m.review_id && m.to_addr);
+  return s ? s.to_addr : d ? d.to_addr : "";
+}
+function reviewPhotos(rv, items) { return items.filter(i => i.photo || i.reference_photo).length; }
+function renderFinishAsk(rv, cur, items) {
+  const stages = stagesFor(rv.discipline), photos = reviewPhotos(rv, items), units = rv.units || [], step = (() => { let n = 0; return () => ++n; })();
+  const to = state.finishTo != null ? state.finishTo : "", direct = !!(state.p.mail && (state.p.mail.gmail || state.p.mail.from));
+  return `<section class="finishask">
+    <div class="fq"><span class="n">${step()}</span><div><h3>Is this the right review?</h3>
+      <div class="which"><b>${esc(rv.title)}</b><span>${esc(cur.name)}</span><span>started ${esc(when(rv.started_at))}</span><span>${items.length} deficienc${items.length === 1 ? "y" : "ies"} · ${photos} photo${photos === 1 ? "" : "s"}</span></div>
+      <div class="whichstage"><small>Which walk was it?</small><div class="chips small">${stages.map(x => `<button class="chip ${rv.stage === x ? "on" : ""}" data-finstage="${esc(x)}">${esc(x)}</button>`).join("")}</div></div></div></div>
+    ${hasUnits() ? `<div class="fq"><span class="n">${step()}</span><div><h3>Which units did you walk?</h3><p>Ticked from where you recorded deficiencies; add the ones you walked without finding anything. ${units.length ? `${units.length} unit${units.length === 1 ? " goes" : "s go"} on the report as walked.` : "No units marked yet."}</p></div></div>${renderUnitsStrip(rv, true, "Walked in this review")}` : ""}
+    <div class="fq"><span class="n">${step()}</span><div class="grow"><h3>Who gets the report?</h3><p>The contractor's email. The report with all ${items.length} deficienc${items.length === 1 ? "y" : "ies"}, their photos and plan marks goes with it. Nothing is sent until you press Send on the next step.</p>
+      <input id="finishTo" type="email" inputmode="email" autocomplete="email" placeholder="site@contractor.com" value="${esc(to)}">
+      ${direct ? "" : `<p class="fine2">No office mailbox is connected yet, so Send will open your mail app. <a href="#/office">Connect it in the Office</a> to send from here.</p>`}</div></div>
+    <div class="fq end"><span class="acts"><button class="btn" id="finishNo">Not yet</button><button class="btn primary" id="finishGo">Finish and write the email</button></span></div>
+  </section>`;
 }
 async function redraftMessage(rv) {
   state.drafting = rv.id; renderField();
@@ -2651,32 +2699,86 @@ async function redraftMessage(rv) {
   await load();
 }
 function renderHandoff(r) {
-  const p = state.p, pkg = r.package, msg = messageFor(r.id), disc = (disciplines().find(d => d.code === r.discipline) || {}).name || r.discipline;
+  const p = state.p, slug = state.slug, pkg = r.package, msg = messageFor(r.id), disc = (disciplines().find(d => d.code === r.discipline) || {}).name || r.discipline;
   const items = pkg ? pkg.items : findingsIn(r.id).map(d => ({ item_id: d.item_id, location: d.location, description: d.description, evidence_required: d.evidence_required, sheet: d.sheet, photo: !!d.reference_photo }));
-  const photos = items.filter(i => i.photo).length, busy = state.drafting === r.id;
+  const photos = items.filter(i => i.photo).length, busy = state.drafting === r.id, sending = state.sending === r.id;
+  const gm = p.mail && p.mail.gmail, direct = !!(gm || (p.mail && p.mail.from)), ref = "CO-" + r.id.slice(-6).toUpperCase();
+  const sent = (p.sends || []).filter(x => x.review_id === r.id), last = sent[sent.length - 1];
+  const replies = (p.inbound || []).filter(x => x.review_id === r.id && x.status !== "unplaced").sort((a, b) => (a.at > b.at ? -1 : 1));
+  const ed = state.hoEdit && state.hoEdit.rid === r.id ? state.hoEdit : null;
+  const to = ed ? ed.to : (msg && msg.to_addr) || (last && last.to_addr) || lastRecipient();
+  const compose = !last || state.resend === r.id;
+  const report = `<div class="attach"><span class="pdf">PDF</span><div><b>${esc(r.title)} report</b><small>${items.length} deficienc${items.length === 1 ? "y" : "ies"} · ${photos} photo${photos === 1 ? "" : "s"} · plan marks · ${direct ? "attached when you press Send" : "attach it in your mail app"}</small></div><a class="btn" href="${esc(pUrl(slug, `/reviews/${encodeURIComponent(r.id)}/items.pdf`))}" target="_blank" rel="noopener">Look at it</a></div>`;
+  const waiting = last ? `<div class="waiting ${replies.length ? "got" : ""}"><i class="${replies.length ? "" : "live"}"></i><div><b>${replies.length ? `${replies.length === 1 ? "A reply" : replies.length + " replies"} from the contractor` : "Waiting for the contractor's reply"}</b><small>Sent to ${esc(last.to_addr)} ${esc(when(last.at))}${last.via === "mail-app" ? " from your mail app" : " with the report attached"}${sent.length > 1 ? ` · sent ${sent.length} times` : ""}. ${replies.length ? "" : `When they reply with photos, in the thread or in a new email with ${ref} in the subject, ${gm ? "Closeout files them to the items and shows what is still needed." : "connect the office's email in the Office and Closeout files them to the items."}`}</small></div></div>
+    ${replies.slice(0, 3).map(x => `<div class="reply"><div class="rt"><b>${esc(x.from_addr)}</b><span>${esc(when(x.at))}${x.files ? ` · ${x.files} file${x.files === 1 ? "" : "s"}` : " · no attachments"}</span></div><p>${esc(((x.check && x.check.words) || x.text || "").slice(0, 280))}</p>${replyCheck(x, slug)}<a href="${pHash(slug, "/messages")}" data-openmail="in:${esc(x.id)}">Open the email</a></div>`).join("")}
+    ${compose ? "" : `<div class="acts"><button class="btn" id="hoResend">Send again or to someone else</button>${gm ? `<button class="btn" id="hoCheck">Look for replies now</button>` : ""}<a class="btn quiet" href="${esc(pUrl(slug, `/reviews/${encodeURIComponent(r.id)}/items.pdf`))}" target="_blank" rel="noopener">The report that went</a></div>`}` : "";
+  const form = !msg ? "" : `<div class="field"><label for="hoTo">To</label><input id="hoTo" type="email" inputmode="email" autocomplete="email" placeholder="site@contractor.com" value="${esc(to)}"></div>
+    <div class="field"><label for="hoSubject">Subject</label><input id="hoSubject" value="${esc(ed ? ed.subject : msg.subject)}"></div>
+    <div class="field"><label for="hoBody">Message</label><textarea id="hoBody">${esc(ed ? ed.body : msg.body)}</textarea></div>
+    ${report}
+    <div class="acts"><button class="btn primary" id="hoSend" ${sending ? "disabled" : ""}>${sending ? "Sending…" : direct ? "Send to the contractor" : "Open in my mail app"}</button><button class="btn" id="hoSave">Save draft</button><button class="btn" id="hoAgain">Write it again</button>${last ? `<button class="btn quiet" id="hoCancel">Cancel</button>` : ""}</div>
+    <p class="note">${direct ? `Goes from ${esc(gm || "the office address")} only when you press Send. ${esc(ref)} stays in the subject so the reply is filed to this review.` : `No office mailbox is connected, so your mail app opens with this filled in and you press Send there. <a href="#/office">Connect the office's email</a> to send from here with the report attached.`}${msg.to_addr || msg.status === "edited" ? ` Draft saved ${esc(when(msg.updated_at))}.` : ""}</p>`;
   return `<section class="handoff" data-rv="${esc(r.id)}">
-    <div class="hd"><div><h3>${esc(r.title)}${r.stage ? ` · ${esc(r.stage)}` : ""} · ${esc(disc)} · finished</h3><p>${esc(when(r.finished_at || r.started_at))} · ${items.length} deficienc${items.length === 1 ? "y" : "ies"} · ${photos} photo${photos === 1 ? "" : "s"} · this is what the contractor gets</p></div><div class="hdbtns"><a class="btn" href="${pUrl(state.slug, "/reviews/" + encodeURIComponent(r.id) + "/report")}" target="_blank" rel="noopener">Open the report</a><button class="x" data-close>close</button></div></div>
-    <div class="pk">${renderUnitsStrip(r, true)}</div>
-    ${items.length ? `<div class="pk">${items.map(i => `<div class="row" data-id="${esc(i.item_id)}"><span class="id">${esc(i.item_id)}</span><div>${esc(i.description)}<small>${esc(i.location)} · sheet ${esc(i.sheet || "?")} · send to close: ${esc(i.evidence_required)}</small></div></div>`).join("")}</div>` : `<div class="pk"><div class="row" style="grid-template-columns:1fr"><span>Nothing was recorded in this review, so there is nothing to send.</span></div></div>`}
+    <div class="hd"><div><h3>${esc(r.title)}${r.stage ? ` · ${esc(r.stage)}` : ""} · ${esc(disc)} · finished</h3><p>${esc(when(r.finished_at || r.started_at))} · ${items.length} deficienc${items.length === 1 ? "y" : "ies"} · ${photos} photo${photos === 1 ? "" : "s"}</p></div><div class="hdbtns"><a class="btn" href="${pUrl(slug, "/reviews/" + encodeURIComponent(r.id) + "/report")}" target="_blank" rel="noopener">Open the report</a><button class="x" data-close>close</button></div></div>
     <div class="ms">
-      ${busy ? `<div class="thinking"><span class="dot"></span><span>Writing the covering message from these ${items.length} item${items.length === 1 ? "" : "s"}…</span></div>`
-      : msg ? `<label>Message to the contractor · drafted for you, edit freely</label><input id="hoSubject" value="${esc(msg.subject)}"><textarea id="hoBody">${esc(msg.body)}</textarea>
-        <div class="acts"><button class="btn primary" id="hoSave">Save wording</button><button class="btn" id="hoCopy">Copy</button><button class="btn" id="hoAgain">Draft again</button></div>
-        <p class="note">Nothing has been sent. Fill in the date, then send it by email from Messages.</p>`
-      : items.length ? `<p class="why">No message yet for this review.</p><div class="acts"><button class="btn primary" id="hoAgain">Draft the message to the contractor</button></div><p class="note">It lists every item above and asks for the evidence by a date you fill in.</p>` : ""}
-    </div></section>`;
+      ${waiting}
+      ${busy ? `<div class="thinking"><span class="dot"></span><span>Writing the email from these ${items.length} item${items.length === 1 ? "" : "s"}…</span></div>`
+      : !compose ? ""
+      : msg ? `${last ? `<h4 class="again">Send it again</h4>` : `<h4 class="again">Email to the contractor</h4>`}${form}`
+      : items.length ? `<p class="why">No email written yet for this review.</p><div class="acts"><button class="btn primary" id="hoAgain">Write the email to the contractor</button></div><p class="note">It lists every item below and asks for the evidence by a date you fill in. The report goes with it.</p>`
+      : `<p class="why">Nothing was recorded in this review, so there is nothing to send.</p>`}
+    </div>
+    <h4 class="pkh">In the report · ${items.length}</h4>
+    <div class="pk">${renderUnitsStrip(r, true)}</div>
+    ${items.length ? `<div class="pk">${items.map(i => `<div class="row" data-id="${esc(i.item_id)}"><span class="id">${esc(i.item_id)}</span><div>${esc(i.description)}<small>${esc(i.location)} · sheet ${esc(i.sheet || "?")} · send to close: ${esc(i.evidence_required)}</small></div></div>`).join("")}</div>` : ""}
+  </section>`;
 }
 function wireHandoff() {
   const box = $("#tab").querySelector(".handoff"); if (!box) return;
-  const rv = state.p.reviews.find(x => x.id === box.dataset.rv), msg = messageFor(rv.id);
-  box.querySelector("[data-close]").onclick = () => { state.openReview = "none"; renderField(); };
-  box.querySelectorAll(".pk .row[data-id]").forEach(el => el.onclick = () => location.hash = pHash(state.slug, "/item/" + encodeURIComponent(el.dataset.id)));
-  const ag = $("#hoAgain"); if (ag) ag.onclick = () => redraftMessage(rv);
-  const sv = $("#hoSave"); if (sv) sv.onclick = async () => {
-    const r = await fetch(`/api/drafts/${msg.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ subject: $("#hoSubject").value, body: $("#hoBody").value }) });
-    toast(r.ok ? "Wording saved" : "Could not save", !r.ok); if (r.ok) load();
+  const rv = state.p.reviews.find(x => x.id === box.dataset.rv), msg = messageFor(rv.id), slug = state.slug;
+  const val = id => { const el = $("#" + id); return el ? el.value : ""; };
+  const keep = () => { state.hoEdit = { rid: rv.id, to: val("hoTo"), subject: val("hoSubject"), body: val("hoBody") }; };
+  ["hoTo", "hoSubject", "hoBody"].forEach(id => { const el = $("#" + id); if (el) el.oninput = keep; });
+  box.querySelector("[data-close]").onclick = () => { state.openReview = "none"; state.hoEdit = null; state.resend = null; renderField(); };
+  box.querySelectorAll(".pk .row[data-id]").forEach(el => el.onclick = () => location.hash = pHash(slug, "/item/" + encodeURIComponent(el.dataset.id)));
+  box.querySelectorAll("[data-openmail]").forEach(a => a.onclick = () => { state.mailOpen = a.dataset.openmail; });
+  const ag = $("#hoAgain"); if (ag) ag.onclick = () => { state.hoEdit = null; redraftMessage(rv); };
+  const rs = $("#hoResend"); if (rs) rs.onclick = () => { state.resend = rv.id; renderField(); };
+  const cn = $("#hoCancel"); if (cn) cn.onclick = () => { state.resend = null; state.hoEdit = null; renderField(); };
+  const ck = $("#hoCheck"); if (ck) ck.onclick = async () => {
+    ck.disabled = true;
+    const r = await fetch("/api/mail/check", { method: "POST" }); const j = await r.json().catch(() => ({}));
+    if (!r.ok) { ck.disabled = false; return toast(j.detail || "Could not reach the mailbox", true); }
+    toast(j.check.new ? `${j.check.new} new email${j.check.new === 1 ? "" : "s"}, ${j.check.placed} filed` : "Nothing new yet"); await load();
   };
-  const cp = $("#hoCopy"); if (cp) cp.onclick = () => navigator.clipboard.writeText($("#hoSubject").value + "\n\n" + $("#hoBody").value).then(() => toast("Copied"), () => toast("Could not copy", true));
+  const save = async (quiet, v) => {
+    v = v || { to: val("hoTo").trim(), subject: val("hoSubject"), body: val("hoBody") };
+    const to = v.to;
+    if (to && !looksLikeEmail(to)) { toast("That email address does not look right", true); $("#hoTo").focus(); return false; }
+    const r = await fetch(`/api/drafts/${msg.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ subject: v.subject, body: v.body, to }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { toast(j.detail || "Could not save the draft", true); return false; }
+    if (!quiet) { toast("Draft saved"); state.hoEdit = null; await load(); }
+    return true;
+  };
+  const sv = $("#hoSave"); if (sv) sv.onclick = () => save(false);
+  const sd = $("#hoSend"); if (sd) sd.onclick = async () => {
+    const p = state.p, to = val("hoTo").trim(), subject = val("hoSubject"), body = val("hoBody"), direct = !!(p.mail && (p.mail.gmail || p.mail.from));
+    if (!looksLikeEmail(to)) { toast(to ? "That email address does not look right" : "Type the contractor's email first", true); return $("#hoTo").focus(); }
+    const ref = "CO-" + rv.id.slice(-6).toUpperCase(), subj = subject.includes("[" + ref + "]") ? subject : `${subject} [${ref}]`;
+    if (!direct) window.open(`mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subj)}&body=${encodeURIComponent(body)}`, "_self");
+    state.hoEdit = { rid: rv.id, to, subject, body }; state.sending = rv.id; renderField();
+    const ok = await save(true, { to, subject, body });
+    if (!ok) { state.sending = null; return renderField(); }
+    const r = await fetch(pUrl(slug, `/reviews/${encodeURIComponent(rv.id)}/send`), { method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ to, via: direct ? "" : "mail-app", subject, body }) });
+    const j = await r.json().catch(() => ({}));
+    state.sending = null;
+    if (!r.ok) { toast(j.detail || "Could not send the email", true); return renderField(); }
+    state.hoEdit = null; state.resend = null; state.openReview = rv.id;
+    toast(direct ? `Sent to ${to} with the report` : `Handed to your mail app for ${to}`);
+    await load();
+  };
 }
 /* ---- photo first: shoot, say where you are, the agent finds the sheet ---- */
 function lastFieldItem(code) { const list = state.p.register.filter(d => d.source === "field" && (!code || d.discipline === code)); return list.length ? list[list.length - 1] : null; }

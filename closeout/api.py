@@ -79,6 +79,7 @@ class RunFeed:
 class DraftPatch(BaseModel):
     subject: str | None = None
     body: str | None = None
+    to: str | None = None
 
 
 class Decision(BaseModel):
@@ -176,6 +177,10 @@ class EmailIn(BaseModel):
     imap_port: int = 0
     smtp_host: str = ""
     smtp_port: int = 0
+
+
+class FinishIn(BaseModel):
+    to: str = ""               # who gets the report, asked when the review is finished; kept on the draft, nothing is sent
 
 
 class SendIn(BaseModel):
@@ -1125,7 +1130,10 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
             st.finish_run(run_id, "failed", {"error": f"{type(e).__name__}: {e}"})
             return None, f"the agent could not draft the message ({type(e).__name__}); finish again to retry"
         st.finish_run(run_id, "done", out["usage"])
+        before = st.draft_for_review(review_id)
         did = st.upsert_draft(run_id, "", out["subject"], out["body"], review_id=review_id)
+        if before and before.get("to_addr"):   # drafting again keeps who it is for
+            st.update_draft(did, status="draft", to=before["to_addr"])
         return st.draft_for_review(review_id) if did else None, None
 
     def _conversation(st: Store, prj: dict, conversation_id: str) -> dict:
@@ -1267,18 +1275,24 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         return Response(content=r.content, media_type="audio/mpeg", headers={"cache-control": "no-store"})
 
     @app.post("/api/projects/{slug}/reviews/{review_id}/finish")
-    def finish_review(slug: str, review_id: str) -> dict:
+    def finish_review(slug: str, review_id: str, body: FinishIn | None = None) -> dict:
         """Close the walk: freeze what goes to the contractor and have the agent draft the covering message.
-        Nothing is sent; the draft waits on the Messages tab for the engineer."""
+        Nothing is sent; the draft waits, with the address the engineer gave, for the engineer to press Send."""
         st = store()
         prj = _project(st, slug)
         r = st.review(review_id)
         if not r or r["project_id"] != prj["id"]:
             raise HTTPException(404, "no such review")
+        to = " ".join((body.to if body else "").split())
+        if to and not mail_mod.valid_address(to):
+            raise HTTPException(400, "that email address does not look right")
         st.finish_review(review_id)
         pkg = review_mod.review_package(st, prj["id"], review_id)
         st.set_review_package(review_id, pkg)
         message, error = (st.draft_for_review(review_id), None) if st.draft_for_review(review_id) else _draft_review_message(st, prj, review_id)
+        if message and to:
+            st.update_draft(message["id"], status=message["status"], to=to)
+            message = st.draft_for_review(review_id)
         return {"review": st.review(review_id), "package": pkg, "message": message, "error": error}
 
     @app.get("/api/projects/{slug}/reviews/{review_id}/report.json")
@@ -1385,6 +1399,7 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
             log.warning("send refused: %s", type(e).__name__)
             raise HTTPException(502, "the email could not be sent; the message is unchanged, try again or use your mail app")
         sent = st.record_send(prj["id"], review_id, msg["id"], to, subject, text, via, message_id, thread_id, report)
+        st.update_draft(msg["id"], status=msg["status"], to=to)
         st.touch_project(prj["id"])
         return {"send": sent, "sends": st.sends(prj["id"])}
 
@@ -2132,8 +2147,11 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
     @app.patch("/api/drafts/{draft_id}")
     def patch_draft(draft_id: str, body: DraftPatch) -> dict:
         st = store()
+        to = " ".join(body.to.split()) if body.to is not None else None
+        if to and not mail_mod.valid_address(to):
+            raise HTTPException(400, "that email address does not look right")
         try:
-            st.update_draft(draft_id, body=body.body, subject=body.subject)
+            st.update_draft(draft_id, body=body.body, subject=body.subject, to=to)
         except KeyError:
             raise HTTPException(404, "no such draft") from None
         return {"ok": True}

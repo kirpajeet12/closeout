@@ -160,7 +160,8 @@ CREATE TABLE IF NOT EXISTS drafts (
   status TEXT NOT NULL,          -- draft | edited | approved
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
-  review_id TEXT NOT NULL DEFAULT ''   -- set when the message covers a whole field review
+  review_id TEXT NOT NULL DEFAULT '',  -- set when the message covers a whole field review
+  to_addr TEXT NOT NULL DEFAULT ''     -- who it is for, kept with the draft until it is sent
 );
 CREATE TABLE IF NOT EXISTS decisions (
   id TEXT PRIMARY KEY,
@@ -384,6 +385,7 @@ class Store:
                                 ("reviews", "units_json", "TEXT"),
                                 ("projects", "stages_json", "TEXT"),
                                 ("drafts", "review_id", "TEXT NOT NULL DEFAULT ''"),
+                                ("drafts", "to_addr", "TEXT NOT NULL DEFAULT ''"),
                                 ("sheets", "views_json", "TEXT NOT NULL DEFAULT '[]'"),
                                 ("projects", "docs_review_json", "TEXT"),
                                 ("projects", "docs_scope_json", "TEXT"),
@@ -931,13 +933,14 @@ class Store:
         self.conn.commit()
         return did
 
-    def update_draft(self, draft_id: str, body: str | None = None, subject: str | None = None, status: str | None = None) -> None:
+    def update_draft(self, draft_id: str, body: str | None = None, subject: str | None = None, status: str | None = None,
+                     to: str | None = None) -> None:
         d = self.conn.execute("SELECT * FROM drafts WHERE id=?", (draft_id,)).fetchone()
         if not d:
             raise KeyError(draft_id)
-        self.conn.execute("UPDATE drafts SET body=?, subject=?, status=?, updated_at=? WHERE id=?",
+        self.conn.execute("UPDATE drafts SET body=?, subject=?, status=?, to_addr=?, updated_at=? WHERE id=?",
                           (body if body is not None else d["body"], subject if subject is not None else d["subject"],
-                           status if status is not None else "edited", now(), draft_id))
+                           status if status is not None else "edited", to if to is not None else d["to_addr"], now(), draft_id))
         self.conn.commit()
 
     def drafts_for_run(self, run_id: str) -> list[dict]:
