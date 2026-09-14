@@ -297,6 +297,34 @@ def test_a_work_email_from_any_provider_connects_with_an_app_password_and_brings
     assert client.delete("/api/mail").json()["account"] is None
 
 
+def test_the_office_tells_the_contractor_about_one_item_by_email_and_the_reply_still_finds_its_review(client, tmp_path, monkeypatch):
+    fake = FakeAgent()
+    monkeypatch.setattr(pipeline, "run_match_job", fake.match)
+    monkeypatch.setattr(pipeline, "run_draft_job", fake.draft)
+    FakeImap.mailbox, FakeImap.sent = {}, []
+    monkeypatch.setattr(mailbox_mod, "ImapMail", FakeImap)
+    slug, rev, _ = _finished_review(client, tmp_path)
+    item = next(d for d in client.get(f"/api/projects/{slug}").json()["register"] if d.get("review_id") == rev["id"])
+    url = f"/api/projects/{slug}/items/{item['item_id']}/send"
+    words = {"to": "site@contractor.com", "subject": f"{item['item_id']} not accepted", "body": "Please send it again."}
+    assert client.post(url, json={**words, "to": "nope"}).status_code == 400
+    assert client.post(url, json={**words, "body": " "}).status_code == 400
+    assert client.post(f"/api/projects/{slug}/items/XX-99/send", json=words).status_code == 404
+    # no mailbox yet: recorded as handed to the mail app, nothing sent from here
+    first = client.post(url, json={**words, "via": "mail-app"}).json()["send"]
+    assert first["via"] == "mail-app" and FakeImap.sent == []
+    client.post("/api/mail/email", json={"address": "reviews@office-example.ca", "password": FakeImap.password, "host": "hostinger"})
+    s = client.post(url, json=words).json()["send"]
+    ref = inbox_mod.review_ref(rev["id"])
+    assert s["via"] == "email" and s["review_id"] == rev["id"] and s["subject"] == f"{item['item_id']} not accepted [{ref}]"
+    assert FakeImap.sent[-1]["body"] == "Please send it again."
+    FakeImap.arrive(_raw("site@contractor.com", "Re: " + s["subject"], "New photo.", [("IMG_3.jpg", _jpeg_bytes())]), in_reply_to=s["thread_id"])
+    assert client.post("/api/mail/check").json()["check"]["placed"] == 1
+    _wait_for_email_drops(client, slug, 1)
+    inbound = client.get(f"/api/projects/{slug}").json()["inbound"]
+    assert [(x["how"], x["review_id"]) for x in inbound] == [("thread", rev["id"])]
+
+
 def test_the_review_reference_is_short_found_anywhere_and_never_guessed():
     assert inbox_mod.review_ref("0123456789abcdef3f9a1c") == "CO-3F9A1C"
     assert inbox_mod.with_ref("Field review 1", "xx3f9a1c") == "Field review 1 [CO-3F9A1C]"

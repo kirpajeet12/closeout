@@ -1377,6 +1377,43 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         st.touch_project(prj["id"])
         return {"send": sent, "sends": st.sends(prj["id"])}
 
+    @app.post("/api/projects/{slug}/items/{item_id}/send")
+    def send_item_message(slug: str, item_id: str, body: SendIn) -> dict:
+        """The engineer tells the contractor about one item: not accepted, on hold, or what is still needed. Only on their
+        press. It carries the review's reference, so the reply is filed to that review like any other."""
+        st = store()
+        prj = _project(st, slug)
+        d = st.deficiency(prj["id"], item_id)
+        if not d:
+            raise HTTPException(404, "no such item")
+        review_id = d.get("review_id") or ""
+        if not review_id or not st.review(review_id):
+            raise HTTPException(409, "this item is not from a field review, so a reply would have nowhere to go; copy the wording instead")
+        to = body.to.strip()
+        if not mail_mod.valid_address(to):
+            raise HTTPException(400, "give the contractor's email address")
+        subject = " ".join((body.subject or "").split())[:190]
+        text = (body.body or "").strip()
+        if not subject or not text:
+            raise HTTPException(400, "write the subject and the message")
+        subject = inbox_mod.with_ref(subject, review_id)
+        account = _usable_account(st)
+        via = "mail-app" if body.via == "mail-app" else ("gmail" if account["kind"] == "gmail" else "email") if account else "ses" if mail_mod.can_send(settings) else "mail-app"
+        message_id = thread_id = ""
+        try:
+            if via in ("gmail", "email"):
+                out = _mailbox(account).send(to, subject, text)
+                message_id, thread_id = out["id"], out["thread_id"]
+            elif via == "ses":
+                message_id = mail_mod.send_email(settings, to, subject, text)
+        except Exception as e:  # the mail service refused; nothing recorded, the engineer sees why
+            log.warning("item send refused: %s", type(e).__name__)
+            raise HTTPException(502, "the email could not be sent; the message is unchanged, try again or use your mail app")
+        draft = next((x for x in st.all_drafts(prj["id"]) if x["item_id"] == item_id and not x.get("review_id")), None)
+        sent = st.record_send(prj["id"], review_id, draft["id"] if draft else "", to, subject, text, via, message_id, thread_id)
+        st.touch_project(prj["id"])
+        return {"send": sent, "sends": st.sends(prj["id"])}
+
     def _keep_report(slug: str, name: str, pdf: bytes) -> None:
         """A copy of what was sent, in the project's data folder, so the record can be opened later."""
         d = settings.data_dir / "projects" / slug / "reports"

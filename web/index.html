@@ -361,6 +361,7 @@
   .call textarea { min-height: 150px; resize: vertical; }
   .call label { display: block; font-size: 12px; color: var(--mute); text-transform: uppercase; letter-spacing: .1em; margin: 16px 0 6px; }
   .call .note { margin-top: 14px; }
+  .call .tell { display: grid; gap: 6px; margin-top: 4px; } .call .tell label { margin: 12px 0 0; display: grid; gap: 6px; } .call .tell small { color: var(--mute); font-size: 12.5px; }
   .decided { margin-top: 14px; font-size: 14px; color: var(--ink-2); }
   .decided b { color: var(--ink); }
   .hist { margin-top: 10px; font-size: 13px; color: var(--mute); }
@@ -947,7 +948,8 @@ const CALL_K = { accept: "ready", reject: "needs", hold: "unclear" };
 function callPill(i) { const d = i.decision && i.decision.decision; return d && CALL[d] ? { k: CALL_K[d], t: CALL[d], ev: status(i).t } : { ...status(i), ev: "" }; }
 function items() {
   const p = state.p, pk = p.packet;
-  const blank = d => ({ item: d, completeness: "no_evidence", evidence: [], unresolved: [], missing_slots: d.slots, history: [], followup_draft: null, decision: null });
+  const calls = {}; (p.decisions || []).forEach(x => { calls[x.item_id] = x; });   // oldest first, so the latest call wins
+  const blank = d => ({ item: d, completeness: "no_evidence", evidence: [], unresolved: [], missing_slots: d.slots, history: [], followup_draft: null, decision: calls[d.item_id] || null });
   if (!pk) return p.register.map(blank);
   const seen = new Set(pk.items.map(i => i.item.item_id));
   return [...pk.items, ...p.register.filter(d => !seen.has(d.item_id)).map(blank)];
@@ -2122,7 +2124,15 @@ function renderItem(id) {
   const weak = new Set(i.evidence.filter(f => f.slot_index >= 0 && f.tier === "weak").map(f => f.slot_index));
   const sheet = d.sheet_id ? state.p.project.sheets.find(sh => sh.id === d.sheet_id) : d.sheet ? state.p.project.sheets.find(sh => sh.sheet_number === d.sheet) : null;
   const hasPin = sheet && d.pin_x != null && d.pin_y != null;
-  const draft = i.followup_draft;
+  const draft = i.followup_draft, dec = i.decision && i.decision.decision, rid = d.review_id && state.p.reviews.some(r => r.id === d.review_id) ? d.review_id : "";
+  const ref = rid ? "CO-" + rid.slice(-6).toUpperCase() : "", mailFrom = state.p.mail && (state.p.mail.gmail || state.p.mail.from), direct = !!mailFrom;
+  const lastTo = (() => { const mine = (state.p.sends || []).filter(x => x.review_id === rid); return mine.length ? mine[mine.length - 1].to_addr : ""; })();
+  const what = `${d.item_id} (${d.description.replace(/[.\s]+$/, "")}${d.location ? ", " + d.location : ""})`;
+  const needs = (i.missing_slots || []).map(sl => `- ${sl.type}: ${sl.description}`).join("\n");
+  const tell = dec === "accept" ? null : draft && dec !== "reject" && dec !== "hold" ? draft
+    : dec === "reject" ? { subject: `${d.item_id} not accepted`, body: `${what} was not accepted. Please send it again${needs ? ", with:\n" + needs : "."}` }
+    : dec === "hold" ? { subject: `${d.item_id} on hold`, body: `${what} is on hold for now.` }
+    : rid && needs ? { subject: `${d.item_id} still open`, body: `${what} is still open.${needs ? " To close it, please send:\n" + needs : ""}` } : null;
   $("#main").innerHTML = `
     <a class="back" href="${pHash(slug, "/deficiencies")}">← All deficiencies</a>
     <div class="item-head">
@@ -2152,8 +2162,9 @@ function renderItem(id) {
       </div>
       <div class="note"><input id="decNote" placeholder="Note for the file (optional)"></div>
       ${i.decision ? `<div class="decided">Your last call: <b>${esc(CALL[i.decision.decision] || i.decision.decision)}</b> on ${esc(when(i.decision.created_at))}${i.decision.note ? ` · “${esc(i.decision.note)}”` : ""}</div>` : ""}
-      ${draft ? `<label>Message to the contractor (drafted for you, edit freely)</label><input id="draftSubject" value="${esc(draft.subject)}"><textarea id="draftBody">${esc(draft.body)}</textarea>
-        <div class="btns" style="margin-top:10px"><button id="saveDraft">Save wording</button><button id="copyDraft">Copy</button></div>` : ""}
+      ${tell ? `<label>Message to the contractor (${draft ? "drafted for you" : "written from your call"}, edit freely)</label><input id="draftSubject" value="${esc(tell.subject)}"><textarea id="draftBody">${esc(tell.body)}</textarea>
+        ${rid ? `<div class="tell"><label><span>Contractor's email</span><input type="email" id="tellTo" placeholder="site@contractor.com" value="${esc(lastTo)}" autocomplete="email"></label><small>${direct ? `Closeout emails it from ${esc(mailFrom)} when you press Send. Nothing goes out on its own.` : "Your mail app opens with it; you press Send there."} The subject carries [${esc(ref)}], so the reply is filed to this item's review.</small></div>` : ""}
+        <div class="btns" style="margin-top:10px">${rid ? `<button id="tellSend" class="accept">${direct ? "Send by email" : "Open in your mail app"}</button>` : ""}${draft ? `<button id="saveDraft">Save wording</button>` : ""}<button id="copyDraft">Copy</button></div>` : ""}
       ${i.history && i.history.length ? `<div class="hist">History: ${dedupe(i.history).map(h => `${esc(when(h.run_started_at))} → ${esc(status({ completeness: h.completeness, missing_slots: h.missing_slots || [] }).t)}`).join(" · ")}</div>` : ""}
     </section>`;
   $("#main").querySelectorAll(".call .btns button[data-d]").forEach(btn => btn.onclick = async () => {
@@ -2171,6 +2182,17 @@ function renderItem(id) {
       toast(`Filed ${j.files} file${j.files === 1 ? "" : "s"} to ${d.item_id}`);
     } catch (e) { toast(e.message || "Could not file that", true); }
     state.filing = null; await load();
+  };
+  const ts = $("#tellSend"); if (ts) ts.onclick = async () => {
+    const to = $("#tellTo").value.trim(), subject = $("#draftSubject").value, text = $("#draftBody").value;
+    if (!to) return toast("Type the contractor's email address", true);
+    ts.disabled = true;
+    if (!direct) window.open(`mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject.includes("[" + ref + "]") ? subject : `${subject} [${ref}]`)}&body=${encodeURIComponent(text)}`, "_self");
+    const r = await fetch(pUrl(slug, `/items/${encodeURIComponent(d.item_id)}/send`), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ to, via: direct ? "" : "mail-app", subject, body: text }) });
+    const j = await r.json().catch(() => ({}));
+    ts.disabled = false;
+    if (!r.ok) return toast(j.detail || "Could not send the message", true);
+    toast(direct ? `Sent to ${to}` : `Handed to your mail app for ${to}`); state.p.sends = j.sends;
   };
   const sv = $("#saveDraft"); if (sv) sv.onclick = async () => {
     const r = await fetch(`/api/drafts/${draft.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ subject: $("#draftSubject").value, body: $("#draftBody").value }) });
