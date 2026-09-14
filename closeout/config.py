@@ -36,6 +36,11 @@ class Settings:
     # only replies to its own messages plus mail labelled for it (the label name below).
     google_client_id: str = os.environ.get("CLOSEOUT_GOOGLE_CLIENT_ID", "")
     google_client_secret: str = os.environ.get("CLOSEOUT_GOOGLE_CLIENT_SECRET", "")
+    # connecting the office's Microsoft 365 or Outlook mailbox: an app registered in Microsoft Entra (Azure) whose web
+    # redirect is <site>/api/mail/callback/microsoft. Tenant "common" lets both work and personal Microsoft accounts sign in.
+    microsoft_client_id: str = os.environ.get("CLOSEOUT_MICROSOFT_CLIENT_ID", "")
+    microsoft_client_secret: str = os.environ.get("CLOSEOUT_MICROSOFT_CLIENT_SECRET", "")
+    microsoft_tenant: str = os.environ.get("CLOSEOUT_MICROSOFT_TENANT", "common")
     mail_label: str = os.environ.get("CLOSEOUT_MAIL_LABEL", "Closeout")
     mail_check_seconds: int = int(os.environ.get("CLOSEOUT_MAIL_CHECK_SECONDS", "120"))
 

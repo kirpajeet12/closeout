@@ -25,7 +25,7 @@ from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse, Response, StreamingResponse
 from pydantic import BaseModel
 
-from . import activity as activity_mod, ask as ask_mod, documents as documents_mod, gmail as gmail_mod, inbox as inbox_mod, mail as mail_mod, mailbox as mailbox_mod, drawings as drawings_mod, usage as usage_mod, pipeline, plans as plans_mod, project as project_mod, review as review_mod, revisions as revisions_mod
+from . import activity as activity_mod, ask as ask_mod, documents as documents_mod, gmail as gmail_mod, inbox as inbox_mod, mail as mail_mod, mailbox as mailbox_mod, outlook as outlook_mod, drawings as drawings_mod, usage as usage_mod, pipeline, plans as plans_mod, project as project_mod, review as review_mod, revisions as revisions_mod
 import dataclasses
 
 from .config import SETTINGS, Settings
@@ -1457,26 +1457,30 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         """The connected mailbox: Google's API for a Gmail sign-in, IMAP and SMTP for a work email."""
         if account.get("kind", "gmail") == "gmail":
             return gmail_mod.Gmail(gs(), account["refresh_token"], account["address"])
+        if account["kind"] == "outlook":
+            return outlook_mod.Outlook(settings, account["refresh_token"], account["address"], on_token=store().set_mail_token)
         return mailbox_mod.ImapMail(account["address"], account["password"], account["imap_host"], account["imap_port"],
                                     account["smtp_host"], account["smtp_port"], account["username"])
 
     def _usable_account(st: Store) -> dict | None:
-        """The connected mailbox when it can be used: a Gmail sign-in also needs the server's Google client."""
+        """The connected mailbox when it can be used: a Gmail or Microsoft sign-in also needs the server's client for it."""
         account = st.mail_account()
         if account and account.get("kind", "gmail") == "gmail" and not gmail_mod.configured(gs()):
+            return None
+        if account and account.get("kind") == "outlook" and not outlook_mod.configured(settings):
             return None
         return account
 
     def _mail_address(st: Store) -> str:
         return (_usable_account(st) or {}).get("address", "")
 
-    def _mail_state(request: Request) -> str:
-        return hmac.new(_access_token().encode(), b"connect-gmail", hashlib.sha256).hexdigest()[:32]
+    def _mail_state(request: Request, provider: str = "gmail") -> str:
+        return hmac.new(_access_token().encode(), f"connect-{provider}".encode(), hashlib.sha256).hexdigest()[:32]
 
-    def _redirect_uri(request: Request) -> str:
+    def _redirect_uri(request: Request, provider: str = "") -> str:
         proto = request.headers.get("x-forwarded-proto") or request.url.scheme
         host = request.headers.get("x-forwarded-host") or request.headers.get("host") or request.url.netloc
-        return f"{proto}://{host}/api/mail/callback"
+        return f"{proto}://{host}/api/mail/callback" + (f"/{provider}" if provider else "")
 
     def _run_batch(project_id: str, files: list[Path], label: str, root: Path, via: str) -> None:
         """The filing desk for mail: same guard and same pipeline as a drop, tagged with where it came from."""
@@ -1520,10 +1524,11 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         eff = gs()
         client = {"where": "server" if settings.google_client_id and settings.google_client_secret else "office" if eff.google_client_id else "",
                   "hint": eff.google_client_id[:8] if eff.google_client_id else ""}
-        return {"configured": gmail_mod.configured(eff), "label": settings.mail_label, "client": client,
+        return {"configured": gmail_mod.configured(eff), "microsoft": outlook_mod.configured(settings), "label": settings.mail_label, "client": client,
                 "account": {"address": account["address"], "kind": account.get("kind", "gmail"), "connected_at": account["connected_at"],
                             "last_check": account["last_check"], "last_error": account["last_error"],
-                            "servers": f"{account['imap_host']} · {account['smtp_host']}" if account.get("kind") == "email" else ""} if account else None,
+                            "servers": f"{account['imap_host']} · {account['smtp_host']}" if account.get("kind") == "email" else "",
+                            "ready": bool(_usable_account(st))} if account else None,
                 "unplaced": unplaced, "projects": [{"slug": p["slug"], "name": p["name"]} for p in st.projects()]}
 
     @app.get("/api/mail")
@@ -1586,6 +1591,33 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
             log.warning("gmail connect failed: %s", type(e).__name__)
             return RedirectResponse("/#/office?mail=failed", status_code=303)
         store().connect_mail(address, refresh)
+        return RedirectResponse("/#/office?mail=connected", status_code=303)
+
+    @app.get("/api/mail/connect/microsoft")
+    def mail_connect_microsoft(request: Request):
+        """Hands the engineer to Microsoft's own sign-in; the secret never reaches the browser."""
+        if not outlook_mod.configured(settings):
+            raise HTTPException(409, "the server has no Microsoft app yet; see deploy/env.example")
+        uri, state = _redirect_uri(request, "microsoft"), _mail_state(request, "microsoft")
+        return RedirectResponse(outlook_mod.auth_url(settings, uri, state), status_code=303)
+
+    @app.get("/api/mail/callback/microsoft")
+    def mail_callback_microsoft(request: Request, code: str = "", state: str = "", error: str = ""):
+        if error or not code or not hmac.compare_digest(state, _mail_state(request, "microsoft")):
+            return RedirectResponse("/#/office?mail=refused", status_code=303)
+        try:
+            tokens = outlook_mod.exchange_code(settings, code, _redirect_uri(request, "microsoft"))
+            refresh = tokens.get("refresh_token", "")
+            if not refresh:
+                raise RuntimeError("no refresh token")
+            box = outlook_mod.Outlook(settings, refresh)
+            address = box.profile()
+            if not address:
+                raise RuntimeError("no address")
+        except Exception as e:
+            log.warning("microsoft connect failed: %s", type(e).__name__)
+            return RedirectResponse("/#/office?mail=failed", status_code=303)
+        store().connect_mail(address, box.refresh_token, kind="outlook")
         return RedirectResponse("/#/office?mail=connected", status_code=303)
 
     @app.post("/api/mail/email")

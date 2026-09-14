@@ -1306,7 +1306,7 @@ function renderOffice() {
     </div>`;
   renderStatus();
   const note = (location.hash.split("?")[1] || "").replace("mail=", "");
-  if (note) { history.replaceState(null, "", "#/office"); toast(note === "connected" ? "Mailbox connected" : note === "refused" ? "Google did not connect the mailbox" : "The mailbox could not be connected; try again", note !== "connected"); }
+  if (note) { history.replaceState(null, "", "#/office"); toast(note === "connected" ? "Mailbox connected" : note === "refused" ? "The sign-in did not connect the mailbox" : "The mailbox could not be connected; try again", note !== "connected"); }
   wireMailButtons(() => renderOffice());
   const wf = $("#main").querySelector("form.wmail");
   if (wf) wf.onsubmit = async e => {
@@ -1347,12 +1347,13 @@ function mailBlock() {
         <label><span>Outgoing (SMTP) server</span><input name="smtp_host" placeholder="smtp.youroffice.com" autocomplete="off"></label>
         <label><span>Port</span><input name="smtp_port" inputmode="numeric" placeholder="465" autocomplete="off"></label>
       </div></details>
-      <div class="acts"><button type="submit" class="btn primary">Connect</button>${m.configured ? `<a class="btn" href="/api/mail/connect">Or connect with Google</a>` : ""}</div>
+      <div class="acts"><button type="submit" class="btn primary">Connect</button>${m.microsoft ? `<a class="btn" href="/api/mail/connect/microsoft">Or sign in with Microsoft</a>` : ""}${m.configured ? `<a class="btn" href="/api/mail/connect">Or connect with Google</a>` : ""}</div>
     </form>
+    ${m.microsoft ? `<p class="fine">Microsoft 365 and Outlook work mailboxes: use <b>Sign in with Microsoft</b>. Microsoft no longer lets apps use a password for them.</p>` : ""}
     <p class="fine">An app password is a separate password your email provider makes for one app, in the account's security settings. Your normal password will not work if the account has two-step sign-in. The password stays on this server and is never shown again.</p>`;
   const a = m.account, n = m.unplaced.length;
   return `<p class="uline"><b style="font-size:20px">${esc(a.address)}</b></p>
-    <p class="fine">Connected ${esc(when(a.connected_at))}${a.kind === "gmail" ? " with Google" : a.servers ? ` through ${esc(a.servers)}` : ""}. ${a.last_check ? `Last looked ${esc(when(a.last_check))}.` : "Not looked at yet."} ${a.last_error ? `<span style="color:var(--hot)">The last look failed: ${esc(a.last_error)}</span>` : ""}
+    <p class="fine">Connected ${esc(when(a.connected_at))}${a.kind === "gmail" ? " with Google" : a.kind === "outlook" ? " with Microsoft" : a.servers ? ` through ${esc(a.servers)}` : ""}. ${a.last_check ? `Last looked ${esc(when(a.last_check))}.` : "Not looked at yet."} ${a.last_error ? `<span style="color:var(--hot)">The last look failed: ${esc(a.last_error)}</span>` : ""}
     Closeout reads replies to messages it sent and email whose subject carries a review's reference, like <b>[CO-3F9A1C]</b>${a.kind === "gmail" ? `, and email you label <b>${esc(m.label)}</b>` : ""}, and files them to that review on its own.${n ? ` <b>${n} email${n === 1 ? "" : "s"} still need${n === 1 ? "s" : ""} a review</b>: open the project's Messages tab to place ${n === 1 ? "it" : "them"}.` : ""}</p>
     <form onsubmit="return false" style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-mail="check">Look now</button><button class="btn quiet" data-mail="off">Disconnect</button></form>`;
 }

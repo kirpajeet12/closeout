@@ -715,6 +715,11 @@ class Store:
         self.conn.commit()
         return self.mail_account()
 
+    def set_mail_token(self, refresh_token: str) -> None:
+        """Microsoft replaces the long-lived token as it is used; the newest one is kept."""
+        self.conn.execute("UPDATE mail_accounts SET refresh_token=?", (refresh_token,))
+        self.conn.commit()
+
     def disconnect_mail(self) -> None:
         self.conn.execute("DELETE FROM mail_accounts")
         self.conn.commit()
