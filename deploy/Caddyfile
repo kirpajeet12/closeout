@@ -11,3 +11,16 @@
         }
     }
 }
+
+# The judges' copy (see the try service). Without CLOSEOUT_TRY_HOST it answers only on try.localhost.
+{$CLOSEOUT_TRY_HOST:try.localhost} {
+    encode gzip
+    request_body {
+        max_size 512MB
+    }
+    reverse_proxy try:8765 {
+        transport http {
+            read_timeout 600s
+        }
+    }
+}
