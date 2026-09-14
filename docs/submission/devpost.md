@@ -38,6 +38,8 @@ Closeout is a project workspace for the office that reviews a building.
   photo does not close an item that asked for one, and Closeout says so next to the words.
 - **The engineer decides.** Each item shows what was asked for, what came in and what is missing. The engineer
   marks it ready to close, on hold or not accepted.
+- **Mailbox.** The Emails page shows the connected mailbox's inbox and sent mail. Open a conversation, reply in
+  it, or write a new email, without leaving Closeout.
 - **Ask.** Ask about the project in plain words, typed or spoken, and get an answer from the project's records.
 - **Office accounts.** The office adds each person under People. They sign in with a password from the welcome
   email, or continue with Google or Microsoft using that same address. Anyone signed in can report an issue with the
@@ -106,7 +108,7 @@ microsoft-graph, javascript
 
 - Repository: https://github.com/kirpajeet12/closeout
 - Try it: https://try.closeout.getcrewbrew.com (made-up projects; the code is in the testing instructions)
-- Video: (YouTube URL, once uploaded)
+- Video: https://youtu.be/To2tdnzWhZI
 
 ---
 
@@ -137,4 +139,4 @@ writes "I did it" with no photo, Closeout shows the words next to what is still 
 It runs on EC2 with Claude on Amazon Bedrock through an IAM role, sends and reads mail from the office's own Gmail
 or Microsoft 365 mailbox, and works on a phone on site.
 
-Repository: https://github.com/kirpajeet12/closeout · Video: (YouTube URL, once uploaded)
+Repository: https://github.com/kirpajeet12/closeout · Video: https://youtu.be/To2tdnzWhZI

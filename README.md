@@ -117,6 +117,7 @@ app. Mailbox sign-in uses Google and Microsoft OAuth; tokens stay in the server'
 
 ## Try it
 
+- **Video (under 5 minutes):** <https://youtu.be/To2tdnzWhZI>
 - **Judges' copy:** <https://try.closeout.getcrewbrew.com>. The code is in the Devpost testing instructions. It holds
   two made-up projects, 418 Alder Court and Cedar Row Townhomes, with their drawings already filed, and nothing from
   the office's real work. No mailbox is connected, so the send button opens the email in your own mail app.
