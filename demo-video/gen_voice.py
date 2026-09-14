@@ -34,7 +34,7 @@ VO = {
     "walk": "The field review is done on a phone. Take a photo, and tap where it is on the drawing.",
     "writeup": "Closeout writes up the deficiency. Check it, save it, and it is pinned to the plan.",
     "office": "In the office, every deficiency is listed with its unit, floor and sheet. The report shows each one with its photo and plan pin.",
-    "contractor": "The contractor gets one link, with no account. They upload a photo, and Closeout files it on the item.",
+    "contractor": "Closeout writes the email to the contractor, with the report attached. When they reply, the email is filed to the review and checked against each item.",
     "decide": "Closeout checks the photo against the item. The engineer makes the call: ready to close, hold, or not accepted.",
     "ask": "And you can ask about the project. What does the contractor still need to send? Closeout lists the two items with nothing received.",
 }

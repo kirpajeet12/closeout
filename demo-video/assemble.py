@@ -873,18 +873,15 @@ def build_story():
                                  + [(ta, 0.5, top_f, 1.0), (ta + 1.2, 0.5, top_f, 1.0), (dur, 0.5, 0.45, 1.0)],
                              hl=[(0.4, 2.6, "d05-deficiencies", (200, 262, 460, 392)), (2.8, ta, "d05-deficiencies", (208, 772, 1232, 900))]))
 
-    # the contractor: one link, an upload filed on its item
+    # the contractor: the email with the report, and the reply filed to its review
     dur, at = vo("contractor")
-    ta, tb, tc = at("with no account") - 0.3, at("They upload") - 0.1, at("Closeout files") - 0.1
-    add("contractor", scene_phone([(0, "p13-contractor"), (ta, "p14-contractor-list"), (tb, "p16-contractor-filing"), (tc, "p17-contractor-filed")], dur,
-                                  [left(["The contractor", "gets one link."], 0.3, ta),
-                                   left(["No account.", "Only their items."], ta + 0.2, tb),
-                                   left(["They upload a photo.", "Closeout files it", "on item AR-01."], tb + 0.2, dur - 0.3)],
-                                  cam=track(dur, [(0, P("p13-contractor", (17, 282, 373, 516), z=1.12)), (ta, P("p14-contractor-list", (8, 133, 385, 844), z=1.0)),
-                                                  (tb, P("p16-contractor-filing", (16, 535, 374, 580), z=1.15)), (tc, P("p17-contractor-filed", (8, 133, 385, 478), z=1.12))],
-                                            move=0.5),
-                                  hl=[(0.3, ta, "p13-contractor", (17, 282, 373, 516)), (ta + 0.1, tb, "p14-contractor-list", (8, 140, 385, 836)),
-                                      (tb + 0.1, tc, "p16-contractor-filing", (16, 535, 374, 580)), (tc + 0.1, dur - 0.2, "p17-contractor-filed", (8, 133, 385, 478))]))
+    ta = at("When they reply") - 0.2
+    add("contractor", scene_desk([(0, "d15-email-send"), (ta, "d16-reply")], dur,
+                                 [side(["The email", "Subject, message and the Field review 1 report, ready to send."], 0.4, ta),
+                                  side(["The reply", "Filed to Field review 1 and checked against AR-01, AR-02 and AR-03."], ta + 0.2, dur - 0.3)],
+                                 cam=track(dur, [(0, D("d15-email-send", (229, 60, 1210, 522), z=1.05)), (ta, D("d16-reply", (253, 181, 1211, 510)))], move=0.6),
+                                 hl=[(0.4, ta / 2, "d15-email-send", (229, 60, 1210, 360)), (ta / 2, ta, "d15-email-send", (229, 375, 1210, 522)),
+                                     (ta + 0.2, dur - 0.3, "d16-reply", (268, 254, 1196, 469))]))
 
     # the engineer decides
     dur, at = vo("decide")

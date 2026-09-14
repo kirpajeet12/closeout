@@ -49,7 +49,7 @@ Each scene is as long as its line plus a beat; highlights and still changes are 
 | 8 | walk | Phone: field review, photo, tap on the plan | The field review is done on a phone. Take a photo, and tap where it is on the drawing. | Field review / Take a photo. / Tap the spot |
 | 9 | writeup | Phone: write-up, check and save, pins | Closeout writes up the deficiency. Check it, save it, and it is pinned to the plan. | Closeout writes it up. / AR-01. AR-02. AR-03. |
 | 10 | office | Deficiencies list, report scroll | In the office, every deficiency is listed with its unit, floor and sheet. The report shows each one with its photo and plan pin. | Deficiencies / The report |
-| 11 | contractor | Contractor link, list, upload filed | The contractor gets one link, with no account. They upload a photo, and Closeout files it on the item. | One link. No account. / Closeout files it on item AR-01. |
+| 11 | contractor | Email to the contractor, then their reply | Closeout writes the email to the contractor, with the report attached. When they reply, the email is filed to the review and checked against each item. | The email: subject, message and the Field review 1 report, ready to send. / The reply: filed to Field review 1 and checked against AR-01, AR-02 and AR-03. |
 | 12 | decide | Item with filed photo, Your call | Closeout checks the photo against the item. The engineer makes the call: ready to close, hold, or not accepted. | Location not confirmed / The engineer decides |
 | 13 | ask | Ask panel and answer | And you can ask about the project. What does the contractor still need to send? Closeout lists the two items with nothing received. | What does the contractor still need to send? / AR-02 and AR-03 |
 | 14 | — | End card | — | Closeout |

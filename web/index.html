@@ -228,12 +228,12 @@
   .mopen .mtop { font-size: 13px; color: var(--mute); display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; } .mopen .mtop b { color: var(--ink); font-weight: 600; }
   .mopen h4 { margin: 8px 0 12px; font-size: 20px; letter-spacing: -.01em; }
   .mopen .att { margin-top: 18px; padding: 14px 16px; border-radius: 12px; border: 1px solid var(--line); background: var(--paper); }
-  .mopen .att > b, .mopen .worked > b { display: block; font-size: 11.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--mute); margin-bottom: 8px; }
+  .mopen .att > b, .mopen .worked > b, .handoff .worked > b { display: block; font-size: 11.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--mute); margin-bottom: 8px; }
   .mopen .att ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; } .mopen .att li .f { font-family: var(--mono); font-size: 12.5px; color: var(--ink-2); word-break: break-all; }
-  .mopen .worked { margin-top: 12px; padding: 14px 16px 8px; border-radius: 12px; border: 1px solid var(--ready); background: var(--ready-bg); }
-  .mopen .worked .row { display: grid; grid-template-columns: 64px 1fr; gap: 4px 12px; padding: 7px 0; border-top: 1px solid rgba(0,0,0,.07); font-size: 13.5px; }
-  .mopen .worked .row .id { font-family: var(--mono); font-weight: 700; } .mopen .worked .row small { display: block; color: var(--mute); font-family: var(--mono); font-size: 12px; margin-top: 2px; word-break: break-all; }
-  .mopen .worked.checked { border-color: var(--line-2); background: var(--card); }
+  .mopen .worked, .handoff .worked { margin-top: 12px; padding: 14px 16px 8px; border-radius: 12px; border: 1px solid var(--ready); background: var(--ready-bg); }
+  .mopen .worked .row, .handoff .worked .row { display: grid; grid-template-columns: 64px 1fr; gap: 4px 12px; padding: 7px 0; border-top: 1px solid rgba(0,0,0,.07); font-size: 13.5px; }
+  .mopen .worked .row .id, .handoff .worked .row .id { font-family: var(--mono); font-weight: 700; } .mopen .worked .row small, .handoff .worked .row small { display: block; color: var(--mute); font-family: var(--mono); font-size: 12px; margin-top: 2px; word-break: break-all; }
+  .mopen .worked.checked, .handoff .worked.checked { border-color: var(--line-2); background: var(--card); }
   .ck { font-weight: 600; } .ck.no_evidence, .ck.incomplete, .ck.needs_clarification { color: var(--needs); } .ck.complete, .ck.closed { color: var(--ready); }
   .box.sent .wrote { display: grid; gap: 10px; margin-bottom: 14px; }
   .box.sent .wrote .w { padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line-2); display: grid; gap: 4px; font-size: 14px; }
