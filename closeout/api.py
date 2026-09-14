@@ -2347,6 +2347,12 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
                 + '</div><div class="or"><span>or</span></div>')
 
     def _signin_html(bad: str = "", email: str = "", note: str = "") -> str:
+        if access_code and not store().users() and not _provider_buttons():
+            # no accounts and no Google or Microsoft here, so the office code is the only way in: show it first, alone
+            return auth_page("Sign in", f"""<h1>Sign in</h1><p>Enter the office code.</p>
+            {f'<p class="bad">{html_escape(bad)}</p>' if bad else ''}
+            <form method="post" action="/signin"><label for="code">Office code</label><input id="code" type="password" name="code" autocomplete="off" required autofocus>
+            <button type="submit">Open with the code</button></form>""")
         code = ('<details><summary>Use the office code instead</summary><form method="post" action="/signin">'
                 '<label for="code">Office code</label><input id="code" type="password" name="code" autocomplete="off" required>'
                 '<button type="submit">Open with the code</button></form></details>') if access_code else ""

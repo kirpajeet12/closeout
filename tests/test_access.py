@@ -33,6 +33,11 @@ def test_the_office_code_gates_screens_and_api_but_not_contractor_links(tmp_path
     assert c.get("/api/projects").status_code == 401
 
 
+def test_with_only_the_code_the_sign_in_page_asks_for_the_code_first(tmp_path):
+    page = _client(tmp_path, "north-shore").get("/signin").text
+    assert 'name="code"' in page and 'name="email"' not in page and "Continue with Google" not in page
+
+
 def _link(text):
     import re
     return re.search(r"/set-password/[\w-]+", text).group(0)
