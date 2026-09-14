@@ -14,6 +14,7 @@ import json
 import logging
 import mimetypes
 import re
+import secrets
 import shutil
 import threading
 import zipfile
@@ -38,6 +39,7 @@ from . import history as history_mod
 from . import brief as brief_mod
 from . import coverage as coverage_mod
 from . import accounts as accounts_mod
+from . import signin as signin_mod
 from .store import Store, now
 
 log = logging.getLogger("closeout.api")
@@ -394,7 +396,14 @@ AUTH_CSS = """
   .row { display:flex; justify-content:space-between; gap:12px; margin-top:16px; font-size:13px } a { color:var(--ink) }
   details { margin-top:18px; border-top:1px solid var(--line); padding-top:14px; font-size:13px } summary { cursor:pointer; color:var(--mute) }
   details form { margin-top:12px } .foot { margin-top:18px; font-size:12px; color:var(--mute) }
+  .providers { display:grid; gap:10px } .provider { display:flex; align-items:center; justify-content:center; gap:10px; padding:12px; border:1px solid var(--line);
+  border-radius:12px; font-size:15px; font-weight:600; text-decoration:none; background:#fff } .provider:hover { border-color:var(--ink) } .provider svg { flex:none }
+  .or { display:flex; align-items:center; gap:12px; margin:18px 0; color:var(--mute); font-size:12px } .or::before, .or::after { content:""; flex:1; border-top:1px solid var(--line) }
 """
+PROVIDER_MARKS = {
+    "google": '<svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.6 5.4 2.6 13.3l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 2.9-2.2 5.4-4.7 7.1l7.6 5.9c4.4-4.1 6.9-10.1 6.9-17.5z"/><path fill="#FBBC05" d="M10.5 28.6c-.5-1.4-.8-3-.8-4.6s.3-3.2.8-4.6l-7.9-6.1C1 16.6 0 20.2 0 24s1 7.4 2.6 10.7l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.6-5.9c-2.1 1.4-4.9 2.3-8.3 2.3-6.3 0-11.6-4.1-13.5-9.9l-7.9 6.1C6.6 42.6 14.6 48 24 48z"/></svg>',
+    "microsoft": '<svg width="18" height="18" viewBox="0 0 23 23" aria-hidden="true"><path fill="#F25022" d="M1 1h10v10H1z"/><path fill="#7FBA00" d="M12 1h10v10H12z"/><path fill="#00A4EF" d="M1 12h10v10H1z"/><path fill="#FFB900" d="M12 12h10v10H12z"/></svg>',
+}
 
 
 def auth_page(title: str, body: str) -> str:
@@ -1627,6 +1636,8 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
 
     @app.get("/api/mail/callback")
     def mail_callback(request: Request, code: str = "", state: str = "", error: str = ""):
+        if state.startswith(SIGNIN_STATE):
+            return _provider_signin(request, "google", code, state, error)
         if error or not code or not hmac.compare_digest(state, _mail_state(request)):
             return RedirectResponse("/#/office?mail=refused", status_code=303)
         try:
@@ -1651,6 +1662,8 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
 
     @app.get("/api/mail/callback/microsoft")
     def mail_callback_microsoft(request: Request, code: str = "", state: str = "", error: str = ""):
+        if state.startswith(SIGNIN_STATE):
+            return _provider_signin(request, "microsoft", code, state, error)
         if error or not code or not hmac.compare_digest(state, _mail_state(request, "microsoft")):
             return RedirectResponse("/#/office?mail=refused", status_code=303)
         try:
@@ -2230,9 +2243,13 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
     # --- signing in: an office account (email and password) or the office code; contractor links need neither --------
     access_code = settings.access_code
     open_prefixes = ("/c/", "/api/c/", "/set-password/")
-    open_paths = {"/signin", "/forgot"}
+    open_paths = {"/signin", "/forgot", "/signin/google", "/signin/microsoft"}
+    # Google and Microsoft send the person back to the addresses already registered for connecting the mailbox; a
+    # sign-in is told apart by its state, and only a sign-in passes the gate there
+    provider_returns = {"/api/mail/callback", "/api/mail/callback/microsoft"}
     failures: dict[str, list[float]] = {}
-    SESSION_COOKIE, CODE_COOKIE = "closeout_session", "closeout_access"
+    SESSION_COOKIE, CODE_COOKIE, SIGNIN_COOKIE = "closeout_session", "closeout_access", "closeout_signin"
+    SIGNIN_STATE = "signin."
 
     def _access_token() -> str:
         return hashlib.sha256(f"closeout-access:{access_code}".encode()).hexdigest()
@@ -2293,10 +2310,12 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         office = settings.office
         hello = f"Hello {user['name'].split()[0]}," if user.get("name") else "Hello,"
         if kind == "welcome":
+            shown = [n for p, n, eff in (("google", "Google", gs()), ("microsoft", "Microsoft", settings)) if signin_mod.configured(p, eff)]
+            also = f". If this address is a {' or '.join(shown)} account, you can skip the password and continue with {' or '.join(shown)} there." if shown else ""
             subject = f"Your Closeout account at {office}"
             text = (f"{hello}\n\n{invited_by or office} added you to Closeout at {office}. Closeout holds the office's field reviews, "
                     f"deficiency lists and contractor replies.\n\nSet your password here. The link works once, for {accounts_mod.WELCOME_DAYS} days:\n{link}\n\n"
-                    f"You sign in with this email address, {user['email']}, at {_base(request)}/signin\n\n{office}")
+                    f"You sign in with this email address, {user['email']}, at {_base(request)}/signin{also}\n\n{office}")
         else:
             subject = "Reset your Closeout password"
             text = (f"{hello}\n\nSomeone asked to reset the Closeout password for {user['email']} at {office}.\n\n"
@@ -2309,6 +2328,8 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         path = request.url.path
         if path in open_paths or path.startswith(open_prefixes):
             return await call_next(request)
+        if path in provider_returns and request.query_params.get("state", "").startswith(SIGNIN_STATE):
+            return await call_next(request)
         who = _who(request)
         if who:
             request.state.who = who
@@ -2317,16 +2338,26 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
             return JSONResponse({"detail": "sign in first"}, status_code=401)
         return RedirectResponse("/signin", status_code=303)
 
+    def _provider_buttons(verb: str = "Continue") -> str:
+        names = {"google": "Google", "microsoft": "Microsoft"}
+        shown = [p for p, s in (("google", gs()), ("microsoft", settings)) if signin_mod.configured(p, s)]
+        if not shown:
+            return ""
+        return ('<div class="providers">' + "".join(f'<a class="provider" href="/signin/{p}">{PROVIDER_MARKS[p]}<span>{verb} with {names[p]}</span></a>' for p in shown)
+                + '</div><div class="or"><span>or</span></div>')
+
     def _signin_html(bad: str = "", email: str = "", note: str = "") -> str:
         code = ('<details><summary>Use the office code instead</summary><form method="post" action="/signin">'
                 '<label for="code">Office code</label><input id="code" type="password" name="code" autocomplete="off" required>'
                 '<button type="submit">Open with the code</button></form></details>') if access_code else ""
         return auth_page("Sign in", f"""<h1>Sign in</h1><p>Sign in with the email address the office added you with. Contractor links open without signing in.</p>
             {f'<p class="ok">{html_escape(note)}</p>' if note else ''}{f'<p class="bad">{html_escape(bad)}</p>' if bad else ''}
+            {_provider_buttons()}
             <form method="post" action="/signin"><label for="email">Email</label><input id="email" type="email" name="email" autocomplete="username" value="{html_escape(email)}" required {'' if email else 'autofocus'}>
             <label for="password">Password</label><input id="password" type="password" name="password" autocomplete="current-password" required {'autofocus' if email else ''}>
             <button type="submit">Sign in</button></form>
-            <div class="row"><a href="/forgot">Forgot your password?</a></div>{code}""")
+            <div class="row"><a href="/forgot">Forgot your password?</a></div>
+            <p class="foot">New to Closeout? Ask the office to add your email under People. Then continue with Google or Microsoft using that address, or set a password from the welcome email.</p>{code}""")
 
     @app.get("/signin", include_in_schema=False)
     def signin_page(request: Request):
@@ -2361,6 +2392,56 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         st.add_session(th, user["id"], accounts_mod.later(days=accounts_mod.SESSION_DAYS))
         resp = RedirectResponse("/", status_code=303)
         _cookie(resp, request, SESSION_COOKIE, token, accounts_mod.SESSION_DAYS)
+        return resp
+
+    @app.get("/signin/{provider}", include_in_schema=False)
+    def signin_with(provider: str, request: Request):
+        eff = gs() if provider == "google" else settings
+        if provider not in signin_mod.PROVIDERS or not signin_mod.configured(provider, eff):
+            return RedirectResponse("/signin", status_code=303)
+        nonce = secrets.token_urlsafe(24)
+        state = SIGNIN_STATE + nonce
+        resp = RedirectResponse(signin_mod.auth_url(provider, eff, _redirect_uri(request, "" if provider == "google" else provider), state, nonce),
+                                status_code=303)
+        resp.set_cookie(SIGNIN_COOKIE, nonce, max_age=600, httponly=True, samesite="lax", secure=request.url.scheme == "https", path="/api/mail/callback")
+        return resp
+
+    def _provider_signin(request: Request, provider: str, code: str, state: str, error: str):
+        """Back from Google or Microsoft: the address they confirmed must belong to someone the office added."""
+        names = {"google": "Google", "microsoft": "Microsoft"}
+        nonce = request.cookies.get(SIGNIN_COOKIE, "")
+        ip = _client(request)
+
+        def refuse(msg: str, status: int = 403):
+            resp = HTMLResponse(_signin_html(msg), status_code=status)
+            resp.delete_cookie(SIGNIN_COOKIE, path="/api/mail/callback")
+            return resp
+
+        if _too_many(ip):
+            return refuse("Too many tries from this device. Wait 15 minutes and try again.", 429)
+        if error:
+            return refuse(f"{names[provider]} sign-in was cancelled. Try again, or sign in with your password.", 400)
+        if not code or not nonce or not hmac.compare_digest(state, SIGNIN_STATE + nonce):
+            return refuse("That sign-in started on another page or took too long. Try again.", 400)
+        eff = gs() if provider == "google" else settings
+        try:
+            email = signin_mod.email_from(provider, eff, code, _redirect_uri(request, "" if provider == "google" else provider), nonce)
+        except signin_mod.SignInError as e:
+            _failed(ip)
+            return refuse(f"{names[provider]} sign-in did not work: {e}.")
+        except Exception as e:
+            log.warning("%s sign-in failed: %s", provider, type(e).__name__)
+            return refuse(f"{names[provider]} could not be reached just now. Try again, or sign in with your password.", 502)
+        st = store()
+        user = st.user_by_email(email)
+        if not user:
+            _failed(ip)
+            return refuse(f"No one at {settings.office} has been added with {email}. Ask the office to add you under People, then try again.")
+        token, th = accounts_mod.new_token()
+        st.add_session(th, user["id"], accounts_mod.later(days=accounts_mod.SESSION_DAYS))
+        resp = RedirectResponse("/", status_code=303)
+        _cookie(resp, request, SESSION_COOKIE, token, accounts_mod.SESSION_DAYS)
+        resp.delete_cookie(SIGNIN_COOKIE, path="/api/mail/callback")
         return resp
 
     @app.post("/signout", include_in_schema=False)
@@ -2409,13 +2490,17 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
             return auth_page("Link not valid", """<h1>This link no longer works</h1><p>It was already used, it ran out, or a newer link was sent.
                 Ask for a new one and use the newest email.</p><div class="row"><a href="/forgot">Email me a new link</a><a href="/signin">Sign in</a></div>""")
         welcome = link["kind"] == "welcome"
+        buttons = _provider_buttons().replace('<div class="or"><span>or</span></div>', "") if welcome else ""
+        skip = (f'<div class="or"><span>or skip the password</span></div>{buttons}'
+                f'<p class="foot">Choose the Google or Microsoft account that uses {html_escape(user["email"])}.</p>') if buttons else ""
         return auth_page("Set your password", f"""<h1>{'Welcome to Closeout' if welcome else 'Choose a new password'}</h1>
             <p>{'Set a password for ' if welcome else 'New password for '}<b>{html_escape(user['email'])}</b>. Use at least {accounts_mod.MIN_PASSWORD} characters.</p>
             {f'<p class="bad">{html_escape(bad)}</p>' if bad else ''}
             <form method="post" action="/set-password/{html_escape(token)}"><input type="email" name="username" value="{html_escape(user['email'])}" autocomplete="username" hidden>
             <label for="password">New password</label><input id="password" type="password" name="password" autocomplete="new-password" minlength="{accounts_mod.MIN_PASSWORD}" autofocus required>
             <label for="confirm">Type it again</label><input id="confirm" type="password" name="confirm" autocomplete="new-password" required>
-            <button type="submit">{'Set password and open Closeout' if welcome else 'Save the new password'}</button></form>""")
+            <button type="submit">{'Set password and open Closeout' if welcome else 'Save the new password'}</button></form>
+            {skip}""")
 
     @app.get("/set-password/{token}", include_in_schema=False)
     def set_password_page(token: str):
