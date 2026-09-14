@@ -39,6 +39,9 @@ Closeout is a project workspace for the office that reviews a building.
 - **The engineer decides.** Each item shows what was asked for, what came in and what is missing. The engineer
   marks it ready to close, on hold or not accepted.
 - **Ask.** Ask about the project in plain words, typed or spoken, and get an answer from the project's records.
+- **Office accounts.** The office adds each person under People. They sign in with a password from the welcome
+  email, or continue with Google or Microsoft using that same address. Anyone signed in can report an issue with the
+  screen they were on, and the office marks it fixed.
 
 Closeout never says work is acceptable, compliant or approved, never sends email on its own, and never guesses
 a location or picks between two items when a photo could fit either.
@@ -134,4 +137,4 @@ writes "I did it" with no photo, Closeout shows the words next to what is still 
 It runs on EC2 with Claude on Amazon Bedrock through an IAM role, sends and reads mail from the office's own Gmail
 or Microsoft 365 mailbox, and works on a phone on site.
 
-Repository: (link) · Video: (link)
+Repository: https://github.com/kirpajeet12/closeout · Video: (YouTube URL, once uploaded)
