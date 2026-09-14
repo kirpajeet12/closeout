@@ -470,6 +470,24 @@
   .pin { position: absolute; transform: translate(-50%, -50%); width: 30px; height: 30px; border-radius: 50%; background: var(--hot); border: 3px solid #fff; box-shadow: 0 2px 10px rgba(0,0,0,.4); display: grid; place-items: center; color: #fff; font: 700 10px/1 var(--mono); cursor: pointer; pointer-events: auto; }
   .pin.draft { background: #fff; border-color: var(--hot); animation: pulse .7s infinite alternate; width: 34px; height: 34px; }
   .pin.draft::after { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--hot); }
+  .pin.note { background: #2f5d8a; border-radius: 8px; width: 26px; height: 26px; font-size: 11px; }
+  .pin.draft.asnote { border-color: #2f5d8a; border-radius: 10px; } .pin.draft.asnote::after { background: #2f5d8a; border-radius: 3px; }
+  .whead { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; } .whead h3 { margin: 0; }
+  .kind { display: inline-flex; padding: 3px; border-radius: 999px; background: var(--paper); border: 1px solid var(--line-2); }
+  .kind button { font: inherit; font-size: 13px; font-weight: 600; border: 0; background: transparent; color: var(--mute); padding: 7px 12px; border-radius: 999px; cursor: pointer; min-height: 34px; }
+  .kind button.on { background: var(--ink); color: #fff; } .kind button[data-kind="note"].on { background: #2f5d8a; }
+  .kind button:focus-visible, .dict:focus-visible, .way:focus-visible { outline: 2px solid var(--hot); outline-offset: 2px; }
+  .said { position: relative; } .panel .said textarea, .locate .said textarea { width: 100%; font: inherit; font-size: 16px; border: 1px solid var(--line-2); border-radius: 10px; padding: 11px 50px 11px 12px; background: #fff; min-height: 72px; resize: vertical; box-sizing: border-box; }
+  .dict { position: absolute; right: 6px; top: 6px; width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--line-2); background: #fff; font-size: 17px; cursor: pointer; display: grid; place-items: center; }
+  .dict.on { background: #8b1a1a; border-color: #8b1a1a; animation: pulse 1s ease-in-out infinite; }
+  .tidyrow { display: flex; gap: 10px; align-items: baseline; margin-top: 6px; font-size: 12px; color: var(--mute); flex-wrap: wrap; }
+  .tidyrow .lnk { padding: 0; border: 0; background: none; font: inherit; font-size: 13px; font-weight: 600; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; } .tidyrow .lnk[disabled] { color: var(--mute); cursor: default; }
+  .panel .take.none { display: grid; place-items: center; border: 1px dashed var(--line-2); border-radius: 12px; color: var(--mute); font-size: 22px; text-align: center; } .panel .take.none small { display: block; font-size: 11px; }
+  .planfirst { margin: 16px 0 22px; } .planfirst .pfh { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; } .planfirst .pfh h3 { margin: 0; font-size: 20px; letter-spacing: -.01em; } .planfirst .pfh span { color: var(--mute); font-size: 13px; }
+  .ways { display: flex; gap: 10px; flex-wrap: wrap; margin: 14px 0 18px; }
+  .way { position: relative; display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 14px; border: 1px solid var(--line-2); background: #fff; color: var(--ink); font: inherit; text-align: left; cursor: pointer; min-height: 52px; }
+  .way input { position: absolute; inset: 0; opacity: 0; cursor: pointer; } .way .ico { width: 34px; height: 34px; border-radius: 50%; background: var(--paper); display: grid; place-items: center; font-size: 16px; flex: none; }
+  .way b { display: block; font-size: 14px; } .way small { display: block; font-size: 12px; color: var(--mute); }
   .pin small { position: absolute; top: 32px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 2px 6px; border-radius: 6px; white-space: nowrap; font-size: 11px; font-weight: 700; }
   .hint { position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%); background: rgba(18,19,20,.85); color: #fff; padding: 10px 16px; border-radius: 999px; font-size: 14px; pointer-events: none; white-space: nowrap; }
   .panel { background: var(--paper); color: var(--ink); border-top: 1px solid var(--line-2); padding: 16px 18px; padding-bottom: max(16px, env(safe-area-inset-bottom)); max-height: 62vh; overflow: auto; }
@@ -2256,13 +2274,19 @@ function renderField() {
   const items = rv ? findingsIn(rv.id) : [], shot = state.shot;
   const walking = state.walk === cur.code || !!(shot && shot.disc === cur.code);
   const head = `<div class="fr-head">
-      <div><h2>${esc(cur.name)}${rv ? ` · ${esc(rv.title)}${rv.stage ? ` · ${esc(rv.stage)}` : ""}` : ""}</h2><p>${rv ? `Started ${esc(when(rv.started_at))} · ${items.length} deficienc${items.length === 1 ? "y" : "ies"} so far.${walking ? " Take a photo or write it down; open a plan to mark the spot." : " Press Continue to keep walking."}` : done.length ? `${done.length} review${done.length === 1 ? "" : "s"} finished. Start the next one to add more deficiencies.` : "Nothing recorded yet for this discipline."}</p></div>
+      <div><h2>${esc(cur.name)}${rv ? ` · ${esc(rv.title)}${rv.stage ? ` · ${esc(rv.stage)}` : ""}` : ""}</h2><p>${rv ? `Started ${esc(when(rv.started_at))} · ${items.length} deficienc${items.length === 1 ? "y" : "ies"} so far.${walking ? " Open a plan and tap the spot. A photo is optional." : " Press Continue to keep walking."}` : done.length ? `${done.length} review${done.length === 1 ? "" : "s"} finished. Start the next one to add more deficiencies.` : "Nothing recorded yet for this discipline."}</p></div>
       ${state.finishing === (rv && rv.id) && rv ? `<div class="thinking"><span class="dot"></span><span>Packaging ${items.length} deficienc${items.length === 1 ? "y" : "ies"} and drafting the message to the contractor…</span></div>`
       : rv && walking ? `<span class="frbtns"><a class="btn quiet" href="${pUrl(slug, "/reviews/" + encodeURIComponent(rv.id) + "/report")}" target="_blank" rel="noopener">Report so far</a>${state.confirmFinish === rv.id ? "" : `<button class="btn" id="finishRv">Finish ${esc(rv.title.toLowerCase())}</button>`}<button class="btn quiet" id="walkClose" title="Put the walk away for now">Put away</button></span>`
       : rv ? `<button class="btn primary hot" id="walkOpen">Continue ${esc(rv.title.toLowerCase())}</button>`
       : state.starting && state.starting.code === cur.code ? "" : `<button class="btn primary" id="startRv">Start field review ${done.length + 1}</button>`}
     </div>`;
-  const capture = shot && shot.disc === cur.code ? renderWhere(cur, rv) : `<label class="capture"><input type="file" accept="image/*" capture="environment" id="shotIn"><span class="ico">📷</span><span><b>Take a photo of the problem</b><small>${esc(cur.name)} · then say which unit and level you are in. Closeout finds the sheet and writes it up; you tap the spot and save.</small></span></label><p class="nophoto">No photo? <a href="#" id="noShot">Write it down instead</a>${cur.sheets.length ? "" : " · no drawings are needed"}. A photo of the site that is not a deficiency can be kept for the office the same way.</p>`;
+  /* the plans come first: open one, tap the spot, write what you saw. A photo, or no plan at all, are the other ways in. */
+  const plans = walking && !(shot && shot.disc === cur.code) ? renderGalleryGroups(cur) : "";
+  const hasPlans = plans.includes(`class="sheet"`);
+  const otherWays = `<div class="ways"><label class="way"><input type="file" accept="image/*" capture="environment" id="shotIn"><span class="ico">📷</span><span><b>Photo first</b><small>Then say the unit and floor; Closeout can find the sheet</small></span></label><button class="way" id="noShot"><span class="ico">✎</span><span><b>Write it down${hasPlans ? " without a plan" : ""}</b><small>Saved with the unit and floor</small></span></button></div>`;
+  const capture = shot && shot.disc === cur.code ? renderWhere(cur, rv)
+    : hasPlans ? `<section class="planfirst"><div class="pfh"><h3>Open a plan and tap the spot</h3><span>Then write or dictate what you saw: a deficiency for the contractor, or a note for the record.</span></div>${plans}${otherWays}</section>`
+    : `${plans}${otherWays}`;
   $("#tab").innerHTML = `
     <div class="discs">${discs.map(d => { const a = activeReview(d.code), n = p.register.filter(x => x.discipline === d.code && x.source === "field").length; return `
       <div class="disc ${d.code === cur.code ? "on" : ""}" data-code="${esc(d.code)}"><span class="code">${esc(d.code)}</span><h2>${esc(d.name)}</h2><span class="n">${d.added && !d.sheets.length ? "no drawings yet · plans stand in" : `${d.sheets.length} sheet${d.sheets.length === 1 ? "" : "s"}`} · ${n} deficienc${n === 1 ? "y" : "ies"}</span>
@@ -2282,7 +2306,7 @@ function renderField() {
     ${!walking && rv ? renderSiteNotes(rv, false) : ""}
     ${!walking ? (() => { const pins = cur.sheets.reduce((n, sh) => n + findingsOn(sh.id).length, 0); return `<h3 class="sec">Plans${pins ? ` · ${pins} spot${pins === 1 ? "" : "s"} marked across the field reviews` : ""}</h3>${renderGalleryGroups(cur)}`; })() : ""}
     ${done.length ? `<h3 class="sec">Earlier reviews</h3><table><tbody>${done.map(r => { const n = findingsIn(r.id).length, m = messageFor(r.id); return `<tr class="row" data-rv="${esc(r.id)}"><td class="id">${esc(r.title)}</td><td><div class="what">${esc(when(r.started_at))} → ${esc(when(r.finished_at))}</div><div class="where">${m ? "Message drafted for the contractor" : n ? "No message yet" : "Nothing recorded"}</div></td><td class="num">${n} item${n === 1 ? "" : "s"}</td><td class="go">›</td></tr>`; }).join("")}</tbody></table>` : ""}
-    <footer><span>Numbers are ${esc(cur.code)}-01, ${esc(cur.code)}-02 … and never reused.</span><span>Closeout suggests the wording; you decide what is saved.</span></footer>`;
+    <footer><span>Numbers are ${esc(cur.code)}-01, ${esc(cur.code)}-02 … and never reused.</span><span>You write what you saw. Closeout tidies the wording only when you ask.</span></footer>`;
   $("#tab").querySelectorAll(".disc").forEach(d => d.onclick = () => { state.fieldDisc = d.dataset.code; const s = state.shot; if (s && !s.busy) { s.disc = d.dataset.code; s.pick = false; state.walk = d.dataset.code; } renderField(); });
   $("#tab").querySelectorAll(".sheet").forEach(s => s.onclick = () => { if (shot && shot.disc === cur.code) { const sh = p.project.sheets.find(x => x.id === s.dataset.id), lv = shot.level; carryShot(s.dataset.id, sh && lv ? (sh.views || []).find(v => v.level === lv) || null : null); } else location.hash = pHash(slug, "/field/" + s.dataset.id); });
   const mb = $("#mapBtn"); if (mb) mb.onclick = () => mapFloors(JSON.parse(mb.dataset.list).map(id => p.project.sheets.find(x => x.id === id)));
@@ -2297,6 +2321,7 @@ function renderField() {
   if (!rv) wireBrief(cur); wireStart(cur); wireUnitsStrip(); if (STAGES_ON) wireCoverage(cur);
   const si = $("#shotIn"); if (si) si.onchange = () => { const f = si.files[0]; if (!f) return; beginShot(cur.code, f); };
   const ns = $("#noShot"); if (ns) ns.onclick = e => { e.preventDefault(); beginShot(cur.code, null); };
+  wireDictate($("#tab"));
   if (shot && shot.disc === cur.code) wireWhere(cur, rv);
   $("#tab").querySelectorAll("[data-rmnote]").forEach(b => b.onclick = async () => {
     const id = b.dataset.rmnote;
@@ -2507,7 +2532,7 @@ function beginShot(code, file) {
   if (state.shot && state.shot.photoUrl) URL.revokeObjectURL(state.shot.photoUrl);
   const last = lastFieldItem(code) || lastFieldItem();
   const unit = last ? last.unit || "" : "", b = unit ? buildings().find(x => x.units.some(u => u.label === unit)) : null;
-  state.shot = { disc: code, photo: file, photoUrl: file ? URL.createObjectURL(file) : "", bld: b ? b.key : "", unit, level: last ? last.level || "" : "", note: "", gps: "", gpsText: "", busy: false, pick: false };
+  state.shot = { disc: code, photo: file, photoUrl: file ? URL.createObjectURL(file) : "", bld: b ? b.key : "", unit, level: last ? last.level || "" : "", note: "", kind: "def", gps: "", gpsText: "", busy: false, pick: false };
   state.walk = code; askGps(state.shot); renderField();
 }
 function askGps(s) {
@@ -2536,9 +2561,9 @@ function renderWhere(cur, rv) {
   const b = blds.find(x => x.key === s.bld) || null, units = b ? b.units.map(u => u.label) : unitLevelLists().units, floors = floorsFor(b, s.unit);
   const pick = planFor(cur.code, b, s.level), sh = pick && pick.sheet;
   return `<div class="locate">
-    <h3>Where are you?</h3><div class="sub">${s.photo ? "Photo kept. " : ""}Building, unit, floor${sh ? ": the floor plan opens, you tap the spot, and it is written up for you" : ", and what you saw. It is saved with the unit and floor; a sheet and a pin can be added later"}.</div>
-    <div class="shot"><div class="take ${s.photo ? "" : "none"}">${s.photo ? `<img src="${s.photoUrl}" alt="">` : `<span>＋<small>add a photo</small></span>`}<input type="file" accept="image/*" capture="environment" id="shotAgain"></div>
-      <div class="note"><label style="margin-top:0">${s.photo ? "Your note (optional)" : "What is wrong"}</label><input id="wNote" placeholder="e.g. no GFCI, cover missing" value="${esc(s.note)}"></div></div>
+    <div class="whead"><h3>Where are you?</h3>${kindToggle(s.kind, "wKind")}</div><div class="sub">${s.photo ? "Photo kept. " : ""}Building, unit, floor${sh ? ": the floor plan opens and you tap the spot" : ", and what you saw. It is saved with the unit and floor; a sheet and a pin can be added later"}. ${s.kind === "note" ? "A note for the record stays off the contractor's list and goes in the report." : "A deficiency goes on the contractor's list."}</div>
+    <div class="shot"><div class="take ${s.photo ? "" : "none"}">${s.photo ? `<img src="${s.photoUrl}" alt="">` : `<span>＋<small>photo, optional</small></span>`}<input type="file" accept="image/*" capture="environment" id="shotAgain"></div>
+      <div class="note"><label style="margin-top:0">What you saw${s.photo ? " (optional)" : ""}</label><div class="said"><textarea id="wNote" rows="2" placeholder="${s.kind === "note" ? "e.g. insulation in, vapour barrier not up yet" : "e.g. no GFCI beside the basin, cover plate missing"}">${esc(s.note)}</textarea>${micButton("wNote")}</div></div></div>
     <div class="row three">
       <div><label>Building</label><select id="wBld">${blds.length ? opts(blds.map(x => x.key), s.bld, "Which building?").replace(/<option >([^<]*)<\/option>|<option selected>([^<]*)<\/option>/g, (m, a, c) => { const k = a || c, bb = blds.find(x => x.key === k); return `<option value="${esc(k)}" ${c ? "selected" : ""}>${esc(bb.name)}${bb.units.length > 1 ? ` · ${bb.units.length} units` : ""}</option>`; }) : `<option value="">No buildings listed</option>`}</select></div>
       <div><label>Unit</label><select id="wUnit">${opts(units, s.unit)}</select></div>
@@ -2546,8 +2571,7 @@ function renderWhere(cur, rv) {
     </div>
     ${sh ? `<div class="plan-pick"><div class="crop" style="${cropStyle(sh, pick.view)}"></div><div><b>${esc(sh.sheet_number || "p." + sh.page)} · ${esc(DISC_NAMES[sh.discipline] || sh.discipline)}${pick.standIn ? " · stands in" : ""}</b><h4>${esc(sh.title || "Sheet")}</h4><p class="${pick.warn ? "warn" : ""}">${esc(pick.note || "This floor plan opens; tap where the problem is.")}</p></div></div>` : ""}
     <div class="agentnote" id="gps">${esc(s.gpsText)}</div>
-    <div class="acts">${sh ? `<button class="btn primary hot" id="wOpen">${b && s.level ? `Open the ${esc(s.level.toLowerCase())} plan` : b ? "Open the plan" : "Open this sheet"}</button>` : ""}${s.photo && state.p.project.sheets.length ? `<button class="btn" id="wFind">Pick the sheet for me</button>` : ""}<button class="btn ${sh ? "" : "primary hot"}" id="wHere">Save it here${sh ? ", no pin" : ""}</button><button class="btn" id="wPick">${s.pick ? "Picking below ↓" : "I'll pick"}</button><button class="cancel" id="wCancel">Cancel</button></div>
-    <p class="keep">Not a deficiency? <a href="#" id="wKeep">Keep it as a site ${s.photo ? "photo" : "note"}</a> for the office, with the unit and floor. It stays off the contractor's list.</p>
+    <div class="acts">${sh ? `<button class="btn primary hot" id="wOpen">${b && s.level ? `Open the ${esc(s.level.toLowerCase())} plan` : b ? "Open the plan" : "Open this sheet"}</button>` : ""}${s.photo && state.p.project.sheets.length ? `<button class="btn" id="wFind">Pick the sheet for me</button>` : ""}<button class="btn ${sh ? "" : "primary hot"}" id="wHere">${s.kind === "note" ? "Save the note" : "Save it"} here${sh ? ", no pin" : ""}</button><button class="btn" id="wPick">${s.pick ? "Picking below ↓" : "I'll pick the plan"}</button><button class="cancel" id="wCancel">Cancel</button></div>
   </div>`;
 }
 function wireWhere(cur, rv) {
@@ -2561,15 +2585,15 @@ function wireWhere(cur, rv) {
   $("#wCancel").onclick = () => { if (s.photoUrl) URL.revokeObjectURL(s.photoUrl); state.shot = null; renderField(); };
   $("#wPick").onclick = () => { grab(); s.pick = true; renderField(); const g = $(".gallery"); if (g) g.scrollIntoView({ behavior: "smooth", block: "start" }); };
   const wf = $("#wFind"); if (wf) wf.onclick = () => { grab(); locateShot(cur.code); };
-  $("#wHere").onclick = () => { grab(); saveHere(cur.code); };
-  $("#wKeep").onclick = e => { e.preventDefault(); grab(); keepSiteNote(cur.code); };
+  $("#wHere").onclick = () => { grab(); s.kind === "note" ? keepSiteNote(cur.code) : saveHere(cur.code); };
+  $("#tab").querySelectorAll("#wKind button[data-kind]").forEach(b => b.onclick = () => { grab(); s.kind = b.dataset.kind; renderField(); });
   const op = $("#wOpen"); if (op) op.onclick = () => { grab(); const b = buildings().find(x => x.key === s.bld), pick = planFor(cur.code, b, s.level); if (pick) carryShot(pick.sheet.id, pick.view); };
 }
 /* Kept as it is for the office: a site photo or a few words that are not a deficiency. Never numbered, never sent. */
 async function keepSiteNote(code) {
   const s = state.shot, slug = state.slug;
   const note = (s.note || "").trim();
-  if (!s.photo && note.length < 2) return toast("Add a photo or a few words first", true);
+  if (!s.photo && note.length < 2) return toast("Write or say what you saw first", true);
   s.busy = true; renderField();
   let rv = activeReview(code); if (!rv) { rv = await startReview(code); if (!rv) { s.busy = false; renderField(); return; } }
   const fd = new FormData(); fd.append("review_id", rv.id); fd.append("discipline", code);
@@ -2579,16 +2603,17 @@ async function keepSiteNote(code) {
   s.busy = false;
   if (!r.ok) { renderField(); return toast(j.detail || "Could not keep it", true); }
   if (s.photoUrl) URL.revokeObjectURL(s.photoUrl); state.shot = null;
-  toast(`Site ${s.photo ? "photo" : "note"} kept${[s.unit, s.level].filter(Boolean).length ? " · " + [s.unit, s.level].filter(Boolean).join(" · ") : ""}`); await load();
+  toast(`Note kept for the record${[s.unit, s.level].filter(Boolean).length ? " · " + [s.unit, s.level].filter(Boolean).join(" · ") : ""}`); await load();
 }
 function renderSiteNotes(rv, editable) {
   const list = (state.p.notes || []).filter(n => n.review_id === rv.id);
   if (!list.length) return "";
   const when = n => { const d = new Date(n.taken_at || n.created_at); return isNaN(d) ? "" : d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }); };
-  return `<h3 class="sec">Site photos and notes · ${list.length}<small>For the office. Not deficiencies, not sent to the contractor.</small></h3>
+  const sheetNo = id => { const sh = id && state.p.project.sheets.find(x => x.id === id); return sh ? sh.sheet_number || "p." + sh.page : ""; };
+  return `<h3 class="sec">Notes for the record · ${list.length}<small>What was seen and logged on the walk, as written. Not deficiencies; not sent to the contractor. They go in the report.</small></h3>
     <div class="snotes">${list.map(n => { const where = [n.unit, n.level, n.space].filter(Boolean).join(" · "); return `<figure class="snote ${n.photo_url ? "" : "words"}">
       ${n.photo_url ? `<a href="${esc(n.photo_url)}" target="_blank" rel="noopener"><img src="${esc(n.photo_url)}" alt="" loading="lazy"></a>` : ""}
-      <figcaption>${n.note ? `<b>${esc(n.note)}</b>` : `<b class="mute">Photo only</b>`}<span>${esc([where, when(n)].filter(Boolean).join(" · ") || "On site")}</span>
+      <figcaption>${n.note ? `<b>${esc(n.note)}</b>` : `<b class="mute">Photo only</b>`}<span>${esc([where, n.sheet_id && n.pin_x != null ? "marked on " + sheetNo(n.sheet_id) : "", when(n)].filter(Boolean).join(" · ") || "On site")}</span>
       ${editable ? `<em>${state.rmNote === n.id ? `<button class="lnk warn" data-rmnote="${esc(n.id)}">Remove for sure</button> <button class="lnk" data-keepnote="${esc(n.id)}">Keep</button>` : `<button class="lnk" data-rmnote="${esc(n.id)}">Remove</button>`}</em>` : ""}</figcaption>
     </figure>`; }).join("")}</div>`;
 }
@@ -2597,7 +2622,7 @@ async function saveHere(code) {
   const s = state.shot, slug = state.slug;
   const note = (s.note || "").trim();
   if (!s.unit && !s.level && !s.bld) return toast("Say which building, unit or floor you are in", true);
-  if (!s.photo && note.length < 4) return toast("Say what is wrong in a few words", true);
+  if (!s.photo && note.length < 4) return toast("Write or say what you saw first", true);
   s.busy = true; renderField();
   let rv = activeReview(code); if (!rv) { rv = await startReview(code); if (!rv) { s.busy = false; renderField(); return; } }
   const b = buildings().find(x => x.key === s.bld);
@@ -2621,15 +2646,15 @@ async function locateShot(code) {
     const r = await fetch(pUrl(slug, "/findings/locate"), { method: "POST", body: fd });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) { toast(j.detail || "Could not place it. Pick the sheet yourself", true); s.busy = false; s.pick = true; renderField(); return; }
-    const sug = j.suggestion, sh = state.p.project.sheets.find(x => x.id === sug.sheet_id);
-    state.viewer = { sheetId: sug.sheet_id, scale: 0, draft: null, step: "form", photo: s.photo, photoUrl: s.photoUrl, note: s.note, sug, busy: false, gps: s.gps || "", disc: code, focus: (sh && sh.views || []).find(v => v.level === s.level) || null };
-    state.shot = null; toast(`${sh ? sh.sheet_number || "Sheet" : "Sheet"} opened · now tap the spot`);
+    const sug = { ...j.suggestion, description: s.note || "" }, sh = state.p.project.sheets.find(x => x.id === sug.sheet_id);   // the sheet and the place come from Closeout; the words stay his own
+    state.viewer = { sheetId: sug.sheet_id, scale: 0, draft: null, step: "form", kind: s.kind || "def", photo: s.photo, photoUrl: s.photoUrl, note: s.note, sug, busy: false, gps: s.gps || "", disc: code, focus: (sh && sh.views || []).find(v => v.level === s.level) || null };
+    state.shot = null; toast(`${sh ? sh.sheet_number || "Sheet" : "Sheet"} opened · tap the spot`);
     location.hash = pHash(slug, "/field/" + sug.sheet_id);
   } catch (e) { toast("Lost the connection; pick the sheet yourself", true); s.busy = false; s.pick = true; renderField(); }
 }
 function carryShot(sheetId, focus) {
   const s = state.shot;
-  state.viewer = { sheetId, scale: 0, draft: null, step: "idle", photo: s.photo, photoUrl: s.photoUrl, note: s.note, sug: { unit: s.unit, level: s.level }, busy: false, gps: s.gps || "", carry: true, disc: s.disc, focus: focus || null };
+  state.viewer = { sheetId, scale: 0, draft: null, step: "idle", photo: s.photo, photoUrl: s.photoUrl, note: s.note, sug: { unit: s.unit, level: s.level, description: s.note }, kind: s.kind || "def", busy: false, gps: s.gps || "", carry: true, disc: s.disc, focus: focus || null };
   state.shot = null; location.hash = pHash(state.slug, "/field/" + sheetId);
 }
 /* switch to another sheet of the same building, keeping the photo and the words */
@@ -2765,7 +2790,7 @@ function wireCoverage(cur) {
 function renderSheet(sheetId) {
   const p = state.p, slug = state.slug, sh = p.project.sheets.find(x => x.id === sheetId);
   if (!sh) { $("#main").innerHTML = `<a class="back" href="${pHash(slug, "/field")}">← Field review</a><p class="empty">No such sheet.</p>`; return; }
-  const v = state.viewer && state.viewer.sheetId === sheetId ? state.viewer : (state.viewer = { sheetId, scale: 0, draft: null, step: "idle", photo: null, photoUrl: null, note: "", sug: null, busy: false, gps: "", disc: state.fieldDisc || sh.discipline, focus: null });
+  const v = state.viewer && state.viewer.sheetId === sheetId ? state.viewer : (state.viewer = { sheetId, scale: 0, draft: null, step: "idle", kind: "def", photo: null, photoUrl: null, note: "", sug: null, busy: false, gps: "", disc: state.fieldDisc || sh.discipline, focus: null });
   if (!v.disc) v.disc = state.fieldDisc || sh.discipline;
   v.fix = null;
   const showPanel = !!v.draft || v.step === "form";
@@ -2778,6 +2803,7 @@ function renderSheet(sheetId) {
   const pins = state.pinMode === "review" ? inRv : state.pinMode === "open" ? open : allPins;
   const pinCls = d => (state.pinMode === "all" && rv && d.review_id !== rv.id ? "other" : "") + (closed.has(d.item_id) ? " closed" : "");
   const cnt = n => n ? ` ${n}` : "";
+  const notePins = (p.notes || []).filter(n => n.sheet_id === sheetId && n.pin_x != null && (state.pinMode === "all" || (rv && n.review_id === rv.id)));
   const pinf = allPins.length > 1 ? `<span class="pinf">${rv ? `<button data-pins="review" class="${state.pinMode === "review" ? "on" : ""}">In this review${cnt(inRv.length)}</button>` : ""}<button data-pins="open" class="${state.pinMode === "open" ? "on" : ""}">Still open${cnt(open.length)}</button><button data-pins="all" class="${state.pinMode === "all" ? "on" : ""}">Everything${cnt(allPins.length)}</button></span>` : "";
   $("#main").innerHTML = `
     <div class="viewer">
@@ -2790,9 +2816,10 @@ function renderSheet(sheetId) {
       ${views.length || pinf ? `<div class="floors">${views.length ? `<span class="lbl">${esc(rel.b ? rel.b.name : "Floors")}</span>${views.map((x, i) => `<button data-view="${i}" class="${v.focus && v.focus.level === x.level && v.focus.x === x.x ? "on" : ""}">${esc(x.level)}</button>`).join("")}<button data-view="all" class="${v.focus ? "" : "on"}">Whole sheet</button><button id="fixBtn" class="fix" ${v.focus ? "" : "hidden"}>Fix box</button>` : ""}${pinf}</div>` : ""}
       <div class="stagewrap"><div class="canvas" id="canvas"><div class="stage" id="stage"><img id="sheetImg" src="${sh.image_url}" alt="">
         ${pins.map(d => `<span class="pin ${pinCls(d)}" data-id="${esc(d.item_id)}" style="left:${d.pin_x * 100}%;top:${d.pin_y * 100}%" title="${esc(d.location)}">${esc(d.item_id.replace(/^[A-Z]+-/, ""))}<small>${esc(d.item_id)}</small></span>`).join("")}
-        ${v.draft ? `<span class="pin draft" style="left:${v.draft.x * 100}%;top:${v.draft.y * 100}%"></span>` : ""}
+        ${notePins.map(n => `<span class="pin note" data-note="${esc(n.id)}" style="left:${n.pin_x * 100}%;top:${n.pin_y * 100}%" title="${esc(n.note || "Note for the record")}">N</span>`).join("")}
+        ${v.draft ? `<span class="pin draft ${v.kind === "note" ? "asnote" : ""}" style="left:${v.draft.x * 100}%;top:${v.draft.y * 100}%"></span>` : ""}
       </div></div>
-        ${!v.draft ? `<div class="hint ${rel.list.length && !showPanel ? "up" : ""}">${v.step === "form" || v.carry ? "Tap where it is on this sheet" : rv ? "Tap where the problem is" : `Start the ${esc((DISC_NAMES[v.disc] || v.disc).toLowerCase())} field review first, then tap here`}</div>` : ""}
+        ${!v.draft ? `<div class="hint ${rel.list.length && !showPanel ? "up" : ""}">${v.step === "form" || v.carry ? "Tap where it is on this sheet" : rv ? "Tap the spot: a deficiency or a note" : `Start the ${esc((DISC_NAMES[v.disc] || v.disc).toLowerCase())} field review first, then tap here`}</div>` : ""}
         ${rel.list.length && !showPanel ? `<div class="related"><span class="lbl">Also ${esc(rel.b.name)}</span>${rel.list.map(x => `<div class="rel" data-id="${x.id}"><img src="${x.thumb_url || x.image_url}" alt="" loading="lazy"><span>${esc(x.sheet_number || "p." + x.page)}</span><small>${esc(x.title || DISC_NAMES[x.discipline] || x.discipline)}</small></div>`).join("")}</div>` : ""}
       </div>
       ${showPanel ? `<div class="panel" id="panel"></div>` : ""}
@@ -2872,71 +2899,122 @@ function renderSheet(sheetId) {
     if (pts.size === 0) down = null; };
   canvas.onpointerup = up; canvas.onpointercancel = up;
   stage.querySelectorAll(".pin[data-id]").forEach(pin => pin.onclick = e => { e.stopPropagation(); location.hash = pHash(slug, "/item/" + encodeURIComponent(pin.dataset.id)); });
+  stage.querySelectorAll(".pin[data-note]").forEach(pin => { pin.onpointerdown = e => e.stopPropagation(); pin.onclick = e => { e.stopPropagation(); const n = (p.notes || []).find(x => x.id === pin.dataset.note); if (n) toast(`Note for the record: ${n.note || "photo only"}`); }; });
   if (showPanel) renderPanel(sh, rv);
 }
 function captureForm() {
-  const v = state.viewer; if (!$("#fLoc")) return;
-  v.sug = { ...(v.sug || {}), location: $("#fLoc").value, description: $("#fDesc").value, evidence_required: $("#fEv").value, unit: $("#fUnit").value, level: $("#fLevel").value, space: $("#fSpace").value };
+  const v = state.viewer; if (!v || !$("#fDesc")) return;
+  const val = (id, was) => { const el = $(id); return el ? el.value : was; }, w = v.sug || {};
+  v.sug = { ...w, location: val("#fLoc", w.location), description: $("#fDesc").value, evidence_required: val("#fEv", w.evidence_required), unit: $("#fUnit").value, level: $("#fLevel").value, space: $("#fSpace").value };
 }
 function tapSheet(sh, x, y) {
   const v = state.viewer;
   if (v.busy) return;
   captureForm(); v.carry = false;
   const code = v.disc || sh.discipline;
-  if (!activeReview(code)) { startReview(code).then(r => { if (r) { v.draft = { x, y }; v.step = "shoot"; render(); } }); return; }
-  v.draft = { x, y }; v.step = v.step === "form" ? "form" : "shoot"; render();
+  if (!v.kind) v.kind = "def";
+  if (!activeReview(code)) { startReview(code).then(r => { if (r) { v.draft = { x, y }; v.step = "form"; render(); } }); return; }
+  v.draft = { x, y }; v.step = "form"; render();
 }
 function renderPanel(sh, rv) {
-  const v = state.viewer, p = state.p, slug = state.slug, el = $("#panel"), s = v.sug || v.typed || {};
+  const v = state.viewer, p = state.p, el = $("#panel"), s = v.sug || v.typed || {}, note = v.kind === "note";
   const units = p.project.units.map(u => u.label || u.name || u), levels = [...new Set([...p.project.levels.map(l => l.name || l), ...p.project.units.flatMap(u => (u.levels || []).map(l => l.name || l))])];
   const opts = (list, cur) => `<option value="">—</option>` + list.map(x => `<option ${x === cur ? "selected" : ""}>${esc(x)}</option>`).join("");
-  if (v.step === "shoot") el.innerHTML = `
-      <h3>New deficiency on ${esc(sh.sheet_number || "this sheet")}</h3><div class="sub">Take the photo, add a word if you like, and it will be written up with the location.</div>
+  const code = rv ? rv.discipline : sh.discipline, next = `${code}-${String(nextNumber(code)).padStart(2, "0")}`;
+  el.innerHTML = `
+      <div class="whead"><h3>On ${esc(sh.sheet_number || "this sheet")}</h3>${kindToggle(v.kind, "fKind")}</div>
+      <div class="sub">${note ? "Kept for the record and shown in the report. It is not numbered and not sent to the contractor." : `Numbered ${esc(next)} and put on the contractor's list.`}${v.draft ? "" : " <b>Tap the spot on the sheet</b> to pin it."}</div>
       <div class="shot">
-        <div class="take">${v.photoUrl ? `<img src="${v.photoUrl}" alt="">` : `<span><span class="ico">📷</span>Take photo</span>`}<input type="file" accept="image/*" capture="environment" id="photoIn"></div>
-        <div class="note"><label style="margin-top:0">Your note (optional)</label><input id="noteIn" placeholder="e.g. no GFCI, cover missing" value="${esc(v.note)}"></div>
+        <div class="take ${v.photoUrl ? "" : "none"}">${v.photoUrl ? `<img src="${v.photoUrl}" alt="">` : `<span>＋<small>photo, optional</small></span>`}<input type="file" accept="image/*" capture="environment" id="photoIn"></div>
+        <div class="note"><label style="margin-top:0">What you saw</label><div class="said"><textarea id="fDesc" placeholder="${note ? "e.g. insulation in, vapour barrier not up yet" : "e.g. no GFCI on the receptacle beside the basin, cover plate missing"}">${esc(s.description || "")}</textarea>${micButton("fDesc")}</div>
+          <div class="tidyrow"><button class="lnk" id="tidy" ${v.tidying ? "disabled" : ""}>${v.tidying ? "Tidying…" : "Tidy the wording"}</button><span>${v.tidying ? "" : v.draft ? "Puts your own words in order. Adds nothing." : "Tap the spot first to tidy."}</span></div></div>
       </div>
-      <div class="acts"><button class="btn primary hot" id="ask">Write it up for me</button><button class="btn" id="manual">Type it myself</button><button class="cancel" id="cancel">Cancel</button></div>`;
-  else if (v.step === "thinking") el.innerHTML = `<h3>Reading the photo and the sheet…</h3><div class="thinking"><span class="dot"></span><span>Writing it up…</span></div>`;
-  else el.innerHTML = `
-      <h3>${v.sug ? "Check and save" : "Write the deficiency"}</h3>
-      <div class="sub">${v.sug && v.sug.sheet ? (v.draft ? "Picked from your photo and written up. Edit anything, then save." : "Picked from your photo and where you are. <b>Tap the exact spot on the sheet</b>, check the words, save.") : v.sug ? `Suggested from your photo and the pin. Edit anything.` : "Fill it in and save."}</div>
-      ${v.photoUrl ? `<div class="shot"><div class="take"><img src="${v.photoUrl}" alt=""><input type="file" accept="image/*" capture="environment" id="photoIn"></div><div class="note"><label style="margin-top:0">Location a contractor can walk to</label><input id="fLoc" value="${esc(s.location || "")}" placeholder="Unit C, Upper Floor, Bath 2: wall behind toilet"></div></div>` : `<label>Location a contractor can walk to</label><input id="fLoc" value="${esc(s.location || "")}" placeholder="Unit C, Upper Floor, Bath 2: wall behind toilet">`}
       <div class="row">
         <div><label>Unit</label><select id="fUnit">${opts(units, s.unit || "")}</select></div>
         <div><label>Level</label><select id="fLevel">${opts(levels, s.level || "")}</select></div>
         <div><label>Room</label><input id="fSpace" value="${esc(s.space || "")}" placeholder="Bath 2"></div>
       </div>
-      <label>What is wrong</label><textarea id="fDesc" placeholder="Receptacle beside the basin has no GFCI protection and the cover plate is missing.">${esc(s.description || "")}</textarea>
-      <label>What the contractor must send to close it</label><input id="fEv" value="${esc(s.evidence_required || "photo: completed work")}" placeholder="photo: repaired; report: test sheet">
-      <div class="agentnote">Separate several with “;”</div>
-      <div class="acts"><button class="btn primary" id="save">Save as ${esc(rv ? rv.discipline : sh.discipline)}-${String(nextNumber(rv ? rv.discipline : sh.discipline)).padStart(2, "0")}</button>${!v.draft ? `<span class="agentnote">No spot tapped yet. Tap the sheet to pin it, or save as is: the photo and the words are enough.</span>` : !v.photoUrl ? `<span class="agentnote">No photo yet</span>` : ""}<button class="cancel" id="cancel">Cancel</button></div>`;
-  const pin = $("#photoIn"); if (pin) pin.onchange = () => { const f = pin.files[0]; if (!f) return; v.photo = f; if (v.photoUrl) URL.revokeObjectURL(v.photoUrl); v.photoUrl = URL.createObjectURL(f); renderPanel(sh, rv); };
-  const note = $("#noteIn"); if (note) note.oninput = () => v.note = note.value;
-  const cancel = $("#cancel"); if (cancel) cancel.onclick = () => { resetDraft(); render(); };
-  const manual = $("#manual"); if (manual) manual.onclick = () => { const w = v.sug || {}; v.typed = { unit: w.unit || "", level: w.level || "", location: [w.unit, w.level].filter(Boolean).join(", ") }; v.step = "form"; v.sug = null; renderPanel(sh, rv); };
-  const ask = $("#ask"); if (ask) ask.onclick = () => askAgent(sh, rv);
-  const save = $("#save"); if (save) save.onclick = () => saveFinding(sh, rv);
+      ${note ? "" : `<label>Location a contractor can walk to</label><input id="fLoc" value="${esc(s.location || "")}" placeholder="Unit C, Upper Floor, Bath 2: wall behind toilet">
+      <label>What the contractor must send to close it</label><input id="fEv" value="${esc(s.evidence_required || "photo: the corrected work at this spot")}" placeholder="photo: repaired; report: test sheet">
+      <div class="agentnote">Separate several with “;”</div>`}
+      <div class="acts"><button class="btn primary" id="save">${note ? "Save the note" : `Save as ${esc(next)}`}</button><button class="cancel" id="cancel">Cancel</button></div>`;
+  const pin = $("#photoIn"); if (pin) pin.onchange = () => { const f = pin.files[0]; if (!f) return; captureForm(); v.photo = f; if (v.photoUrl) URL.revokeObjectURL(v.photoUrl); v.photoUrl = URL.createObjectURL(f); renderPanel(sh, rv); };
+  el.querySelectorAll("#fKind button[data-kind]").forEach(b => b.onclick = () => { captureForm(); v.kind = b.dataset.kind; render(); });
+  $("#cancel").onclick = () => { resetDraft(); render(); };
+  $("#tidy").onclick = () => tidyWords(sh, rv);
+  $("#save").onclick = () => note ? saveNoteOnSheet(sh, rv) : saveFinding(sh, rv);
+  wireDictate(el);
+}
+/* Deficiency or note for the record: the one choice on every entry */
+function kindToggle(kind, id) {
+  return `<span class="kind" id="${id}" role="group" aria-label="What this is"><button data-kind="def" class="${kind === "note" ? "" : "on"}" aria-pressed="${kind !== "note"}">Deficiency</button><button data-kind="note" class="${kind === "note" ? "on" : ""}" aria-pressed="${kind === "note"}">Note for the record</button></span>`;
+}
+/* Dictation through the phone's own speech recognition: the words land in the box, where they can be read and changed */
+function micButton(target) {
+  return (window.SpeechRecognition || window.webkitSpeechRecognition) ? `<button type="button" class="dict" data-dictate="${target}" title="Dictate" aria-label="Dictate">🎤</button>` : "";
+}
+let dictation = null;
+function wireDictate(root) {
+  const Rec = window.SpeechRecognition || window.webkitSpeechRecognition; if (!Rec) return;
+  root.querySelectorAll("[data-dictate]").forEach(btn => btn.onclick = e => {
+    e.preventDefault();
+    if (dictation) { dictation.stop(); return; }
+    const box = document.getElementById(btn.dataset.dictate); if (!box) return;
+    const before = box.value.trim() ? box.value.replace(/\s*$/, " ") : "";
+    const rec = dictation = new Rec(); rec.lang = "en-CA"; rec.interimResults = true; rec.continuous = true;
+    btn.classList.add("on"); btn.title = "Stop";
+    rec.onresult = ev => { let t = ""; for (const r of ev.results) t += r[0].transcript; box.value = before + t.trim(); box.dispatchEvent(new Event("input")); };
+    rec.onerror = ev => { if (ev.error === "not-allowed") toast("Allow the microphone in the browser to dictate", true); else if (ev.error !== "aborted" && ev.error !== "no-speech") toast("Could not hear that; try again", true); };
+    rec.onend = () => { dictation = null; btn.classList.remove("on"); btn.title = "Dictate"; const w = state.shot; if (w && box.id === "wNote") w.note = box.value; };
+    try { rec.start(); } catch (err) { dictation = null; btn.classList.remove("on"); toast("Dictation is not available here", true); }
+  });
 }
 function nextNumber(code) { let n = 0; state.p.register.forEach(d => { const m = d.item_id.match(new RegExp("^" + code + "-(\\d+)$")); if (m) n = Math.max(n, +m[1]); }); return n + 1; }
-function resetDraft() { const v = state.viewer; if (!v) return; if (v.photoUrl) URL.revokeObjectURL(v.photoUrl); Object.assign(v, { draft: null, step: "idle", photo: null, photoUrl: null, note: "", sug: null, busy: false, gps: "", carry: false }); }
-async function askAgent(sh, rv) {
-  const v = state.viewer; v.step = "thinking"; v.busy = true; renderPanel(sh, rv);
-  const fd = new FormData(); fd.append("sheet_id", sh.id); fd.append("pin_x", v.draft.x); fd.append("pin_y", v.draft.y); fd.append("note", v.note); fd.append("discipline", rv ? rv.discipline : sh.discipline);
-  if (v.photo) fd.append("photo", v.photo, v.photo.name || "photo.jpg");
+function resetDraft() { const v = state.viewer; if (!v) return; if (dictation) dictation.stop(); if (v.photoUrl) URL.revokeObjectURL(v.photoUrl); Object.assign(v, { draft: null, step: "idle", photo: null, photoUrl: null, note: "", sug: null, typed: null, busy: false, tidying: false, gps: "", carry: false }); }
+/* Only on his press: his own words put in order for the record. Nothing is added, and the photo is not read. */
+async function tidyWords(sh, rv) {
+  const v = state.viewer; captureForm();
+  const words = (v.sug && v.sug.description || "").trim();
+  if (words.length < 3) return toast("Write or say what you saw first", true);
+  if (!v.draft) return toast("Tap the spot on the sheet first", true);
+  v.tidying = true; v.busy = true; renderPanel(sh, rv);
+  const fd = new FormData(); fd.append("sheet_id", sh.id); fd.append("pin_x", v.draft.x); fd.append("pin_y", v.draft.y); fd.append("note", words); fd.append("tidy", "true"); fd.append("discipline", rv ? rv.discipline : sh.discipline);
   try {
     const r = await fetch(pUrl(state.slug, "/findings/suggest"), { method: "POST", body: fd });
     const j = await r.json().catch(() => ({}));
-    if (!r.ok) { toast(j.detail || "Could not write it up. Write it yourself", true); v.sug = null; }
-    else { v.sug = j.suggestion; toast("Suggestion ready"); }
-  } catch (e) { toast("Lost the connection; write it yourself", true); v.sug = null; }
-  v.busy = false; v.step = "form"; renderPanel(sh, rv);
+    if (!r.ok) toast(j.detail || "Could not tidy it; your words are kept", true);
+    else {
+      const t = j.suggestion || {}, w = v.sug || {}, keep = (a, b) => (a || "").trim() ? a : b || "";
+      if (!v.note) v.note = words;   // what he first wrote or said stays with the record
+      v.sug = v.kind === "note" ? { ...w, description: t.description || w.description, unit: keep(w.unit, t.unit), level: keep(w.level, t.level), space: keep(w.space, t.space) }
+        : { ...w, description: t.description || w.description, location: keep(w.location, t.location), evidence_required: t.evidence_required || w.evidence_required, unit: keep(w.unit, t.unit), level: keep(w.level, t.level), space: keep(w.space, t.space), discipline: t.discipline || w.discipline };
+      toast("Tidied. Check it reads as you meant");
+    }
+  } catch (e) { toast("Lost the connection; your words are kept", true); }
+  v.tidying = false; v.busy = false; renderPanel(sh, rv);
+}
+async function saveNoteOnSheet(sh, rv) {
+  const v = state.viewer; if (!rv) return toast("Start a field review first", true);
+  const words = $("#fDesc").value.trim();
+  if (!v.photo && words.length < 2) return toast("Write or say what you saw first", true);
+  const fd = new FormData(); fd.append("review_id", rv.id); fd.append("discipline", rv.discipline);
+  fd.append("sheet_id", sh.id); if (v.draft) { fd.append("pin_x", v.draft.x); fd.append("pin_y", v.draft.y); }
+  fd.append("unit", $("#fUnit").value); fd.append("level", $("#fLevel").value); fd.append("space", $("#fSpace").value); fd.append("note", words);
+  if (v.gps) fd.append("gps", v.gps);
+  if (v.photo) fd.append("photo", v.photo, v.photo.name || "photo.jpg");
+  $("#save").disabled = true;
+  const r = await fetch(pUrl(state.slug, "/notes"), { method: "POST", body: fd }), j = await r.json().catch(() => ({}));
+  if (!r.ok) { $("#save").disabled = false; return toast(j.detail || "Could not save the note", true); }
+  toast(`Note kept for the record${v.draft ? " · marked on " + (sh.sheet_number || "the sheet") : ""}`); resetDraft(); await load();
 }
 async function saveFinding(sh, rv) {
   const v = state.viewer; if (!rv) return toast("Start a field review first", true);
   const fd = new FormData(); if (v.gps) fd.append("gps", v.gps);
   fd.append("sheet_id", sh.id); if (v.draft) { fd.append("pin_x", v.draft.x); fd.append("pin_y", v.draft.y); } fd.append("review_id", rv.id);
-  fd.append("location", $("#fLoc").value); fd.append("description", $("#fDesc").value); fd.append("evidence_required", $("#fEv").value);
+  const loc = $("#fLoc").value.trim() || [$("#fUnit").value, $("#fLevel").value, $("#fSpace").value].filter(Boolean).join(", ");
+  if ($("#fDesc").value.trim().length < 4) return toast("Write or say what you saw first", true);
+  if (loc.length < 4) return toast("Say where it is: the unit, floor or room", true);
+  fd.append("location", loc); fd.append("description", $("#fDesc").value); fd.append("evidence_required", $("#fEv").value.trim() || "photo: the corrected work at this spot");
   fd.append("unit", $("#fUnit").value); fd.append("level", $("#fLevel").value); fd.append("space", $("#fSpace").value); fd.append("note", v.note);
   fd.append("discipline", v.sug && v.sug.discipline ? v.sug.discipline : rv.discipline);
   if (v.photo) fd.append("photo", v.photo, v.photo.name || "photo.jpg");

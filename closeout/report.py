@@ -50,6 +50,7 @@ def review_report(store: Store, project_id: str, review_id: str, office: str = "
         })
     site_notes = [{"id": n["id"], "note": n.get("note", ""), "unit": n.get("unit", ""), "level": n.get("level", ""), "space": n.get("space", ""),
                    "photo_url": f"/api/projects/{slug}/notes/{n['id']}/photo" if n.get("photo") else "",
+                   "sheet": (sheets.get(n.get("sheet_id") or "") or {}).get("sheet_number", ""),
                    "taken_at": (n.get("meta") or {}).get("taken_at", ""), "created_at": n["created_at"]}
                   for n in store.site_notes(project_id) if n.get("review_id") == review_id]
     all_docs = store.documents(project_id)
@@ -145,11 +146,11 @@ def report_html(data: dict) -> str:
     drawings = "".join(f'<tr><td>{e(d["file"])}</td><td>{e(d["dated"] or "undated")}</td><td>{d["pages"] or ""}</td><td>{"Current issue" if d["current"] else "Superseded" if d["in_set"] else "On file, not an issue of the set"}</td></tr>' for d in data["drawings"])
     notes = ""
     for n in data.get("site_notes") or []:
-        where = " · ".join(x for x in (n["unit"], n["level"], n["space"]) if x)
+        where = " · ".join(x for x in (n["unit"], n["level"], n["space"], f'marked on {n["sheet"]}' if n.get("sheet") else "") if x)
         pic = f'<img src="{e(n["photo_url"])}" alt="">' if n["photo_url"] else ""
         cap = " · ".join(x for x in (where, _when(n["taken_at"]) if n["taken_at"] else _day(n["created_at"])) if x)
         notes += f'<figure class="snote">{pic}<figcaption>{("<b>" + e(n["note"]) + "</b>") if n["note"] else ""}{("<span>" + e(cap) + "</span>") if cap else ""}</figcaption></figure>'
-    notes_section = (f'<section class="snotes"><h2>Site photos and notes</h2><p class="lead">Kept for the office as they were taken. Not deficiencies; not sent to the contractor.</p>'
+    notes_section = (f'<section class="snotes"><h2>Notes for the record</h2><p class="lead">What was seen and logged on the walk, as written. Not deficiencies; not sent to the contractor.</p>'
                      f'<div class="grid">{notes}</div></section>') if notes else ""
     return f'''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{e(data["name"])}</title>

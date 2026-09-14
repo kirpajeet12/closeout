@@ -1741,8 +1741,10 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
 
     @app.post("/api/projects/{slug}/findings/suggest")
     async def suggest_finding(slug: str, sheet_id: str = Form(...), pin_x: float = Form(...), pin_y: float = Form(...),
-                              note: str = Form(""), discipline: str = Form(""), photo: UploadFile | None = File(None)) -> dict:
-        """One model call: photo + pinned sheet -> proposed location / wording / evidence. The reviewer edits and saves."""
+                              note: str = Form(""), discipline: str = Form(""), tidy: bool = Form(False),
+                              photo: UploadFile | None = File(None)) -> dict:
+        """One model call: photo + pinned sheet -> proposed location / wording / evidence. The reviewer edits and saves.
+        With tidy, the reviewer's own words are the record: Closeout only puts them in order, and needs no photo."""
         st = store()
         prj = _project(st, slug)
         sh = st.sheet(sheet_id)
@@ -1750,9 +1752,11 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
             raise HTTPException(404, "no such sheet in this project")
         if not (0 <= pin_x <= 1 and 0 <= pin_y <= 1):
             raise HTTPException(400, "pin must be inside the sheet")
+        if tidy and len(" ".join(note.split())) < 3:
+            raise HTTPException(400, "write or say what you saw first; tidying works on your words")
         raw, _ = await _read_photo(photo)
         photo_bytes = None
-        if raw:
+        if raw and not tidy:
             from PIL import Image
             import io
             with Image.open(io.BytesIO(raw)) as im:
@@ -1761,7 +1765,7 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
                 buf = io.BytesIO(); im.save(buf, "JPEG", quality=85); photo_bytes = buf.getvalue()
         try:
             out = review_mod.suggest_field_note(st, prj["id"], sheet_id, pin_x, pin_y, photo_bytes, note, settings,
-                                                discipline_hint=discipline.strip().upper())
+                                                discipline_hint=discipline.strip().upper(), tidy=tidy)
         except Exception as e:  # noqa: BLE001 - the reviewer sees why and can still write it by hand
             raise HTTPException(502, f"agent could not suggest: {type(e).__name__}: {e}") from e
         return {"suggestion": out, "model_id": settings.model_id}
@@ -1876,12 +1880,14 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
     # Kept as they are for the office: not deficiencies, never numbered, never in the package or the message.
     def _note_view(slug: str, n: dict) -> dict:
         return {**{k: n[k] for k in ("id", "review_id", "discipline", "unit", "level", "space", "note", "created_at")},
+                "sheet_id": n.get("sheet_id") or "", "pin_x": n.get("pin_x"), "pin_y": n.get("pin_y"),
                 "photo_url": f"/api/projects/{slug}/notes/{n['id']}/photo" if n.get("photo") else "",
                 "taken_at": (n.get("meta") or {}).get("taken_at", "")}
 
     @app.post("/api/projects/{slug}/notes")
     async def save_site_note(slug: str, review_id: str = Form(...), discipline: str = Form(""), unit: str = Form(""),
                              level: str = Form(""), space: str = Form(""), note: str = Form(""), gps: str = Form(""),
+                             sheet_id: str = Form(""), pin_x: float | None = Form(None), pin_y: float | None = Form(None),
                              photo: UploadFile | None = File(None)) -> dict:
         st = store()
         prj = _project(st, slug)
@@ -1897,7 +1903,19 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
             raise HTTPException(400, "a photo or a few words are needed")
         code = (discipline.strip().upper() or rv["discipline"])
         meta: dict = {}
-        n = st.add_site_note(pid, review_id, code, unit=unit.strip(), level=level.strip(), space=space.strip(), note=note)
+        sheet_id = sheet_id.strip()
+        if sheet_id:
+            sh = st.sheet(sheet_id)
+            if not sh or sh["project_id"] != pid:
+                raise HTTPException(404, "no such sheet in this project")
+        if (pin_x is None) != (pin_y is None) or (pin_x is not None and not (sheet_id and 0 <= pin_x <= 1 and 0 <= pin_y <= 1)):
+            raise HTTPException(400, "pin must be inside a sheet")
+        n = st.add_site_note(pid, review_id, code, unit=unit.strip(), level=level.strip(), space=space.strip(), note=note,
+                             sheet_id=sheet_id, pin_x=pin_x, pin_y=pin_y)
+        if gps.strip() and not raw:
+            st.conn.execute("UPDATE site_notes SET meta_json=? WHERE id=?", (json.dumps({"gps": gps.strip()[:80]}), n["id"]))
+            st.conn.commit()
+            n = st.site_note(n["id"])
         if raw:
             d = settings.data_dir / "projects" / prj["slug"] / "field" / "notes"
             d.mkdir(parents=True, exist_ok=True)

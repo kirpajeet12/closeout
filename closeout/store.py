@@ -398,7 +398,10 @@ class Store:
                                 ("mail_accounts", "imap_host", "TEXT NOT NULL DEFAULT ''"),
                                 ("mail_accounts", "imap_port", "INTEGER NOT NULL DEFAULT 0"),
                                 ("mail_accounts", "smtp_host", "TEXT NOT NULL DEFAULT ''"),
-                                ("mail_accounts", "smtp_port", "INTEGER NOT NULL DEFAULT 0")):
+                                ("mail_accounts", "smtp_port", "INTEGER NOT NULL DEFAULT 0"),
+                                ("site_notes", "sheet_id", "TEXT NOT NULL DEFAULT ''"),
+                                ("site_notes", "pin_x", "REAL"),
+                                ("site_notes", "pin_y", "REAL")):
             if col not in self._cols(table):
                 self.conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {ddl}")
         if "project_id" not in self._cols("deficiencies"):
@@ -492,11 +495,13 @@ class Store:
     # A photo or a few words kept as they are, for the office: not a deficiency, never numbered, never sent to the
     # contractor. Its own table so nothing that packages, mails or matches deficiencies can ever pick one up.
     def add_site_note(self, project_id: str, review_id: str, discipline: str, unit: str = "", level: str = "", space: str = "",
-                      note: str = "", photo: str = "", meta: dict | None = None) -> dict:
+                      note: str = "", photo: str = "", meta: dict | None = None, sheet_id: str = "",
+                      pin_x: float | None = None, pin_y: float | None = None) -> dict:
         nid = new_id("note")
         self.conn.execute(
-            "INSERT INTO site_notes(id, project_id, review_id, discipline, unit, level, space, note, photo, meta_json, created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
-            (nid, project_id, review_id, discipline, unit, level, space, note, photo, json.dumps(meta or {}), now()))
+            "INSERT INTO site_notes(id, project_id, review_id, discipline, unit, level, space, note, photo, meta_json, created_at, sheet_id, pin_x, pin_y)"
+            " VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            (nid, project_id, review_id, discipline, unit, level, space, note, photo, json.dumps(meta or {}), now(), sheet_id, pin_x, pin_y))
         self.conn.commit()
         return self.site_note(nid)
 

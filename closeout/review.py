@@ -170,7 +170,7 @@ def _sheet_context(store: Store, project_id: str, sheet: dict) -> tuple[str, set
 
 def suggest_field_note(store: Store, project_id: str, sheet_id: str, pin_x: float, pin_y: float,
                        photo_bytes: bytes | None, note: str = "", settings: Settings = SETTINGS, model=None,
-                       discipline_hint: str = "") -> dict:
+                       discipline_hint: str = "", tidy: bool = False) -> dict:
     """One synchronous model call. Returns the proposal plus usage; raises RuntimeError if the agent recorded nothing."""
     sheet = store.sheet(sheet_id)
     if not sheet or sheet["project_id"] != project_id:
@@ -178,12 +178,14 @@ def suggest_field_note(store: Store, project_id: str, sheet_id: str, pin_x: floa
     context, units, levels = _sheet_context(store, project_id, sheet)
     ctx = FieldContext()
     agent = Agent(model=model or make_model(settings), tools=make_field_tools(ctx, units, levels),
-                  system_prompt=FIELD_SYSTEM, callback_handler=None)
+                  system_prompt=TIDY_SYSTEM if tidy else FIELD_SYSTEM, callback_handler=None)
     crop, whole = pin_images(Path(sheet["image_path"]), pin_x, pin_y)
+    if tidy:
+        photo_bytes = None
     content: list[dict] = []
     if photo_bytes:
         content += [{"text": "Engineer's photo at the pin:"}, {"image": {"format": "jpeg", "source": {"bytes": photo_bytes}}}]
-    else:
+    elif not tidy:
         content.append({"text": "No photo was taken; work from the sheet and the note."})
     content += [
         {"text": "Sheet close-up around the pin (orange circle):"}, {"image": {"format": "jpeg", "source": {"bytes": crop}}},
@@ -198,6 +200,17 @@ def suggest_field_note(store: Store, project_id: str, sheet_id: str, pin_x: floa
     if not ctx.recorded:
         raise RuntimeError("agent finished without a record" + (f"; last rejection: {ctx.errors[-1]}" if ctx.errors else ""))
     return {**ctx.recorded, "usage": _usage(result), "rejections": ctx.errors}
+
+
+TIDY_SYSTEM = FIELD_SYSTEM + """
+THIS TIME THE ENGINEER HAS ALREADY WRITTEN IT. Their words (the ENGINEER'S NOTE) are the record; your job is only to put them in order.
+- description: their words as a clean record: correct spelling and grammar, full sentences, the trade's usual terms, present tense.
+  Keep every fact they gave. Add no fact, defect, cause, size or count that is not in their words. If they said something is fine,
+  or are only logging what they saw, keep it that way: do not turn it into a problem and do not add "To confirm:".
+- location / unit / level / space: from the pin and the sheet context, as usual; their words win when they name the place.
+- evidence_required: only what their words ask for; otherwise the minimum "photo: the work at this spot".
+There is no photo in this request; do not describe one.
+"""
 
 
 LOCATE_SYSTEM = FIELD_SYSTEM + """

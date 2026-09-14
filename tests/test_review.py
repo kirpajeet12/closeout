@@ -37,6 +37,7 @@ class FakeFieldAgent:
     def __init__(self, model=None, tools=None, system_prompt="", callback_handler=None):
         self.tools = {t.tool_name if hasattr(t, "tool_name") else getattr(t, "__name__", "tool"): t for t in tools}
         self.system_prompt = system_prompt
+        FakeFieldAgent.system = system_prompt
 
     def __call__(self, content):
         FakeFieldAgent.calls.append(content)
@@ -139,6 +140,45 @@ def test_suggest_sends_photo_pin_crops_and_context_and_validates_the_tool_call(c
     # pin outside the sheet, or a sheet from another project, is refused before any model call
     assert client.post(f"/api/projects/{slug}/findings/suggest", data={"sheet_id": sid, "pin_x": 1.4, "pin_y": 0.2}).status_code == 400
     assert client.post(f"/api/projects/{slug}/findings/suggest", data={"sheet_id": "sht_nope", "pin_x": 0.4, "pin_y": 0.2}).status_code == 404
+
+
+def test_tidy_puts_the_reviewers_own_words_in_order_without_the_photo(client, tmp_path):
+    slug, sid = _seed(client, tmp_path)
+    FakeFieldAgent.proposals = [
+        {"location": "Unit C, Upper Floor, Bath 2: wall behind toilet", "description": "Framing inspected before board; no issues seen.",
+         "evidence_required": "photo: the work at this spot", "discipline": "EL", "unit": "Unit C", "level": "Upper Floor", "space": "Bath 2"}]
+    # no words, nothing to tidy: refused before any model call
+    n = len(FakeFieldAgent.calls)
+    assert client.post(f"/api/projects/{slug}/findings/suggest", data={"sheet_id": sid, "pin_x": 0.6, "pin_y": 0.4, "tidy": "true"}).status_code == 400
+    assert len(FakeFieldAgent.calls) == n
+    r = client.post(f"/api/projects/{slug}/findings/suggest",
+                    data={"sheet_id": sid, "pin_x": 0.62, "pin_y": 0.41, "note": "framing looked at before board no isues", "tidy": "true"},
+                    files={"photo": ("IMG_0001.jpg", _jpeg_bytes(), "image/jpeg")})
+    assert r.status_code == 200, r.text
+    assert r.json()["suggestion"]["description"].startswith("Framing inspected")
+    content = FakeFieldAgent.calls[-1]
+    assert len([c for c in content if "image" in c]) == 2, "pin close-up and whole sheet only; the photo is not sent"
+    texts = " ".join(c["text"] for c in content if "text" in c)
+    assert "ENGINEER'S NOTE: framing looked at" in texts and "No photo was taken" not in texts
+    assert "ALREADY WRITTEN IT" in FakeFieldAgent.system and "Add no fact" in FakeFieldAgent.system
+
+
+def test_a_note_for_the_record_can_sit_on_a_sheet_and_stays_off_the_contractors_list(client, tmp_path):
+    slug, sid = _seed(client, tmp_path)
+    rev = client.post(f"/api/projects/{slug}/reviews", json={"discipline": "EL"}).json()["review"]
+    base = {"review_id": rev["id"], "unit": "Unit C", "level": "Upper Floor", "note": "Rough-in inspected before insulation."}
+    assert client.post(f"/api/projects/{slug}/notes", data={**base, "sheet_id": sid, "pin_x": 1.5, "pin_y": 0.2}).status_code == 400
+    assert client.post(f"/api/projects/{slug}/notes", data={**base, "pin_x": 0.5, "pin_y": 0.2}).status_code == 400
+    assert client.post(f"/api/projects/{slug}/notes", data={**base, "sheet_id": "sht_nope", "pin_x": 0.5, "pin_y": 0.2}).status_code == 404
+    r = client.post(f"/api/projects/{slug}/notes", data={**base, "sheet_id": sid, "pin_x": 0.25, "pin_y": 0.75, "gps": "49.1,-122.5 ±5m"})
+    assert r.status_code == 200, r.text
+    n = r.json()["note"]
+    assert (n["sheet_id"], n["pin_x"], n["pin_y"], n["photo_url"]) == (sid, 0.25, 0.75, "")
+    detail = client.get(f"/api/projects/{slug}").json()
+    assert [x["id"] for x in detail["notes"]] == [n["id"]] and detail["notes"][0]["pin_x"] == 0.25
+    assert not [d for d in detail["register"] if d.get("review_id") == rev["id"]], "a note is never a numbered item"
+    report = client.get(f"/api/projects/{slug}/reviews/{rev['id']}/report")
+    assert report.status_code == 200 and "Rough-in inspected before insulation." in report.text
 
 
 def test_suggest_reports_when_the_agent_records_nothing(client, tmp_path):
