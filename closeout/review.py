@@ -297,7 +297,10 @@ class MessageContext:
     errors: list[str] = field(default_factory=list)
 
 
-def make_message_tools(ctx: MessageContext, item_ids: list[str]):
+def make_message_tools(ctx: MessageContext, item_ids: list[str], quoted: tuple[str, ...] | list[str] = ()):
+    """quoted: the engineer's own item wording. The message repeats it word for word, so a word like "closed" in it
+    ("gap closed") is the engineer's, not a judgement the model added; only the rest of the message is checked for those."""
+    quoted_low = sorted({" ".join(q.lower().split()) for q in quoted if q and q.strip()}, key=len, reverse=True)
     @tool
     def record_message(subject: str, body: str) -> str:
         """Record the covering message to the contractor. Call exactly once.
@@ -314,7 +317,9 @@ def make_message_tools(ctx: MessageContext, item_ids: list[str]):
         missing = [i for i in item_ids if i not in body]
         if missing:
             return _reject(ctx, f"body must mention every item; missing {', '.join(missing)}")
-        low = (subject + " " + body).lower()
+        low = " ".join((subject + " " + body).lower().split())
+        for q in quoted_low:
+            low = low.replace(q, " | ")
         bad = [w for w in FORBIDDEN_WORDS if w in low]
         if bad:
             return _reject(ctx, f"forbidden judgement words: {', '.join(bad)}")
@@ -357,7 +362,8 @@ def draft_review_message(store: Store, project_id: str, review_id: str, settings
     if not pkg["items"]:
         raise ValueError("this review has no deficiencies, so there is nothing to send")
     ctx = MessageContext()
-    agent = Agent(model=model or make_model(settings), tools=make_message_tools(ctx, [i["item_id"] for i in pkg["items"]]),
+    agent = Agent(model=model or make_model(settings), tools=make_message_tools(ctx, [i["item_id"] for i in pkg["items"]],
+                                                                         [i[k] for i in pkg["items"] for k in ("location", "description", "evidence_required")]),
                   system_prompt=MESSAGE_SYSTEM.replace("{office}", office), callback_handler=None)
     lines = [f"PROJECT: {pkg['project'] or '(unnamed)'}", f"REVIEW: {pkg['title']} ({pkg['discipline_name']}), walked {pkg['started_at'][:10]}",
              f"ITEMS ({pkg['count']}):"]

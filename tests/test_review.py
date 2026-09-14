@@ -386,3 +386,21 @@ def test_plan_boxes_carry_the_unit_and_crop_to_a_picture(client, tmp_path):
     r = client.put(f"/api/projects/{slug}/sheets/{sid}/views", json={"views": [{**v, "unit": "", "source": "engineer"}]})
     assert r.status_code == 200 and r.json()["views"][0]["unit"] == "" and r.json()["views"][0]["source"] == "engineer"
     assert client.get(f"/api/projects/{slug}").json()["project"]["sheets"][0]["views"][0]["unit"] == ""
+
+
+def test_the_message_may_quote_the_engineers_wording_but_not_add_judgement_words():
+    """The email repeats each item word for word. "Gap closed" in the engineer's wording is theirs; "closed" added by the
+    model is still refused."""
+    from closeout.review import MessageContext, make_message_tools
+    wording = ["Unit 1, Main Floor, Living / Dining", "Open gap between subfloor panels.", "photo: panels refastened, gap closed"]
+    body = ("Items recorded during Field review 1 (Architectural).\n\nAR-02 · Unit 1, Main Floor, Living / Dining\n"
+            "Open gap between subfloor panels.\nSend to close: photo: panels refastened,\ngap closed\n\nPlease reply by [date].")
+    ctx = MessageContext()
+    record = make_message_tools(ctx, ["AR-02"], wording)[0]
+    assert record(subject="Field review 1: 1 item to close", body=body) == "recorded"
+    ctx = MessageContext()
+    record = make_message_tools(ctx, ["AR-02"], wording)[0]
+    assert "forbidden" in record(subject="Field review 1: 1 item to close", body=body.replace("Please reply", "Once it is closed, reply"))
+    ctx = MessageContext()
+    record = make_message_tools(ctx, ["AR-02"])[0]   # nothing quoted: the old rule stands
+    assert "forbidden" in record(subject="Field review 1: 1 item to close", body=body)
