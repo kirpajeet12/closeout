@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+from html import escape as html_escape
 import json
 import logging
 import mimetypes
@@ -36,6 +37,7 @@ from . import notice as notice_mod
 from . import history as history_mod
 from . import brief as brief_mod
 from . import coverage as coverage_mod
+from . import accounts as accounts_mod
 from .store import Store, now
 
 log = logging.getLogger("closeout.api")
@@ -75,6 +77,20 @@ class RunFeed:
                 else:
                     return
             yield ev
+
+
+class PersonIn(BaseModel):
+    email: str
+    name: str = ""
+
+
+class IssueIn(BaseModel):
+    what: str
+    page: str = ""
+
+
+class IssueStatusIn(BaseModel):
+    status: str
 
 
 class DraftPatch(BaseModel):
@@ -363,22 +379,28 @@ def project_card(st: Store, prj: dict, active_run_id: str | None) -> dict:
     }
 
 
-SIGNIN_HTML = """<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Closeout</title>
-<style>
+AUTH_CSS = """
   :root { --ink:#151412; --mute:#6f6a60; --line:#e6e1d6; --bg:#f6f4ee; }
   * { box-sizing:border-box } body { margin:0; min-height:100vh; display:grid; place-items:center; background:var(--bg); color:var(--ink);
   font-family:-apple-system,BlinkMacSystemFont,"Inter","Helvetica Neue",Arial,sans-serif; }
-  form { width:min(360px,calc(100vw - 40px)); background:#fff; border:1px solid var(--line); border-radius:20px; padding:32px 28px 28px; box-shadow:0 20px 60px rgba(20,18,10,.08) }
-  .wordmark { font-weight:800; letter-spacing:.22em; font-size:12px } h1 { font-size:22px; margin:18px 0 6px; letter-spacing:-.01em }
-  p { margin:0 0 20px; color:var(--mute); font-size:14px; line-height:1.45 }
-  input { width:100%; font-size:17px; padding:13px 14px; border:1px solid var(--line); border-radius:12px; outline:none; background:#fbfaf7 }
-  input:focus { border-color:var(--ink) } button { margin-top:12px; width:100%; padding:13px; font-size:16px; font-weight:600; border:0; border-radius:12px; background:var(--ink); color:#fff; cursor:pointer }
-  .bad { color:#a13d2d; font-size:13px; margin:10px 0 0 } .foot { margin-top:18px; font-size:12px; color:var(--mute) }
-</style></head><body>
-<form method="post" action="/signin"><div class="wordmark">CLOSEOUT</div><h1>Office access</h1><p>Enter the office code to open the projects. Contractor links open without it.</p>
-<input type="password" name="code" autocomplete="current-password" autofocus placeholder="Office code" required>__BAD__<button type="submit">Open</button>
-<div class="foot">Closeout keeps records and prepares reviews; the engineer decides.</div></form></body></html>"""
+  .card { width:min(380px,calc(100vw - 40px)); background:#fff; border:1px solid var(--line); border-radius:20px; padding:32px 28px 26px; box-shadow:0 20px 60px rgba(20,18,10,.08); margin:24px 0 }
+  .wordmark { font-weight:800; letter-spacing:.22em; font-size:12px } h1 { font-size:22px; margin:18px 0 6px; letter-spacing:-.01em; text-wrap:balance }
+  p { margin:0 0 18px; color:var(--mute); font-size:14px; line-height:1.45 }
+  label { display:block; font-size:13px; font-weight:600; margin:0 0 6px } label + input { margin-bottom:14px }
+  input { width:100%; font-size:17px; padding:12px 14px; border:1px solid var(--line); border-radius:12px; outline:none; background:#fbfaf7; color:var(--ink) }
+  input:focus { border-color:var(--ink) } button { margin-top:4px; width:100%; padding:13px; font-size:16px; font-weight:600; border:0; border-radius:12px; background:var(--ink); color:#fff; cursor:pointer }
+  button:focus-visible, a:focus-visible { outline:2px solid var(--ink); outline-offset:2px }
+  .bad { color:#a13d2d; font-size:13px; margin:0 0 14px } .ok { color:#2f6b3a; font-size:14px; margin:0 0 14px }
+  .row { display:flex; justify-content:space-between; gap:12px; margin-top:16px; font-size:13px } a { color:var(--ink) }
+  details { margin-top:18px; border-top:1px solid var(--line); padding-top:14px; font-size:13px } summary { cursor:pointer; color:var(--mute) }
+  details form { margin-top:12px } .foot { margin-top:18px; font-size:12px; color:var(--mute) }
+"""
+
+
+def auth_page(title: str, body: str) -> str:
+    """The pages a person sees before they are signed in: sign in, forgot password, set a password."""
+    return (f'<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+            f'<title>{html_escape(title)} · Closeout</title><style>{AUTH_CSS}</style></head><body><main class="card"><div class="wordmark">CLOSEOUT</div>{body}</main></body></html>')
 
 
 def create_app(settings: Settings = SETTINGS) -> FastAPI:
@@ -2205,47 +2227,300 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
             return JSONResponse({"detail": "web/index.html not built yet; API is at /docs"}, status_code=404)
         return HTMLResponse(page.read_text())
 
-    # --- office access code: everything except contractor links and the sign-in page needs the cookie --------------
+    # --- signing in: an office account (email and password) or the office code; contractor links need neither --------
     access_code = settings.access_code
-    open_prefixes = ("/c/", "/api/c/")
+    open_prefixes = ("/c/", "/api/c/", "/set-password/")
+    open_paths = {"/signin", "/forgot"}
+    failures: dict[str, list[float]] = {}
+    SESSION_COOKIE, CODE_COOKIE = "closeout_session", "closeout_access"
 
     def _access_token() -> str:
         return hashlib.sha256(f"closeout-access:{access_code}".encode()).hexdigest()
 
-    def _signed_in(request: Request) -> bool:
-        return not access_code or hmac.compare_digest(request.cookies.get("closeout_access", ""), _access_token())
+    def _who(request: Request) -> dict | None:
+        """Who this request is from: {'via': 'account', 'user': …}, {'via': 'code'}, or None. With no office code and no
+        accounts yet (a fresh local copy), everyone is let in as the office."""
+        token = request.cookies.get(SESSION_COOKIE, "")
+        st = store()
+        if token:
+            user = st.session_user(accounts_mod.token_hash(token))
+            if user:
+                return {"via": "account", "user": user}
+        if access_code and hmac.compare_digest(request.cookies.get(CODE_COOKIE, ""), _access_token()):
+            return {"via": "code"}
+        if not access_code and not st.users():
+            return {"via": "open"}
+        return None
+
+    def _too_many(key: str) -> bool:
+        cutoff = datetime.now(timezone.utc).timestamp() - 15 * 60
+        failures[key] = [x for x in failures.get(key, []) if x > cutoff]
+        return len(failures[key]) >= 8
+
+    def _failed(key: str) -> None:
+        failures.setdefault(key, []).append(datetime.now(timezone.utc).timestamp())
+
+    def _client(request: Request) -> str:
+        return request.headers.get("x-forwarded-for", "").split(",")[0].strip() or (request.client.host if request.client else "")
+
+    def _base(request: Request) -> str:
+        return str(request.base_url).rstrip("/")
+
+    def _cookie(resp: Response, request: Request, name: str, value: str, days: int) -> None:
+        resp.set_cookie(name, value, max_age=60 * 60 * 24 * days, httponly=True, samesite="lax", secure=request.url.scheme == "https", path="/")
+
+    def _office_email(st: Store, to: str, subject: str, text: str) -> bool:
+        """Account email (welcome, reset) from the office's connected mailbox, or Amazon SES when set up. False when
+        neither can send; the caller then says so instead of pretending it went."""
+        account = _usable_account(st)
+        try:
+            if account:
+                _mailbox(account).send(to, subject, text)
+                return True
+            if mail_mod.can_send(settings):
+                mail_mod.send_email(settings, to, subject, text)
+                return True
+        except Exception as e:  # the mail service refused; the reason type is logged, never the link
+            log.warning("account email refused: %s", type(e).__name__)
+        return False
+
+    def _send_link(request: Request, st: Store, user: dict, kind: str, invited_by: str = "") -> tuple[bool, str]:
+        """Make a one-time link for this person and email it. Returns (emailed, link)."""
+        token, th = accounts_mod.new_token()
+        expires = accounts_mod.later(days=accounts_mod.WELCOME_DAYS) if kind == "welcome" else accounts_mod.later(minutes=accounts_mod.RESET_MINUTES)
+        st.add_user_link(user["id"], th, kind, expires)
+        link = f"{_base(request)}/set-password/{token}"
+        office = settings.office
+        hello = f"Hello {user['name'].split()[0]}," if user.get("name") else "Hello,"
+        if kind == "welcome":
+            subject = f"Your Closeout account at {office}"
+            text = (f"{hello}\n\n{invited_by or office} added you to Closeout at {office}. Closeout holds the office's field reviews, "
+                    f"deficiency lists and contractor replies.\n\nSet your password here. The link works once, for {accounts_mod.WELCOME_DAYS} days:\n{link}\n\n"
+                    f"You sign in with this email address, {user['email']}, at {_base(request)}/signin\n\n{office}")
+        else:
+            subject = "Reset your Closeout password"
+            text = (f"{hello}\n\nSomeone asked to reset the Closeout password for {user['email']} at {office}.\n\n"
+                    f"Choose a new password here. The link works once, for {accounts_mod.RESET_MINUTES} minutes:\n{link}\n\n"
+                    f"If you did not ask for this, ignore this email. Your password stays as it is.\n\n{office}")
+        return _office_email(st, user["email"], subject, text), link
 
     @app.middleware("http")
     async def access_gate(request: Request, call_next):
         path = request.url.path
-        if _signed_in(request) or path == "/signin" or path.startswith(open_prefixes):
+        if path in open_paths or path.startswith(open_prefixes):
+            return await call_next(request)
+        who = _who(request)
+        if who:
+            request.state.who = who
             return await call_next(request)
         if path.startswith("/api/"):
             return JSONResponse({"detail": "sign in first"}, status_code=401)
         return RedirectResponse("/signin", status_code=303)
 
+    def _signin_html(bad: str = "", email: str = "", note: str = "") -> str:
+        code = ('<details><summary>Use the office code instead</summary><form method="post" action="/signin">'
+                '<label for="code">Office code</label><input id="code" type="password" name="code" autocomplete="off" required>'
+                '<button type="submit">Open with the code</button></form></details>') if access_code else ""
+        return auth_page("Sign in", f"""<h1>Sign in</h1><p>Sign in with the email address the office added you with. Contractor links open without signing in.</p>
+            {f'<p class="ok">{html_escape(note)}</p>' if note else ''}{f'<p class="bad">{html_escape(bad)}</p>' if bad else ''}
+            <form method="post" action="/signin"><label for="email">Email</label><input id="email" type="email" name="email" autocomplete="username" value="{html_escape(email)}" required {'' if email else 'autofocus'}>
+            <label for="password">Password</label><input id="password" type="password" name="password" autocomplete="current-password" required {'autofocus' if email else ''}>
+            <button type="submit">Sign in</button></form>
+            <div class="row"><a href="/forgot">Forgot your password?</a></div>{code}""")
+
     @app.get("/signin", include_in_schema=False)
     def signin_page(request: Request):
-        if _signed_in(request):
+        if _who(request):
             return RedirectResponse("/", status_code=303)
-        return HTMLResponse(SIGNIN_HTML.replace("__BAD__", ""))
+        note = {"reset": "Your password is set. Sign in with it now."}.get(request.query_params.get("done", ""), "")
+        return HTMLResponse(_signin_html(note=note))
 
     @app.post("/signin", include_in_schema=False)
     async def signin(request: Request):
         form = await request.form()
-        given = str(form.get("code", ""))
-        if not access_code or not hmac.compare_digest(given.strip(), access_code):
-            return HTMLResponse(SIGNIN_HTML.replace("__BAD__", '<p class="bad">That code did not match. Try again.</p>'), status_code=403)
+        ip = _client(request)
+        if _too_many(ip):
+            return HTMLResponse(_signin_html("Too many tries from this device. Wait 15 minutes and try again."), status_code=429)
+        if "code" in form:
+            given = str(form.get("code", "")).strip()
+            if not access_code or not hmac.compare_digest(given, access_code):
+                _failed(ip)
+                return HTMLResponse(_signin_html("That office code did not match. Try again."), status_code=403)
+            resp = RedirectResponse("/", status_code=303)
+            _cookie(resp, request, CODE_COOKIE, _access_token(), accounts_mod.SESSION_DAYS)
+            return resp
+        email, password = str(form.get("email", "")).strip().lower(), str(form.get("password", ""))
+        st = store()
+        user = st.user_by_email(email)
+        if not user or not user["pw_hash"] or not accounts_mod.check_password(password, user["pw_hash"]):
+            _failed(ip)
+            msg = ("This account has no password yet. Use the link in the welcome email, or ask for a new one below."
+                   if user and not user["pw_hash"] else "That email and password do not match. Try again, or reset your password.")
+            return HTMLResponse(_signin_html(msg, email=email), status_code=403)
+        token, th = accounts_mod.new_token()
+        st.add_session(th, user["id"], accounts_mod.later(days=accounts_mod.SESSION_DAYS))
         resp = RedirectResponse("/", status_code=303)
-        resp.set_cookie("closeout_access", _access_token(), max_age=60 * 60 * 24 * 30, httponly=True, samesite="lax",
-                        secure=request.url.scheme == "https", path="/")
+        _cookie(resp, request, SESSION_COOKIE, token, accounts_mod.SESSION_DAYS)
         return resp
 
     @app.post("/signout", include_in_schema=False)
-    def signout():
+    def signout(request: Request):
+        token = request.cookies.get(SESSION_COOKIE, "")
+        if token:
+            store().end_session(accounts_mod.token_hash(token))
         resp = RedirectResponse("/signin", status_code=303)
-        resp.delete_cookie("closeout_access", path="/")
+        resp.delete_cookie(SESSION_COOKIE, path="/")
+        resp.delete_cookie(CODE_COOKIE, path="/")
         return resp
+
+    def _forgot_html(bad: str = "", sent: bool = False) -> str:
+        if sent:
+            return auth_page("Check your email", """<h1>Check your email</h1><p>If that address has a Closeout account, a link to choose a new
+                password is on its way. It works once, for 60 minutes.</p><p>Nothing after a few minutes? Look in junk mail, or ask someone
+                in the office to send you a new link from the Office page.</p><div class="row"><a href="/signin">Back to sign in</a></div>""")
+        return auth_page("Forgot password", f"""<h1>Forgot your password?</h1><p>Enter the email you sign in with. We will email you a link to choose a new one.</p>
+            {f'<p class="bad">{html_escape(bad)}</p>' if bad else ''}
+            <form method="post" action="/forgot"><label for="email">Email</label><input id="email" type="email" name="email" autocomplete="username" autofocus required>
+            <button type="submit">Email me a link</button></form><div class="row"><a href="/signin">Back to sign in</a></div>""")
+
+    @app.get("/forgot", include_in_schema=False)
+    def forgot_page():
+        return HTMLResponse(_forgot_html())
+
+    @app.post("/forgot", include_in_schema=False)
+    async def forgot(request: Request):
+        form = await request.form()
+        email = str(form.get("email", "")).strip().lower()
+        if not mail_mod.valid_address(email):
+            return HTMLResponse(_forgot_html("Enter a full email address."), status_code=400)
+        ip = _client(request)
+        if _too_many("forgot:" + ip):
+            return HTMLResponse(_forgot_html("Too many requests from this device. Wait 15 minutes and try again."), status_code=429)
+        _failed("forgot:" + ip)
+        st = store()
+        user = st.user_by_email(email)
+        # the same answer whether or not the address has an account, so the page cannot be used to find who does
+        if user and st.recent_links(user["id"], accounts_mod.ago(hours=1)) < 3:
+            _send_link(request, st, user, "reset" if user["pw_hash"] else "welcome")
+        return HTMLResponse(_forgot_html(sent=True))
+
+    def _set_html(link: dict | None, user: dict | None, token: str, bad: str = "") -> str:
+        if not link or not user:
+            return auth_page("Link not valid", """<h1>This link no longer works</h1><p>It was already used, it ran out, or a newer link was sent.
+                Ask for a new one and use the newest email.</p><div class="row"><a href="/forgot">Email me a new link</a><a href="/signin">Sign in</a></div>""")
+        welcome = link["kind"] == "welcome"
+        return auth_page("Set your password", f"""<h1>{'Welcome to Closeout' if welcome else 'Choose a new password'}</h1>
+            <p>{'Set a password for ' if welcome else 'New password for '}<b>{html_escape(user['email'])}</b>. Use at least {accounts_mod.MIN_PASSWORD} characters.</p>
+            {f'<p class="bad">{html_escape(bad)}</p>' if bad else ''}
+            <form method="post" action="/set-password/{html_escape(token)}"><input type="email" name="username" value="{html_escape(user['email'])}" autocomplete="username" hidden>
+            <label for="password">New password</label><input id="password" type="password" name="password" autocomplete="new-password" minlength="{accounts_mod.MIN_PASSWORD}" autofocus required>
+            <label for="confirm">Type it again</label><input id="confirm" type="password" name="confirm" autocomplete="new-password" required>
+            <button type="submit">{'Set password and open Closeout' if welcome else 'Save the new password'}</button></form>""")
+
+    @app.get("/set-password/{token}", include_in_schema=False)
+    def set_password_page(token: str):
+        st = store()
+        link = st.user_link(accounts_mod.token_hash(token))
+        return HTMLResponse(_set_html(link, st.user(link["user_id"]) if link else None, token), status_code=200 if link else 410)
+
+    @app.post("/set-password/{token}", include_in_schema=False)
+    async def set_password(token: str, request: Request):
+        form = await request.form()
+        st = store()
+        link = st.user_link(accounts_mod.token_hash(token))
+        user = st.user(link["user_id"]) if link else None
+        if not link or not user:
+            return HTMLResponse(_set_html(None, None, token), status_code=410)
+        password, confirm = str(form.get("password", "")), str(form.get("confirm", ""))
+        problem = accounts_mod.password_problem(password, confirm)
+        if problem:
+            return HTMLResponse(_set_html(link, user, token, problem), status_code=400)
+        st.set_user_password(user["id"], accounts_mod.hash_password(password))   # also ends old sessions and used links
+        session, th = accounts_mod.new_token()
+        st.add_session(th, user["id"], accounts_mod.later(days=accounts_mod.SESSION_DAYS))
+        resp = RedirectResponse("/", status_code=303)
+        _cookie(resp, request, SESSION_COOKIE, session, accounts_mod.SESSION_DAYS)
+        return resp
+
+    # --- the office's people: add someone (welcome email), send a new link, remove access ---------------------------
+    def _person(u: dict) -> dict:
+        return {k: u[k] for k in ("id", "email", "name", "created_at", "last_signin")} | {"has_password": u["has_password"]}
+
+    def _can_email(st: Store) -> bool:
+        return bool(_usable_account(st)) or mail_mod.can_send(settings)
+
+    @app.get("/api/me")
+    def me(request: Request) -> dict:
+        who = getattr(request.state, "who", None) or {"via": "open"}
+        st = store()
+        return {"via": who["via"], "user": _person(who["user"]) if who.get("user") else None, "office": settings.office,
+                "office_code": bool(access_code), "can_email": _can_email(st)}
+
+    @app.get("/api/users")
+    def list_users() -> dict:
+        st = store()
+        return {"users": [_person(u) for u in st.users()], "can_email": _can_email(st)}
+
+    @app.post("/api/users")
+    def add_person(body: PersonIn, request: Request) -> dict:
+        email, name = body.email.strip().lower(), " ".join(body.name.split())[:80]
+        if not mail_mod.valid_address(email):
+            raise HTTPException(400, "give the person's email address")
+        st = store()
+        if st.user_by_email(email):
+            raise HTTPException(409, "that email already has an account; send them a new link instead")
+        who = getattr(request.state, "who", None) or {}
+        inviter = (who.get("user") or {}).get("name", "")
+        user = st.add_user(email, name, invited_by=(who.get("user") or {}).get("id", ""))
+        emailed, link = _send_link(request, st, user, "welcome", inviter)
+        return {"user": _person(user), "emailed": emailed, "link": "" if emailed else link, "users": [_person(u) for u in st.users()]}
+
+    @app.post("/api/users/{user_id}/link")
+    def resend_link(user_id: str, request: Request) -> dict:
+        st = store()
+        user = st.user(user_id)
+        if not user:
+            raise HTTPException(404, "no such person")
+        emailed, link = _send_link(request, st, user, "reset" if user["pw_hash"] else "welcome")
+        return {"user": _person(user), "emailed": emailed, "link": "" if emailed else link}
+
+    @app.delete("/api/users/{user_id}")
+    def remove_person(user_id: str, request: Request) -> dict:
+        st = store()
+        who = getattr(request.state, "who", None) or {}
+        if (who.get("user") or {}).get("id") == user_id:
+            raise HTTPException(409, "you cannot remove your own account; ask someone else in the office")
+        if not st.user(user_id):
+            raise HTTPException(404, "no such person")
+        if who.get("via") == "account" and len(st.users()) == 1:
+            raise HTTPException(409, "keep at least one account")
+        st.remove_user(user_id)
+        return {"users": [_person(u) for u in st.users()]}
+
+    # --- report an issue: anyone signed in writes what went wrong; the office sees the list and marks it fixed -------
+    @app.get("/api/issues")
+    def list_issues() -> dict:
+        return {"issues": store().issues()}
+
+    @app.post("/api/issues")
+    def report_issue(body: IssueIn, request: Request) -> dict:
+        what = body.what.strip()[:4000]
+        if len(what) < 5:
+            raise HTTPException(400, "say what went wrong in a few words")
+        who = getattr(request.state, "who", None) or {}
+        by = (who.get("user") or {}).get("email", "") or ("office code" if who.get("via") == "code" else "")
+        st = store()
+        issue = st.add_issue(what, body.page.strip()[:300], by)
+        return {"issue": issue, "issues": st.issues()}
+
+    @app.post("/api/issues/{issue_id}")
+    def set_issue(issue_id: str, body: IssueStatusIn) -> dict:
+        if body.status not in ("open", "fixed"):
+            raise HTTPException(400, "status is open or fixed")
+        st = store()
+        if not st.set_issue_status(issue_id, body.status):
+            raise HTTPException(404, "no such issue")
+        return {"issues": st.issues()}
 
     return app
 

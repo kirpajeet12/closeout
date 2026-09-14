@@ -111,6 +111,8 @@
   .who { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; color: var(--ink); font-size: 13.5px; font-weight: 600; padding: 5px 12px 5px 6px; border: 1px solid var(--line-2); border-radius: 999px; background: var(--card); flex: 0 0 auto; }
   .who .orb { width: 22px; height: 22px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, #ff9a5c, var(--hot) 60%, #b4400a); }
   body.contractor .who { display: none; }
+  .rpt { color: var(--mute); font-size: 12.5px; text-decoration: none; margin-left: auto; margin-right: 10px; white-space: nowrap; } .rpt:hover { color: var(--ink); text-decoration: underline; }
+  body.contractor .rpt { display: none; } @media (max-width: 760px) { .rpt { display: none; } }
   .office { max-width: 720px; }
   .office .ohead { display: flex; align-items: center; gap: 18px; padding: 26px 0 8px; }
   .office .ohead .orb { width: 56px; height: 56px; border-radius: 50%; flex: 0 0 56px; background: radial-gradient(circle at 30% 30%, #ff9a5c, var(--hot) 60%, #b4400a); box-shadow: 0 14px 30px -14px rgba(232,89,12,.7); }
@@ -124,6 +126,16 @@
   .ukinds li { display: grid; grid-template-columns: 1fr auto auto; gap: 14px; align-items: baseline; padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 14.5px; }
   .ukinds li small { color: var(--mute); font-size: 12.5px; } .ukinds li b { font-weight: 600; min-width: 56px; text-align: right; }
   .oblock form { margin-top: 12px; }
+  .people, .issues { list-style: none; margin: 14px 0 0; padding: 0; border-top: 1px solid var(--line); }
+  .people li, .issues li { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 11px 0; border-bottom: 1px solid var(--line); }
+  .people .pw, .issues .pw { display: grid; gap: 2px; min-width: 0; flex: 1 1 240px; } .people .pw b, .issues .pw b { font-weight: 600; font-size: 14.5px; overflow-wrap: anywhere; }
+  .people .pw span, .issues .pw span { color: var(--mute); font-size: 12.5px; overflow-wrap: anywhere; } .people em { color: var(--mute); font-style: normal; font-size: 12.5px; }
+  .people .pa { display: flex; gap: 6px; flex-wrap: wrap; } .btn.danger { color: var(--hot); border-color: var(--hot); }
+  .issues li.fixed .pw b { color: var(--mute); text-decoration: line-through; text-decoration-color: var(--line-2); }
+  .plink { margin-top: 12px; } .pcopy { display: flex; gap: 8px; margin-top: 8px; } .pcopy input { flex: 1; min-width: 0; font: inherit; font-size: 13px; padding: 9px 11px; border-radius: 10px; border: 1px solid var(--line-2); background: #fff; color: var(--ink); }
+  .rissue { display: grid; gap: 10px; } .rissue textarea { font: inherit; font-size: 14.5px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line-2); background: #fff; color: var(--ink); resize: vertical; width: 100%; }
+  .rissue .acts { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; } .rissue .acts .fine { margin: 0; overflow-wrap: anywhere; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
   .wmail { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px 12px; align-items: end; max-width: 760px; }
   .wmail label { display: grid; gap: 4px; font-size: 12px; color: var(--mute); min-width: 0; }
   .wmail input, .wmail select { font: inherit; font-size: 14px; padding: 9px 11px; border-radius: 10px; border: 1px solid var(--line-2); background: #fff; color: var(--ink); min-width: 0; width: 100%; }
@@ -1035,6 +1047,7 @@
   <header>
     <div class="wordmark"><a href="#/">Closeout</a></div>
     <div class="crumbs" id="crumbs"></div>
+    <a class="rpt" href="#/office?report" title="Report an issue">Report an issue</a>
     <a class="who" id="who" href="#/office" title="Office settings"><span class="orb"></span><span class="wt">Office</span></a>
   </header>
   <main id="main"></main>
@@ -1116,7 +1129,10 @@ async function load() {
     const act = DASH.has(r.page) ? fetch("/api/activity").then(x => x.json()).catch(() => null) : null;
     state.home = await (await fetch("/api/projects")).json();
     if (act) state.activity = await act;
-    if (r.page === "office") state.mail = await (await fetch("/api/mail")).json().catch(() => null);
+    if (r.page === "office") {
+      const js = u => fetch(u).then(x => x.ok ? x.json() : null).catch(() => null);
+      [state.mail, state.me, state.people, state.issues] = await Promise.all([js("/api/mail"), js("/api/me"), js("/api/users"), js("/api/issues")]);
+    }
     if (state.home.active_run_id && !state.es) follow(state.home.active_run_id);
   } else {
     const res = await fetch(pUrl(r.slug));
@@ -1318,7 +1334,7 @@ function renderOffice() {
   $("#main").innerHTML = `
     <a class="back" href="#/">← Projects</a>
     <div class="office">
-      <div class="ohead"><span class="orb"></span><div><h1>${esc(h.office || "The office")}</h1><p>Signed in with the office code on this device. Contractor links open without it.</p></div></div>
+      <div class="ohead"><span class="orb"></span><div><h1>${esc(h.office || "The office")}</h1><p>${signedInLine()}</p></div></div>
       <section class="oblock">
         <h2>Usage</h2>
         <p class="uline"><b>${usd(w.usd) || "$0.00"}</b> this week<i>·</i><b>${usd(m.usd) || "$0.00"}</b> this month<i>·</i><b>${usd(n.usd) || "$0.00"}</b> since the start</p>
@@ -1334,8 +1350,16 @@ function renderOffice() {
         <p class="fine">${h.projects ? `${h.projects.length} project${h.projects.length === 1 ? "" : "s"} on file. Saved conversations live on each project, in the Ask panel.` : ""}</p>
       </section>
       <section class="oblock">
+        <h2>People</h2>
+        ${peopleBlock()}
+      </section>
+      <section class="oblock" id="report">
+        <h2>Report an issue</h2>
+        ${issuesBlock()}
+      </section>
+      <section class="oblock">
         <h2>Sign out</h2>
-        <p class="fine">Signing out clears this device. Anyone with the office code can sign back in.</p>
+        <p class="fine">Signing out clears this device. ${state.me && state.me.user ? "Sign back in with your email and password." : "Anyone with the office code can sign back in."}</p>
         <form method="post" action="/signout"><button class="btn" type="submit">Sign out of this device</button></form>
       </section>
     </div>`;
@@ -1343,6 +1367,8 @@ function renderOffice() {
   const note = (location.hash.split("?")[1] || "").replace("mail=", "");
   if (note) { history.replaceState(null, "", "#/office"); toast(note === "connected" ? "Mailbox connected" : note === "refused" ? "The sign-in did not connect the mailbox" : "The mailbox could not be connected; try again", note !== "connected"); }
   wireMailButtons(() => renderOffice());
+  wirePeople(); wireIssues();
+  if ((location.hash.split("?")[1] || "") === "report") { const el = $("#report"); if (el) { el.scrollIntoView({ block: "start" }); const ta = el.querySelector("textarea"); if (ta) ta.focus(); } }
   const wf = $("#main").querySelector("form.wmail");
   if (wf) wf.onsubmit = async e => {
     e.preventDefault();
@@ -1355,6 +1381,99 @@ function renderOffice() {
     if (!r.ok) return toast(j.detail || "The mailbox could not be connected", true);
     wf.reset(); state.mail = j; toast("Mailbox connected"); renderOffice();
   };
+}
+function signedInLine() {
+  const me = state.me;
+  if (me && me.user) return `Signed in as <b>${esc(me.user.name || me.user.email)}</b>${me.user.name ? ` (${esc(me.user.email)})` : ""}. Contractor links open without signing in.`;
+  if (me && me.via === "code") return "Signed in with the office code on this device. Contractor links open without it.";
+  return "Contractor links open without signing in.";
+}
+/* People: each person signs in with their own email and password. Adding someone sends the welcome email with a link to
+   set their password; without a connected mailbox the link is shown here to pass on. */
+function peopleBlock() {
+  const pp = state.people, me = state.me || {};
+  if (!pp) return `<p class="fine">Could not load the people list.</p>`;
+  const mine = me.user ? me.user.id : "";
+  const rows = pp.users.map(u => `<li>
+      <div class="pw"><b>${esc(u.name || u.email)}</b><span>${u.name ? esc(u.email) + " · " : ""}${u.has_password ? (u.last_signin ? `last signed in ${esc(when(u.last_signin))}` : "password set") : "invited, password not set yet"}</span></div>
+      ${u.id === mine ? `<em>You</em>` : `<div class="pa"><button class="btn quiet" type="button" data-plink="${esc(u.id)}">${u.has_password ? "Send reset link" : "Send the link again"}</button><button class="btn quiet" type="button" data-pdel="${esc(u.id)}" data-pname="${esc(u.name || u.email)}">Remove</button></div>`}
+    </li>`).join("");
+  return `<p class="fine">Each person signs in with their own email and password, and can reset it from the sign-in page. Adding someone sends them a welcome email with a link to set their password${pp.can_email ? "." : `. <b>No office mailbox is connected</b>, so the link is shown here for you to pass on; connect the mailbox above to email it.`}</p>
+    ${rows ? `<ul class="people">${rows}</ul>` : `<p class="empty">No accounts yet. ${me.office_code ? "Everyone uses the office code for now." : ""}</p>`}
+    <form class="wmail padd" onsubmit="return false">
+      <label><span>Name</span><input name="name" autocomplete="off" placeholder="Site lead"></label>
+      <label><span>Email</span><input type="email" name="email" required autocomplete="off" placeholder="name@youroffice.com"></label>
+      <div class="acts"><button type="submit" class="btn primary">Add and send welcome email</button></div>
+    </form>
+    <div id="plinkOut"></div>`;
+}
+function showLink(j, who) {
+  const out = $("#plinkOut"); if (!out) return;
+  if (j.emailed) { out.innerHTML = ""; return toast(`Email sent to ${who}`); }
+  out.innerHTML = `<div class="plink"><p class="fine">The email could not go out from here. Send ${esc(who)} this link yourself. It works once${j.user && j.user.has_password ? ", for 60 minutes" : ", for 7 days"}.</p><div class="pcopy"><input readonly value="${esc(j.link)}" aria-label="Link to set the password"><button class="btn" type="button" id="pcopy">Copy</button></div></div>`;
+  $("#pcopy").onclick = async () => { try { await navigator.clipboard.writeText(j.link); toast("Link copied"); } catch { out.querySelector("input").select(); } };
+}
+function wirePeople() {
+  const f = $("#main").querySelector("form.padd");
+  if (f) f.onsubmit = async e => {
+    e.preventDefault();
+    const btn = f.querySelector("button[type=submit]"), d = Object.fromEntries(new FormData(f).entries());
+    btn.disabled = true; btn.textContent = "Adding…";
+    const r = await fetch("/api/users", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(d) });
+    const j = await r.json().catch(() => ({}));
+    btn.disabled = false; btn.textContent = "Add and send welcome email";
+    if (!r.ok) return toast(j.detail || "Could not add them", true);
+    state.people = { ...state.people, users: j.users }; renderOffice(); showLink(j, j.user.email);
+  };
+  $("#main").querySelectorAll("[data-plink]").forEach(b => b.onclick = async () => {
+    b.disabled = true;
+    const r = await fetch(`/api/users/${encodeURIComponent(b.dataset.plink)}/link`, { method: "POST" });
+    const j = await r.json().catch(() => ({})); b.disabled = false;
+    if (!r.ok) return toast(j.detail || "Could not make a new link", true);
+    showLink(j, j.user.email);
+  });
+  $("#main").querySelectorAll("[data-pdel]").forEach(b => b.onclick = async () => {
+    if (b.dataset.sure !== "1") { b.dataset.sure = "1"; b.textContent = `Remove ${b.dataset.pname}?`; b.classList.add("danger"); return; }
+    b.disabled = true;
+    const r = await fetch(`/api/users/${encodeURIComponent(b.dataset.pdel)}`, { method: "DELETE" });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { b.disabled = false; return toast(j.detail || "Could not remove them", true); }
+    state.people = { ...state.people, users: j.users }; toast("Access removed"); renderOffice();
+  });
+}
+/* Report an issue: what went wrong, in the person's words, with the screen they were on. Listed here until marked fixed. */
+function issuesBlock() {
+  const list = (state.issues && state.issues.issues) || [], open = list.filter(i => i.status === "open");
+  return `<p class="fine">Something not working, or not clear? Say what you were doing and what happened. It is kept here with the screen you came from, until it is marked fixed.</p>
+    <form class="rissue" onsubmit="return false">
+      <label class="sr" for="issueWhat">What went wrong</label>
+      <textarea id="issueWhat" name="what" rows="3" required minlength="5" placeholder="I pressed Send on the field review and nothing happened"></textarea>
+      <div class="acts"><span class="fine">${state.fromHash ? `Screen: ${esc(state.fromHash)}` : ""}</span><button type="submit" class="btn primary">Report it</button></div>
+    </form>
+    ${list.length ? `<ul class="issues">${list.map(i => `<li class="${esc(i.status)}">
+        <div class="pw"><b>${esc(i.what)}</b><span>${esc(when(i.created_at))}${i.reported_by ? ` · ${esc(i.reported_by)}` : ""}${i.page ? ` · ${esc(i.page)}` : ""}${i.status === "fixed" ? ` · fixed ${esc(when(i.closed_at))}` : ""}</span></div>
+        <button class="btn quiet" type="button" data-issue="${esc(i.id)}" data-to="${i.status === "open" ? "fixed" : "open"}">${i.status === "open" ? "Mark fixed" : "Reopen"}</button>
+      </li>`).join("")}</ul><p class="fine">${open.length} open, ${list.length - open.length} fixed.</p>` : ""}`;
+}
+function wireIssues() {
+  const f = $("#main").querySelector("form.rissue");
+  if (f) f.onsubmit = async e => {
+    e.preventDefault();
+    const btn = f.querySelector("button[type=submit]"), what = f.querySelector("textarea").value;
+    btn.disabled = true;
+    const r = await fetch("/api/issues", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ what, page: state.fromHash || "" }) });
+    const j = await r.json().catch(() => ({}));
+    btn.disabled = false;
+    if (!r.ok) return toast(j.detail || "Could not save the report", true);
+    state.issues = { issues: j.issues }; toast("Reported. Thank you"); renderOffice();
+  };
+  $("#main").querySelectorAll("[data-issue]").forEach(b => b.onclick = async () => {
+    b.disabled = true;
+    const r = await fetch(`/api/issues/${encodeURIComponent(b.dataset.issue)}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ status: b.dataset.to }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { b.disabled = false; return toast(j.detail || "Could not change it", true); }
+    state.issues = { issues: j.issues }; renderOffice();
+  });
 }
 function wireMailButtons(after) {
   $("#main").querySelectorAll("[data-mail]").forEach(b => b.onclick = async () => {
@@ -3514,6 +3633,7 @@ function wireDrop(el, kind, slug) {
 }
 function zipBtn(text) { return `<label class="zipbtn">${esc(text)}<input type="file" accept=".zip,application/zip,application/x-zip-compressed"></label>`; }
 
+window.addEventListener("hashchange", e => { const was = new URL(e.oldURL).hash; if (was && !was.startsWith("#/office")) state.fromHash = was; });
 window.addEventListener("hashchange", () => { const r = route(); if (DASH.has(r.page) && state.p) { state.p = null; }
   // back from a plan with an unsaved photo or note: the write-up comes home to the walk panel instead of being thrown away
   const v = state.viewer; if (r.page !== "sheet" && v && v.carry && (v.photo || (v.note || "").trim()) && r.page === "project" && r.tab === "field" && r.slug === state.slug) {

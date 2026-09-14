@@ -303,6 +303,38 @@ CREATE TABLE IF NOT EXISTS site_notes (
   created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS site_notes_by_project ON site_notes(project_id, created_at);
+CREATE TABLE IF NOT EXISTS users (
+  id TEXT PRIMARY KEY,
+  email TEXT NOT NULL UNIQUE,         -- kept lower-case
+  name TEXT NOT NULL DEFAULT '',
+  pw_hash TEXT NOT NULL DEFAULT '',   -- '' until they set a password from the welcome email
+  invited_by TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL,
+  last_signin TEXT NOT NULL DEFAULT ''
+);
+CREATE TABLE IF NOT EXISTS user_links (
+  token_hash TEXT PRIMARY KEY,        -- only the hash is stored; the link itself goes out once, by email
+  user_id TEXT NOT NULL,
+  kind TEXT NOT NULL,                 -- welcome | reset
+  expires_at TEXT NOT NULL,
+  used_at TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS sessions (
+  token_hash TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  expires_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS issues (
+  id TEXT PRIMARY KEY,
+  reported_by TEXT NOT NULL DEFAULT '',
+  page TEXT NOT NULL DEFAULT '',
+  what TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'open',  -- open | fixed
+  created_at TEXT NOT NULL,
+  closed_at TEXT NOT NULL DEFAULT ''
+);
 """
 
 
@@ -1302,3 +1334,83 @@ class Store:
         d["views"] = json.loads(d.pop("views_json", None) or "[]")
         return d
 
+    # --- people who can sign in, their links and sessions, and reported issues -------------------------------------
+    def users(self) -> list[dict]:
+        return [self._user(r) for r in self.conn.execute("SELECT * FROM users ORDER BY created_at, rowid")]
+
+    def user(self, user_id: str) -> dict | None:
+        r = self.conn.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
+        return self._user(r) if r else None
+
+    def user_by_email(self, email: str) -> dict | None:
+        r = self.conn.execute("SELECT * FROM users WHERE email=?", ((email or "").strip().lower(),)).fetchone()
+        return self._user(r) if r else None
+
+    @staticmethod
+    def _user(r) -> dict:
+        d = dict(r)
+        d["has_password"] = bool(d.get("pw_hash"))
+        return d
+
+    def add_user(self, email: str, name: str = "", invited_by: str = "") -> dict:
+        uid = new_id("user")
+        self.conn.execute("INSERT INTO users(id, email, name, invited_by, created_at) VALUES(?,?,?,?,?)",
+                          (uid, email.strip().lower(), name.strip(), invited_by, now()))
+        self.conn.commit()
+        return self.user(uid)
+
+    def set_user_password(self, user_id: str, pw_hash: str) -> None:
+        """A new password ends every session the person had, on every device."""
+        self.conn.execute("UPDATE users SET pw_hash=? WHERE id=?", (pw_hash, user_id))
+        self.conn.execute("DELETE FROM sessions WHERE user_id=?", (user_id,))
+        self.conn.execute("UPDATE user_links SET used_at=? WHERE user_id=? AND used_at=''", (now(), user_id))
+        self.conn.commit()
+
+    def remove_user(self, user_id: str) -> None:
+        for table in ("sessions", "user_links", "users"):
+            self.conn.execute(f"DELETE FROM {table} WHERE {'id' if table == 'users' else 'user_id'}=?", (user_id,))
+        self.conn.commit()
+
+    def add_user_link(self, user_id: str, token_hash: str, kind: str, expires_at: str) -> None:
+        self.conn.execute("UPDATE user_links SET used_at=? WHERE user_id=? AND kind=? AND used_at=''", (now(), user_id, kind))
+        self.conn.execute("INSERT INTO user_links(token_hash, user_id, kind, expires_at, created_at) VALUES(?,?,?,?,?)",
+                          (token_hash, user_id, kind, expires_at, now()))
+        self.conn.commit()
+
+    def user_link(self, token_hash: str) -> dict | None:
+        """An unused link that has not run out."""
+        r = self.conn.execute("SELECT * FROM user_links WHERE token_hash=? AND used_at='' AND expires_at>?", (token_hash, now())).fetchone()
+        return dict(r) if r else None
+
+    def recent_links(self, user_id: str, since: str) -> int:
+        return self.conn.execute("SELECT COUNT(*) FROM user_links WHERE user_id=? AND created_at>?", (user_id, since)).fetchone()[0]
+
+    def add_session(self, token_hash: str, user_id: str, expires_at: str) -> None:
+        self.conn.execute("DELETE FROM sessions WHERE expires_at<=?", (now(),))
+        self.conn.execute("INSERT INTO sessions(token_hash, user_id, created_at, expires_at) VALUES(?,?,?,?)", (token_hash, user_id, now(), expires_at))
+        self.conn.execute("UPDATE users SET last_signin=? WHERE id=?", (now(), user_id))
+        self.conn.commit()
+
+    def session_user(self, token_hash: str) -> dict | None:
+        r = self.conn.execute("SELECT u.* FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?",
+                              (token_hash, now())).fetchone()
+        return self._user(r) if r else None
+
+    def end_session(self, token_hash: str) -> None:
+        self.conn.execute("DELETE FROM sessions WHERE token_hash=?", (token_hash,))
+        self.conn.commit()
+
+    def add_issue(self, what: str, page: str = "", reported_by: str = "") -> dict:
+        iid = new_id("issue")
+        self.conn.execute("INSERT INTO issues(id, reported_by, page, what, created_at) VALUES(?,?,?,?,?)", (iid, reported_by, page, what, now()))
+        self.conn.commit()
+        return dict(self.conn.execute("SELECT * FROM issues WHERE id=?", (iid,)).fetchone())
+
+    def issues(self) -> list[dict]:
+        return [dict(r) for r in self.conn.execute("SELECT * FROM issues ORDER BY status='fixed', created_at DESC")]
+
+    def set_issue_status(self, issue_id: str, status: str) -> dict | None:
+        self.conn.execute("UPDATE issues SET status=?, closed_at=? WHERE id=?", (status, now() if status == "fixed" else "", issue_id))
+        self.conn.commit()
+        r = self.conn.execute("SELECT * FROM issues WHERE id=?", (issue_id,)).fetchone()
+        return dict(r) if r else None
