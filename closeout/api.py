@@ -25,7 +25,7 @@ from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse, Response, StreamingResponse
 from pydantic import BaseModel
 
-from . import ask as ask_mod, documents as documents_mod, gmail as gmail_mod, inbox as inbox_mod, mail as mail_mod, mailbox as mailbox_mod, drawings as drawings_mod, usage as usage_mod, pipeline, plans as plans_mod, project as project_mod, review as review_mod, revisions as revisions_mod
+from . import activity as activity_mod, ask as ask_mod, documents as documents_mod, gmail as gmail_mod, inbox as inbox_mod, mail as mail_mod, mailbox as mailbox_mod, drawings as drawings_mod, usage as usage_mod, pipeline, plans as plans_mod, project as project_mod, review as review_mod, revisions as revisions_mod
 import dataclasses
 
 from .config import SETTINGS, Settings
@@ -454,6 +454,11 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
             active = state["active"]
         return {"model_id": settings.model_id, "active_run_id": active, "office": settings.office,
                 "projects": [project_card(st, p, active) for p in st.projects()], "usage": usage_mod.summary(st)}
+
+    @app.get("/api/activity")
+    def activity() -> dict:
+        """Every project's email in and out, and what happened, newest first, for the office's Emails and Updates pages."""
+        return activity_mod.summary(store())
 
     @app.get("/api/usage")
     def usage() -> dict:

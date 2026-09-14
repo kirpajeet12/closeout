@@ -25,6 +25,85 @@
   .crumbs b { color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .crumbs span { white-space: nowrap; }
 
+  /* dashboard: section switch, the office's numbers, Emails and Updates */
+  .dhead { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px 24px; padding: 34px 0 18px; flex-wrap: wrap; }
+  .dhead .kick { font-size: 11.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--mute); }
+  .dhead h1 { margin: 2px 0 0; font-size: 40px; letter-spacing: -.035em; line-height: 1.05; }
+  .dnav { display: inline-flex; gap: 2px; padding: 4px; background: var(--card); border: 1px solid var(--line-2); border-radius: 999px; }
+  .dnav a { padding: 8px 16px; border-radius: 999px; color: var(--ink-2); font-weight: 600; font-size: 14px; display: inline-flex; gap: 8px; align-items: center; white-space: nowrap; }
+  .dnav a:hover { text-decoration: none; background: var(--paper); }
+  .dnav a.on { background: var(--ink); color: #fff; }
+  .dnav a small { font-size: 12px; font-weight: 600; color: var(--mute); font-variant-numeric: tabular-nums; }
+  .dnav a.on small { color: rgba(255,255,255,.62); }
+  .dnav a small.hot { background: var(--hot); color: #fff; border-radius: 999px; padding: 0 7px; }
+  .dnav a:focus-visible, .chips button:focus-visible, .uprow:focus-visible, .ment:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+  .dstrip { display: grid; grid-template-columns: 1fr 1fr 1fr 1.6fr; border: 1px solid var(--line-2); border-radius: 16px; background: var(--card); overflow: hidden; }
+  .dstrip > * { padding: 14px 18px 13px; border-left: 1px solid var(--line); min-width: 0; color: inherit; }
+  .dstrip > *:first-child { border-left: 0; }
+  .dstrip a:hover { text-decoration: none; background: var(--paper); }
+  .dstrip b { display: block; font-size: 26px; letter-spacing: -.02em; line-height: 1.15; font-variant-numeric: tabular-nums; }
+  .dstrip b small { font-size: 14px; color: var(--mute); font-weight: 500; letter-spacing: 0; }
+  .dstrip span { display: block; font-size: 12.5px; color: var(--mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dstrip .hot b { color: var(--hot); }
+  .dstrip .now { display: flex; gap: 12px; align-items: center; }
+  .dstrip .now > div { min-width: 0; }
+  .dstrip .now i { width: 10px; height: 10px; border-radius: 50%; background: var(--line-2); flex: none; }
+  .dstrip .now.on i { background: var(--hot); box-shadow: 0 0 0 4px rgba(232,89,12,.16); animation: pulse 1s infinite alternate; }
+  .dstrip .now b { font-size: 15px; font-weight: 600; letter-spacing: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+  .dlead { color: var(--mute); margin: 18px 0 0; font-size: 14.5px; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chips button { border: 1px solid var(--line-2); background: var(--card); color: var(--ink-2); border-radius: 999px; padding: 5px 12px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 7px; }
+  .chips button:hover { border-color: var(--ink); }
+  .chips button.on { background: var(--ink); border-color: var(--ink); color: #fff; }
+  .chips button small { font-size: 11.5px; opacity: .6; font-variant-numeric: tabular-nums; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; display: inline-block; font-style: normal; }
+  .dot.dot-closeout { background: radial-gradient(circle at 30% 30%, #ff9a5c, var(--hot) 60%, #b4400a); }
+  .dot.dot-office { background: var(--card); box-shadow: inset 0 0 0 2px var(--ink); }
+  .chips button.on .dot.dot-office { box-shadow: inset 0 0 0 2px #fff; background: transparent; }
+  .dmail { margin-top: 18px; min-height: 540px; }
+  .dmail .mlist { max-height: 72vh; }
+  .msearch { padding: 12px; border-bottom: 1px solid var(--line); display: grid; gap: 10px; }
+  .msearch input { font: inherit; font-size: 14px; padding: 9px 12px 9px 34px; border-radius: 10px; border: 1px solid var(--line-2); width: 100%; color: var(--ink);
+    background: var(--card) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%2374787f' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='7' cy='7' r='5'/%3E%3Cpath d='m11 11 3.5 3.5'/%3E%3C/svg%3E") no-repeat 11px center; }
+  .msearch input:focus { outline: none; border-color: var(--ink); }
+  .msearch .chips button { padding: 3px 10px; font-size: 12px; }
+  .ment .tag.sent { background: var(--none-bg); color: var(--ink-2); }
+  .ment.wait::before { content: ""; position: absolute; left: 9px; top: 17px; width: 8px; height: 8px; border-radius: 50%; background: var(--needs); }
+  mark { background: #ffe39a; color: inherit; border-radius: 3px; padding: 0 1px; }
+  .eref { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 14px; font-size: 13px; }
+  .eref > * { padding: 2px 10px; border-radius: 999px; background: var(--paper); border: 1px solid var(--line); color: var(--ink-2); }
+  .eref a { color: var(--link); font-weight: 600; }
+  .mopen .loose + pre { margin-top: 14px; }
+  .eacts { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); display: flex; gap: 8px; flex-wrap: wrap; }
+  .dbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin: 20px 0 0; }
+  .dsel { font: inherit; font-size: 13px; padding: 6px 10px; border-radius: 10px; border: 1px solid var(--line-2); background: var(--card); color: var(--ink); max-width: 100%; }
+  .uday { margin-top: 22px; }
+  .uday h3 { margin: 0 0 8px; font-size: 11.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2); font-weight: 700; display: flex; gap: 10px; align-items: center; }
+  .uday h3 small { font-size: 11.5px; letter-spacing: 0; text-transform: none; font-weight: 500; color: var(--mute); }
+  .uday h3::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+  .ulist { background: var(--card); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+  .uprow { display: grid; grid-template-columns: 64px 10px minmax(0, 1fr) auto; gap: 14px; align-items: start; padding: 12px 18px; border-top: 1px solid var(--line); color: inherit; }
+  .uprow:first-child { border-top: 0; }
+  .uprow:hover { background: var(--paper); text-decoration: none; }
+  .uprow time { font-size: 12.5px; color: var(--mute); font-variant-numeric: tabular-nums; padding-top: 2px; white-space: nowrap; }
+  .uprow .dot { margin-top: 7px; }
+  .uprow .w b { font-weight: 600; font-size: 14.5px; display: block; overflow-wrap: anywhere; }
+  .uprow .w span { display: block; color: var(--mute); font-size: 13px; margin-top: 1px; overflow-wrap: anywhere; }
+  .uprow em { font-style: normal; font-size: 12px; color: var(--ink-2); background: var(--paper); border: 1px solid var(--line); border-radius: 999px; padding: 2px 10px; white-space: nowrap; max-width: 220px; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+  .uprow.needs, .uprow.failed { box-shadow: inset 3px 0 0 var(--needs); background: #fffaf3; }
+  .uprow.needs .w b, .uprow.failed .w b { color: var(--needs); }
+  .uprow.working .dot { animation: pulse 1s infinite alternate; }
+  .uempty { margin-top: 22px; padding: 48px 28px; text-align: center; color: var(--mute); border: 1px dashed var(--line-2); border-radius: 16px; }
+  .uempty b { display: block; color: var(--ink); font-size: 17px; margin-bottom: 6px; } .uempty p { max-width: 52ch; margin: 0 auto; }
+  @media (max-width: 760px) {
+    .dhead { padding-top: 22px; } .dhead h1 { font-size: 30px; }
+    .dnav { width: 100%; } .dnav a { flex: 1; justify-content: center; padding: 8px 8px; font-size: 13.5px; }
+    .dstrip { grid-template-columns: repeat(3, minmax(0, 1fr)); } .dstrip > * { padding: 12px 12px 11px; } .dstrip span { white-space: normal; }
+    .dstrip .now { grid-column: 1 / -1; border-left: 0; border-top: 1px solid var(--line); } .dstrip b { font-size: 22px; }
+    .uprow { grid-template-columns: 52px 10px minmax(0, 1fr); gap: 10px; padding: 11px 14px; } .uprow em { grid-column: 3; justify-self: start; }
+  }
+  @media (prefers-reduced-motion: reduce) { .dstrip .now.on i, .uprow.working .dot { animation: none; } }
+
   /* projects home */
   .homehead { display: flex; align-items: flex-end; justify-content: space-between; padding: 40px 0 20px; gap: 20px; }
   .homehead h1 { margin: 0; font-size: 34px; letter-spacing: -.02em; }
@@ -52,7 +131,7 @@
   .wmail details > div { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px 12px; margin-top: 10px; }
   .wmail .acts { grid-column: 1 / -1; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
   @media (max-width: 760px) { .who .wt { display: none; } .who { padding: 4px; border-radius: 50%; } .uline b { font-size: 22px; } }
-  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; align-items: start; }
   .pcard { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 22px 22px 18px; cursor: pointer; display: flex; flex-direction: column; gap: 10px; min-height: 190px; transition: border-color .15s, transform .15s; position: relative; }
   .pcard:hover { border-color: var(--ink); transform: translateY(-1px); }
   .pcard h2 { margin: 0; font-size: 20px; letter-spacing: -.01em; line-height: 1.25; }
@@ -948,8 +1027,10 @@ function route() {
   m = h.match(/^p\/([^/]+)\/field\/([^/]+)$/); if (m) return { page: "sheet", slug: m[1], sheetId: m[2] };
   m = h.match(/^p\/([^/]+)\/?(deficiencies|drawings|docs|field|evidence|messages)?$/); if (m) return { page: "project", slug: m[1], tab: m[2] === "evidence" ? "messages" : m[2] === "deficiencies" ? "list" : m[2] || "overview" };
   if (h === "office" || h === "office/") return { page: "office" };
+  if (/^(emails|updates)\/?$/.test(h)) return { page: h.replace("/", "") };
   return { page: "home" };
 }
+const DASH = new Set(["home", "emails", "updates"]);
 const pUrl = (slug, tail) => `/api/projects/${encodeURIComponent(slug)}${tail || ""}`;
 const pHash = (slug, tail) => `#/p/${encodeURIComponent(slug)}${tail || ""}`;
 
@@ -981,8 +1062,10 @@ async function load() {
     state.p = res.ok ? await res.json() : null; state.slug = r.token;
     render(); return;
   }
-  if (r.page === "home" || r.page === "office") {
+  if (r.page === "home" || r.page === "office" || DASH.has(r.page)) {
+    const act = DASH.has(r.page) ? fetch("/api/activity").then(x => x.json()).catch(() => null) : null;
     state.home = await (await fetch("/api/projects")).json();
+    if (act) state.activity = await act;
     if (r.page === "office") state.mail = await (await fetch("/api/mail")).json().catch(() => null);
     if (state.home.active_run_id && !state.es) follow(state.home.active_run_id);
   } else {
@@ -996,11 +1079,13 @@ async function load() {
 }
 function render() {
   const r = route(), p = state.p;
-  const inP = r.page !== "home" && r.page !== "office" && p;
+  const inP = !DASH.has(r.page) && r.page !== "office" && p;
   document.body.classList.toggle("viewing", r.page === "sheet" && !!p);
-  $("#crumbs").innerHTML = inP ? `<a href="#/">Projects</a><span>›</span><b>${esc(p.project.name)}</b>${r.page === "item" ? `<span>›</span><span>${esc(r.id)}</span>` : ""}` : r.page === "office" ? `<a href="#/">Projects</a><span>›</span><b>Office</b>` : `<span>${state.home ? `${state.home.projects.length} project${state.home.projects.length === 1 ? "" : "s"}` : ""}</span>`;
+  $("#crumbs").innerHTML = inP ? `<a href="#/">Projects</a><span>›</span><b>${esc(p.project.name)}</b>${r.page === "item" ? `<span>›</span><span>${esc(r.id)}</span>` : ""}` : r.page === "office" ? `<a href="#/">Projects</a><span>›</span><b>Office</b>` : "";
   if (r.page === "contractor") { document.body.classList.add("contractor"); $("#crumbs").innerHTML = p ? `<span>${esc(p.project.name)}</span>` : ""; renderContractor(); renderAsk(); return; }
   if (r.page === "home") renderHome();
+  else if (r.page === "emails") renderEmails();
+  else if (r.page === "updates") renderUpdates();
   else if (r.page === "office") renderOffice();
   else if (!p) $("#main").innerHTML = `<a class="back" href="#/">← Projects</a><p class="empty">That project is not here.</p>`;
   else if (r.page === "item") renderItem(r.id);
@@ -1023,9 +1108,10 @@ const usd = v => v == null ? "" : v < 0.005 ? "under a cent" : "$" + v.toFixed(2
 function renderHome() {
   const h = state.home, list = h.projects;
   $("#main").innerHTML = `
-    <div class="homehead"><div><h1>Projects</h1><p>${list.length ? "Open a project to review its deficiencies, drawings and the evidence contractors sent." : "Start with a project: upload one zip of its folder. The app files it, reads the current sheets and lists what is missing."}</p></div></div>
+    ${dashHead("home")}
+    <p class="dlead">${list.length ? "Open a project to review its deficiencies, drawings and the evidence contractors sent." : "Start with a project: upload one zip of its folder. Closeout files it, reads the current sheets and lists what is missing."}</p>
     <div class="status ${esc(state.run.kind)}" id="status" ${state.run.kind === "idle" ? "hidden" : ""}></div>
-    <div class="cards" style="margin-top:18px">
+    <div class="cards" style="margin-top:14px">
       ${list.map(c => { const pct = k => c.items ? (c[k] / c.items * 100) + "%" : "0%"; return `
       <div class="pcard" data-slug="${esc(c.slug)}">
         ${c.active ? `<span class="live" title="Working"></span>` : ""}
@@ -1056,7 +1142,116 @@ function renderHome() {
     toast(`Created ${name}`); location.hash = pHash(j.slug);
   };
   wireDrop($("#newp"), "project", null);
+  wireDashHead();
   renderStatus();
+}
+
+/* ---- the dashboard's three sections: Projects, Emails from every project, and Updates (what happened, newest first) ---- */
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many || one + "s"}`;
+function dashHead(active) {
+  const h = state.home || { projects: [] }, a = state.activity, list = h.projects;
+  const items = list.reduce((n, c) => n + (c.items || 0), 0), ready = list.reduce((n, c) => n + (c.ready || 0), 0);
+  const waiting = a ? a.emails.filter(e => e.status === "unplaced").length : 0;
+  const busy = list.find(c => c.active), last = a && a.updates[0];
+  const day = new Date(); day.setHours(0, 0, 0, 0);
+  const today = a ? a.updates.filter(u => new Date(u.at) >= day).length : 0;
+  const T = { home: "Projects", emails: "Emails", updates: "Updates" };
+  const nav = [["home", "#/", list.length, ""], ["emails", "#/emails", a ? a.emails.length : "", waiting ? "hot" : ""], ["updates", "#/updates", today ? `${today} today` : "", ""]];
+  return `<div class="dhead">
+      <div><span class="kick">${esc(h.office || "The office")}</span><h1>${T[active]}</h1></div>
+      <nav class="dnav" aria-label="Sections">${nav.map(([k, href, n, cls]) => `<a href="${href}" class="${k === active ? "on" : ""}" ${k === active ? `aria-current="page"` : ""}>${T[k]}${n !== "" ? `<small class="${cls}">${n}</small>` : ""}</a>`).join("")}</nav>
+    </div>
+    <div class="dstrip">
+      <div><b>${ready}<small> of ${items}</small></b><span>items ready to close</span></div>
+      <div><b>${list.length}</b><span>${list.length === 1 ? "project" : "projects"} on file</span></div>
+      <a class="${waiting ? "hot" : ""}" href="#/emails" data-wait="1"><b>${waiting}</b><span>${waiting === 1 ? "email needs" : "emails need"} a review picked</span></a>
+      <a class="now ${busy ? "on" : ""}" href="#/updates"><i></i><div><b>${busy ? `Working on ${esc(busy.name)}` : last ? esc(last.what) : "Nothing yet"}</b><span>${busy ? "Closeout is reading now" : last ? `${last.by === "office" ? "The office" : "Closeout"} · ${esc(when(last.at))}` : "Updates appear as work happens"}</span></div></a>
+    </div>`;
+}
+function wireDashHead() {
+  const w = $("#main").querySelector("[data-wait]");
+  if (w) w.onclick = () => { state.emailF = Number(w.querySelector("b").textContent) ? "wait" : "all"; };
+}
+const hlWords = () => (state.emailQ || "").trim().toLowerCase().split(/\s+/).filter(Boolean);
+function hl(text) {
+  const words = hlWords(); let out = esc(text);
+  if (!words.length) return out;
+  const re = new RegExp("(" + words.map(w => esc(w).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|") + ")", "gi");
+  return out.replace(/(<[^>]*>)|([^<]+)/g, (m, tag, txt) => tag || txt.replace(re, "<mark>$1</mark>"));
+}
+function emailShown() {
+  const a = state.activity || { emails: [] }, f = state.emailF || "all", words = hlWords();
+  const hay = e => [e.from, e.to, e.subject, e.text, e.review, e.project && e.project.name].join(" ").toLowerCase();
+  return a.emails.filter(e => (f === "all" || (f === "in" && e.dir === "in") || (f === "out" && e.dir === "out") || (f === "wait" && e.status === "unplaced"))
+    && words.every(w => hay(e).includes(w)));
+}
+function renderEmails() {
+  const a = state.activity, all = a ? a.emails : [], f = state.emailF || "all";
+  const count = k => all.filter(e => k === "all" || (k === "in" && e.dir === "in") || (k === "out" && e.dir === "out") || (k === "wait" && e.status === "unplaced")).length;
+  const F = [["all", "All"], ["in", "Received"], ["out", "Sent"], ["wait", "Needs a review"]];
+  $("#main").innerHTML = `${dashHead("emails")}
+    <div class="mail dmail">
+      <aside class="mlist">
+        <div class="msearch">
+          <input type="search" id="emailQ" placeholder="Search sender, subject, project or words" value="${esc(state.emailQ || "")}" autocomplete="off" aria-label="Search emails">
+          <div class="chips" id="emailF">${F.map(([k, t]) => `<button type="button" data-f="${k}" class="${f === k ? "on" : ""}">${t}<small>${count(k)}</small></button>`).join("")}</div>
+        </div>
+        <div class="ments" id="emailList"></div>
+      </aside>
+      <section class="mopen msg" id="emailOpen"></section>
+    </div>`;
+  const howWord = e => e.dir === "out" ? (e.how === "gmail" || e.how === "email" ? "sent from the office's email" : e.how === "ses" ? "sent by Closeout" : "sent from the office's mail app")
+    : e.status === "unplaced" ? "waiting for a review" : e.how === "thread" ? "a reply in the thread Closeout sent" : e.how === "ref" ? "matched by the review reference" : e.how === "link" ? "matched by the contractor link" : e.how === "engineer" ? "placed by the office" : "";
+  const draw = () => {
+    const list = emailShown();
+    if (!list.some(e => e.id === state.emailOpen)) state.emailOpen = list.length ? list[0].id : null;
+    $("#emailList").innerHTML = list.length ? list.map(e => `<a class="ment ${e.id === state.emailOpen ? "on" : ""} ${e.status === "unplaced" ? "wait" : ""}" data-open="${esc(e.id)}">
+        <div class="l1"><span>${hl(e.dir === "in" ? e.from : "To " + e.to)}</span><span>${esc(when(e.at))}</span></div>
+        <b><i class="tag ${e.dir === "in" ? "in" : "sent"}">${e.dir === "in" ? "Received" : "Sent"}</i>${hl(e.subject || "(no subject)")}</b>
+        <small>${[e.project ? hl(e.project.name) : "", e.status === "unplaced" ? "Needs a review picked" : e.review ? hl(e.review) : "", e.files ? plural(e.files, "file") : ""].filter(Boolean).join(" · ")}</small></a>`).join("")
+      : `<p class="empty" style="padding:18px 14px">${all.length ? `Nothing matches${state.emailQ ? ` “${esc(state.emailQ)}”` : ""}.` : "No email yet."}</p>`;
+    const e = list.find(x => x.id === state.emailOpen), first = (state.home.projects[0] || {}).slug;
+    $("#emailOpen").innerHTML = !e ? `<div class="empty-open"><b>${all.length ? "Nothing to show" : "No email yet"}</b><p>${all.length ? "Change the search or the filter to see more." : "Connect the office's email in the Office. The messages sent to contractors, and the replies that come back, collect here from every project."}</p>${all.length ? "" : `<a class="btn primary" href="#/office">Open the Office</a>`}</div>`
+      : `<div class="mtop"><span>${e.dir === "in" ? `From <b>${hl(e.from)}</b>` : `To <b>${hl(e.to)}</b>`}${howWord(e) ? ` · ${howWord(e)}` : ""}</span><span>${esc(when(e.at))}</span></div>
+        <h4>${hl(e.subject || "(no subject)")}</h4>
+        <p class="eref">${e.project ? `<a href="${pHash(e.project.slug)}">${hl(e.project.name)}</a>` : "No project yet"}${e.review ? `<span>${hl(e.review)}</span>` : ""}${e.files ? `<span>${plural(e.files, e.dir === "out" ? "attachment" : "file")}</span>` : ""}</p>
+        ${e.status === "unplaced" ? `<div class="loose"><b>Nothing in this email says which review it answers.</b> Open the project's Messages and pick the review; Closeout files the attachments there.</div>` : ""}
+        <pre>${hl(e.text || "")}${(e.text || "").length >= 4000 ? "…" : ""}</pre>
+        ${e.project || first ? `<div class="eacts"><a class="btn primary" href="${pHash(e.project ? e.project.slug : first, "/messages")}">${e.status === "unplaced" ? "Pick the review" : "Open in the project's Messages"}</a></div>` : ""}`;
+    $$("#emailList .ment").forEach(m => m.onclick = () => { state.emailOpen = m.dataset.open; draw(); if (matchMedia("(max-width: 760px)").matches) $("#emailOpen").scrollIntoView({ behavior: "smooth", block: "start" }); });
+  };
+  $("#emailQ").oninput = ev => { state.emailQ = ev.target.value; draw(); };
+  $$("#emailF button").forEach(b => b.onclick = () => { state.emailF = b.dataset.f; $$("#emailF button").forEach(x => x.classList.toggle("on", x === b)); draw(); });
+  wireDashHead();
+  draw();
+}
+function renderUpdates() {
+  const a = state.activity, all = a ? a.updates : [], h = state.home || { projects: [] };
+  const f = state.updF || "all", pj = h.projects.some(c => c.slug === state.updP) ? state.updP : "";
+  const inF = (u, k) => k === "all" || (k === "closeout" && u.by === "closeout") || (k === "office" && u.by === "office") || (k === "needs" && (u.state === "needs" || u.state === "failed"));
+  const base = all.filter(u => !pj || (u.project && u.project.slug === pj)), shown = base.filter(u => inF(u, f));
+  const F = [["all", "Everything", ""], ["closeout", "Done by Closeout", "closeout"], ["office", "Done by the office", "office"], ["needs", "Needs you", ""]];
+  const dayKey = s => { const d = new Date(s); return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(); };
+  const today = dayKey(new Date());
+  const dayName = k => k === today ? "Today" : k === today - 864e5 ? "Yesterday" : new Date(k).toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" });
+  const groups = []; shown.forEach(u => { const k = dayKey(u.at), g = groups[groups.length - 1]; if (g && g.k === k) g.list.push(u); else groups.push({ k, list: [u] }); });
+  const href = u => u.project ? pHash(u.project.slug, u.tab === "list" ? "/deficiencies" : u.tab ? "/" + u.tab : "") : "#/emails";
+  const hhmm = s => new Date(s).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  $("#main").innerHTML = `${dashHead("updates")}
+    <div class="dbar">
+      <div class="chips" id="updF">${F.map(([k, t, dot]) => `<button type="button" data-f="${k}" class="${f === k ? "on" : ""}">${dot ? `<i class="dot dot-${dot}"></i>` : ""}${t}<small>${base.filter(u => inF(u, k)).length}</small></button>`).join("")}</div>
+      ${h.projects.length > 1 ? `<select class="dsel" id="updP" aria-label="Project"><option value="">Every project</option>${h.projects.map(c => `<option value="${esc(c.slug)}" ${c.slug === pj ? "selected" : ""}>${esc(c.name)}</option>`).join("")}</select>` : ""}
+    </div>
+    ${groups.length ? groups.map(g => `<section class="uday"><h3>${esc(dayName(g.k))}<small>${plural(g.list.length, "update")}</small></h3><div class="ulist">${g.list.map(u => `
+      <a class="uprow by-${esc(u.by)} ${esc(u.state)}" href="${href(u)}">
+        <time datetime="${esc(u.at)}">${esc(hhmm(u.at))}</time><i class="dot dot-${esc(u.by)}" title="${u.by === "office" ? "Done by the office" : "Done by Closeout"}"></i>
+        <div class="w"><b>${esc(u.what)}</b>${u.detail ? `<span>${esc(u.detail)}</span>` : ""}</div>
+        ${u.project && !pj ? `<em>${esc(u.project.name)}</em>` : "<em hidden></em>"}
+      </a>`).join("")}</div></section>`).join("")
+      : `<div class="uempty"><b>${all.length ? "Nothing here with this filter" : "No updates yet"}</b><p>${all.length ? "Pick Everything to see the full list." : "When Closeout reads a folder, files an email or checks the contractor's evidence, and when the office finishes a review or sends the items, it is listed here with the time."}</p></div>`}`;
+  $$("#updF button").forEach(b => b.onclick = () => { state.updF = b.dataset.f; renderUpdates(); });
+  const sel = $("#updP"); if (sel) sel.onchange = () => { state.updP = sel.value; renderUpdates(); };
+  wireDashHead();
 }
 
 /* ---- the office page: who is signed in, what the reading and answering has cost by week and month (in the office's
@@ -3108,7 +3303,7 @@ function wireDrop(el, kind, slug) {
 }
 function zipBtn(text) { return `<label class="zipbtn">${esc(text)}<input type="file" accept=".zip,application/zip,application/x-zip-compressed"></label>`; }
 
-window.addEventListener("hashchange", () => { const r = route(); if (r.page === "home" && state.p) { state.p = null; }
+window.addEventListener("hashchange", () => { const r = route(); if (DASH.has(r.page) && state.p) { state.p = null; }
   // back from a plan with an unsaved photo or note: the write-up comes home to the walk panel instead of being thrown away
   const v = state.viewer; if (r.page !== "sheet" && v && v.carry && (v.photo || (v.note || "").trim()) && r.page === "project" && r.tab === "field" && r.slug === state.slug) {
     const unit = (v.sug && v.sug.unit) || "", b = unit ? buildings().find(x => x.units.some(u => u.label === unit)) : null;
