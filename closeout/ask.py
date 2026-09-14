@@ -13,6 +13,7 @@ from .config import SETTINGS, Settings, make_model
 from .documents import building_of, site_tree
 from .packet import build_packet
 from .project import DISCIPLINES, project_view
+from . import replies as replies_mod
 from .store import Store
 
 # Words that would read as a judgement on the work. "closed" and "certificate" are ordinary vocabulary here
@@ -146,7 +147,13 @@ def gather(store: Store, project_id: str) -> Facts:
                  documents=view.get("documents") or [], filings=store.filings(project_id),
                  drafts=store.all_drafts(project_id), shares=store.shares(project_id),
                  batches=store.batches(project_id), sheets=view.get("sheets") or [], sends=store.sends(project_id),
-                 inbound=store.inbound_for_project(project_id))
+                 inbound=_checked_inbound(store, project_id))
+
+
+def _checked_inbound(store: Store, project_id: str) -> list[dict]:
+    rows = store.inbound_for_project(project_id)
+    checks = replies_mod.check(store, project_id, rows)
+    return [{**r, "check": checks.get(r["id"])} for r in rows]
 
 
 def _state(i: dict) -> str:
@@ -480,6 +487,8 @@ def facts_text(facts: Facts, office: str) -> str:
             rv = next((r for r in facts.reviews if r["id"] == i["review_id"]), None)
             lines.append(f"- {str(i['at'])[:10]} from {i['from_addr']} for {rv['title'] if rv else i['review_id']}: {i['subject'][:80]}"
                          f" ({i['files']} files){'; text: ' + i['text'][:200].replace(chr(10), ' ') if i.get('text') else ''}")
+            for c in ((i.get("check") or {}).get("items") or [])[:6]:
+                lines.append(f"  checked against the item: {c['said']}")
     return "\n".join(lines)
 
 

@@ -160,6 +160,15 @@
   .ov-card .line small { display: block; color: var(--mute); font-weight: 400; font-size: 12px; margin-top: 2px; }
   .ov-card .empty { padding: 2px 0 8px; font-size: 14px; }
   .ov-card .more { display: block; margin-top: auto; padding-top: 12px; font-size: 13px; font-weight: 600; }
+  .legend .closedn { color: var(--ink-2); font-weight: 600; }
+  .ov-log { margin-top: 16px; background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 20px 22px 18px; }
+  .ov-log h3 { margin: 0 0 12px; font-size: 11px; text-transform: uppercase; letter-spacing: .14em; color: var(--mute); font-weight: 700; }
+  .ov-log .flog li { grid-template-columns: 128px 1fr; } .ov-log .flog a { color: inherit; text-decoration: none; } .ov-log .flog a:hover { text-decoration: underline; }
+  .ov-log .more { display: inline-block; margin-top: 12px; font-size: 13px; font-weight: 600; } .ov-log .empty { font-size: 14px; }
+  .closedlist { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 12px; }
+  .closedlist summary { cursor: pointer; font-size: 14px; color: var(--ink-2); display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; padding: 6px 0; }
+  .closedlist summary small { color: var(--mute); font-size: 12px; }
+  .deflist tr.done .what, .deflist tr.done .id { color: var(--mute); }
   /* deficiencies: where evidence comes from now */
   .inbox { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 22px 24px; display: flex; flex-direction: column; gap: 6px; }
   .inbox .k { font-size: 11px; text-transform: uppercase; letter-spacing: .14em; color: var(--hot); font-weight: 700; }
@@ -212,6 +221,11 @@
   .mopen .worked { margin-top: 12px; padding: 14px 16px 8px; border-radius: 12px; border: 1px solid var(--ready); background: var(--ready-bg); }
   .mopen .worked .row { display: grid; grid-template-columns: 64px 1fr; gap: 4px 12px; padding: 7px 0; border-top: 1px solid rgba(0,0,0,.07); font-size: 13.5px; }
   .mopen .worked .row .id { font-family: var(--mono); font-weight: 700; } .mopen .worked .row small { display: block; color: var(--mute); font-family: var(--mono); font-size: 12px; margin-top: 2px; word-break: break-all; }
+  .mopen .worked.checked { border-color: var(--line-2); background: var(--card); }
+  .ck { font-weight: 600; } .ck.no_evidence, .ck.incomplete, .ck.needs_clarification { color: var(--needs); } .ck.complete, .ck.closed { color: var(--ready); }
+  .box.sent .wrote { display: grid; gap: 10px; margin-bottom: 14px; }
+  .box.sent .wrote .w { padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line-2); display: grid; gap: 4px; font-size: 14px; }
+  .box.sent .wrote q { font-size: 15px; } .box.sent .wrote small { color: var(--mute); }
   .mopen .loose { margin-top: 10px; padding: 12px 16px; border-radius: 12px; border: 1px dashed var(--needs); background: var(--needs-bg); font-size: 13.5px; }
   .mopen .empty-open { padding: 60px 30px; color: var(--mute); text-align: center; max-width: 46ch; margin: 0 auto; } .mopen .empty-open b { display: block; color: var(--ink); font-size: 17px; margin-bottom: 6px; }
   @media (max-width: 760px) { .mail { grid-template-columns: 1fr; min-height: 0; } .mlist { border-right: 0; border-bottom: 1px solid var(--line); max-height: 46vh; } .mopen.msg { padding: 16px 14px 18px; } .mopen h4 { font-size: 18px; } }
@@ -1041,10 +1055,11 @@ function status(i) {
   if (i.completeness === "needs_clarification") return { k: "unclear", t: "Unclear" };
   return { k: "none", t: "Nothing yet" };
 }
-const CALL = { accept: "Ready to close", reject: "Not accepted", hold: "On hold" };
+const CALL = { accept: "Closed", reject: "Not accepted", hold: "On hold" };
 const CALL_K = { accept: "ready", reject: "needs", hold: "unclear" };
 /* what the pill says: the engineer's call when there is one, else where the evidence stands */
 function callPill(i) { const d = i.decision && i.decision.decision; return d && CALL[d] ? { k: CALL_K[d], t: CALL[d], ev: status(i).t } : { ...status(i), ev: "" }; }
+const isClosed = i => !!(i.decision && i.decision.decision === "accept");   // accepted: off the open list, kept on its field review and in the log
 function items() {
   const p = state.p, pk = p.packet;
   const calls = {}; (p.decisions || []).forEach(x => { calls[x.item_id] = x; });   // oldest first, so the latest call wins
@@ -1112,12 +1127,12 @@ function renderHome() {
     <p class="dlead">${list.length ? "Open a project to review its deficiencies, drawings and the evidence contractors sent." : "Start with a project: upload one zip of its folder. Closeout files it, reads the current sheets and lists what is missing."}</p>
     <div class="status ${esc(state.run.kind)}" id="status" ${state.run.kind === "idle" ? "hidden" : ""}></div>
     <div class="cards" style="margin-top:14px">
-      ${list.map(c => { const pct = k => c.items ? (c[k] / c.items * 100) + "%" : "0%"; return `
+      ${list.map(c => { const open = c.open ?? c.items, pct = k => open ? (c[k] / open * 100) + "%" : "0%"; return `
       <div class="pcard" data-slug="${esc(c.slug)}">
         ${c.active ? `<span class="live" title="Working"></span>` : ""}
         <h2>${esc(c.name)}</h2>
         <div class="addr">${esc([[c.address, c.city].filter(Boolean).join(", "), c.building_type].filter(Boolean).join(" · ") || (c.sheets ? "" : "No drawings yet"))}</div>
-        <div class="big">${c.ready}<small>of ${c.items} ready to close</small></div>
+        <div class="big">${c.ready}<small>of ${open} ${c.closed ? "open " : ""}ready to close${c.closed ? ` · ${c.closed} closed` : ""}</small></div>
         <div class="bar"><i class="ready" style="width:${pct("ready")}"></i><i class="needs" style="width:${pct("needs")}"></i><i class="unclear" style="width:${pct("unclear")}"></i></div>
         <div class="facts"><span><b>${c.units}</b>unit${c.units === 1 ? "" : "s"}</span><span><b>${c.sheets}</b>sheet${c.sheets === 1 ? "" : "s"}</span><span><b>${c.reviews_active + c.reviews_finished}</b>field review${c.reviews_active + c.reviews_finished === 1 ? "" : "s"}</span><span><b>${c.drops}</b>drop${c.drops === 1 ? "" : "s"}</span></div>
         <div class="meta">${cardLast(c)}</div>
@@ -1150,7 +1165,7 @@ function renderHome() {
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many || one + "s"}`;
 function dashHead(active) {
   const h = state.home || { projects: [] }, a = state.activity, list = h.projects;
-  const items = list.reduce((n, c) => n + (c.items || 0), 0), ready = list.reduce((n, c) => n + (c.ready || 0), 0);
+  const items = list.reduce((n, c) => n + (c.open ?? c.items ?? 0), 0), ready = list.reduce((n, c) => n + (c.ready || 0), 0);
   const waiting = a ? a.emails.filter(e => e.status === "unplaced").length : 0;
   const busy = list.find(c => c.active), last = a && a.updates[0];
   const day = new Date(); day.setHours(0, 0, 0, 0);
@@ -1346,7 +1361,7 @@ function mailBlock() {
 function renderProject(tab) {
   const p = state.p, pr = p.project, c = p.card, slug = state.slug;
   const T = { overview: "Overview", list: "Deficiencies", field: "Field review", drawings: "Drawings", docs: "Documents", messages: "Messages" };
-  const counts = { overview: null, list: c.items, field: p.reviews.filter(r => r.status === "active").length || p.reviews.length, drawings: c.sheets, docs: (pr.documents || []).length, messages: mailUnread(p) || mailEntries(p).length };
+  const counts = { overview: null, list: c.open ?? c.items, field: p.reviews.filter(r => r.status === "active").length || p.reviews.length, drawings: c.sheets, docs: (pr.documents || []).length, messages: mailUnread(p) || mailEntries(p).length };
   const fresh = { messages: mailUnread(p) };
   $("#main").innerHTML = `
     <div class="phead">
@@ -1359,7 +1374,7 @@ function renderProject(tab) {
 }
 
 function renderOverview() {
-  const p = state.p, pr = p.project, c = p.card, slug = state.slug, all = items(), blds = buildings();
+  const p = state.p, pr = p.project, c = p.card, slug = state.slug, every = items(), all = every.filter(i => !isClosed(i)), closedN = every.length - all.length, blds = buildings();
   const n = { ready: 0, needs: 0, unclear: 0, none: 0 }; all.forEach(i => n[callPill(i).k]++);   // the engineer's call counts over the evidence reading
   const pct = k => all.length ? (n[k] / all.length * 100) + "%" : "0%";
   const plural = (k, one, many) => `${k} ${k === 1 ? one : many || one + "s"}`;
@@ -1375,15 +1390,17 @@ function renderOverview() {
   else if (done.some(r => r.package && r.package.count && !sentFor(r))) next = { t: "Send the review to the contractor", s: "Send the message by email from Messages, with the items report attached. The contractor replies with photos and they are filed to the items.", h: "/messages", a: "Messages" };
   else if (n.ready) next = { t: `Decide on ${plural(n.ready, "ready item")}`, s: "Open each one, check what came back, and mark it ready to close or not accepted.", h: "/deficiencies", a: "Deficiencies" };
   else if (all.length) next = { t: "Waiting on the contractor", s: `${plural(all.length - n.ready, "item")} still need evidence. It arrives by email and is filed to the item it belongs to.`, h: "/messages", a: "Messages" };
+  else if (closedN) next = { t: "Every item is closed", s: `${plural(closedN, "item")} accepted. They stay on their field reviews and in the project log.`, h: "/field", a: "Field review" };
   else next = { t: "Start a field review", s: "Walk the site with the phone: photo, pin, note.", h: "/field", a: "Field review" };
+  const logTab = t => t === "list" ? "/deficiencies" : t ? "/" + t : "", log = (p.history || []).slice(0, 8);
   const unitsOf = b => b.units.map(u => u.label.replace(/^unit\s+/i, "").replace(/\s*\(.*\)\s*$/, "")).join(", ");
   $("#tab").innerHTML = `
     <div class="ov">
       <div class="ov-hero">
         <div>
-          <p class="count">${n.ready} of ${all.length}<small>ready to close</small></p>
+          <p class="count">${n.ready} of ${all.length}<small>${closedN ? "open items " : ""}ready to close</small></p>
           <div class="bar"><i class="ready" style="width:${pct("ready")}"></i><i class="needs" style="width:${pct("needs")}"></i><i class="unclear" style="width:${pct("unclear")}"></i></div>
-          <div class="legend"><span><i style="background:var(--ready)"></i>${n.ready} ready</span><span><i style="background:var(--needs)"></i>${n.needs} need something</span><span><i style="background:var(--unclear)"></i>${n.unclear} unclear</span><span><i style="background:var(--none-bg);border:1px solid var(--line-2)"></i>${n.none} nothing yet</span></div>
+          <div class="legend"><span><i style="background:var(--ready)"></i>${n.ready} ready</span><span><i style="background:var(--needs)"></i>${n.needs} need something</span><span><i style="background:var(--unclear)"></i>${n.unclear} unclear</span><span><i style="background:var(--none-bg);border:1px solid var(--line-2)"></i>${n.none} nothing yet</span>${closedN ? `<span class="closedn">✓ ${closedN} closed</span>` : ""}</div>
         </div>
         <div class="ov-next"><div><span class="k">Next</span><h2>${esc(next.t)}</h2><p>${esc(next.s)}</p></div><a href="${pHash(slug, next.h)}">${esc(next.a)}</a></div>
       </div>
@@ -1408,7 +1425,13 @@ function renderOverview() {
           <a class="more" href="${pHash(slug, "/messages")}">Messages ›</a>
         </div>
       </div>
+      <section class="ov-log"><h3>Project log</h3>
+        ${log.length ? `<ol class="flog">${log.map(l => `<li><time>${esc(when(l.at))}</time><div><b>${logTab(l.tab) ? `<a href="${pHash(slug, logTab(l.tab))}">${esc(l.what)}</a>` : esc(l.what)}</b></div></li>`).join("")}</ol>`
+          : `<p class="empty">Nothing yet. Reading the drawings, each field review, every email and every item you close is written here.</p>`}
+        <a class="more" href="#/updates" data-updp="${esc(slug)}">Every update on this project ›</a>
+      </section>
     </div>`;
+  const more = $("#tab").querySelector("[data-updp]"); if (more) more.onclick = () => { state.updP = more.dataset.updp; };
 }
 
 function itemBuilding(d, blds) {
@@ -1418,11 +1441,22 @@ function itemBuilding(d, blds) {
   const m = buildingOf(d.location || "");
   return m && blds.some(b => b.key === m.key) ? m.key : "";
 }
+function defTable(rows) {
+  return `<table class="deflist"><thead><tr><th>Item</th><th>Deficiency</th><th>Status</th><th>Your call</th><th></th></tr></thead><tbody>
+      ${rows.map(i => `<tr class="row${isClosed(i) ? " done" : ""}" data-id="${esc(i.item.item_id)}">
+        <td class="id">${esc(i.item.item_id)}</td>
+        <td class="what-cell"><div class="what">${esc(i.item.description)}</div><div class="where">${esc(i.item.location)}${i.item.sheet ? ` · sheet ${esc(i.item.sheet)}` : ""}</div></td>
+        <td class="st">${(() => { const c = callPill(i); return `<span class="pill ${c.k}">${esc(c.t)}</span>${c.ev ? `<small class="ev">${esc(c.ev)}</small>` : ""}`; })()}</td>
+        <td class="call">${i.decision ? esc(CALL[i.decision.decision] || i.decision.decision) + `<small class="ev">${esc(when(i.decision.created_at))}</small>` : ""}</td>
+        <td class="go">›</td></tr>`).join("")}
+    </tbody></table>`;
+}
 function renderList() {
   const p = state.p, slug = state.slug, all = items(), f = state.filters, blds = buildings();
   const reg = new Map(p.register.map(d => [d.item_id, d]));
   const row = i => reg.get(i.item.item_id) || i.item;
-  const list = all.filter(i => { const d = row(i); return (!f.bld || itemBuilding(d, blds) === f.bld) && (!f.disc || (d.discipline || "") === f.disc) && (!f.rv || (d.review_id || "") === f.rv); });
+  const matched = all.filter(i => { const d = row(i); return (!f.bld || itemBuilding(d, blds) === f.bld) && (!f.disc || (d.discipline || "") === f.disc) && (!f.rv || (d.review_id || "") === f.rv); });
+  const list = matched.filter(i => !isClosed(i)), closed = matched.filter(isClosed);
   const codes = [...new Set([...disciplines().map(d => d.code), ...p.register.map(d => d.discipline).filter(Boolean)])];
   const filtering = f.bld || f.disc || f.rv;
   const n = { ready: 0, needs: 0, unclear: 0, none: 0 };
@@ -1452,15 +1486,9 @@ function renderList() {
       <select id="fBld" class="${f.bld ? "on" : ""}"><option value="">Every building</option>${blds.map(b => `<option value="${esc(b.key)}" ${f.bld === b.key ? "selected" : ""}>${esc(b.name)}</option>`).join("")}</select>
       <select id="fDisc" class="${f.disc ? "on" : ""}"><option value="">Every discipline</option>${codes.map(c => `<option value="${esc(c)}" ${f.disc === c ? "selected" : ""}>${esc(DISC_NAMES[c] || c)}</option>`).join("")}</select>
       <select id="fRv" class="${f.rv ? "on" : ""}"><option value="">Every field review</option>${p.reviews.filter(r => reviewFits(r, f)).map(r => `<option value="${esc(r.id)}" ${f.rv === r.id ? "selected" : ""}>${esc(r.discipline)} · ${esc(r.title)}${r.status === "active" ? " · in progress" : ""}</option>`).join("")}</select>
-      ${filtering ? `<button class="btn" id="fClear">Clear</button>` : ""}<span class="n">${list.length} of ${all.length}</span></div>` : ""}
-    ${list.length ? `<table class="deflist"><thead><tr><th>Item</th><th>Deficiency</th><th>Status</th><th>Your call</th><th></th></tr></thead><tbody>
-      ${list.map(i => { const s = status(i); return `<tr class="row" data-id="${esc(i.item.item_id)}">
-        <td class="id">${esc(i.item.item_id)}</td>
-        <td class="what-cell"><div class="what">${esc(i.item.description)}</div><div class="where">${esc(i.item.location)}${i.item.sheet ? ` · sheet ${esc(i.item.sheet)}` : ""}</div></td>
-        <td class="st">${(() => { const c = callPill(i); return `<span class="pill ${c.k}">${esc(c.t)}</span>${c.ev ? `<small class="ev">${esc(c.ev)}</small>` : ""}`; })()}</td>
-        <td class="call">${i.decision ? esc(CALL[i.decision.decision] || i.decision.decision) : ""}</td>
-        <td class="go">›</td></tr>`; }).join("")}
-    </tbody></table>` : all.length ? `<p class="empty">Nothing matches these filters.</p>` : `<p class="empty">No deficiency list yet. Drop one above to start.</p>`}
+      ${filtering ? `<button class="btn" id="fClear">Clear</button>` : ""}<span class="n">${list.length} open${closed.length ? ` · ${closed.length} closed` : ""}${filtering ? ` · of ${all.length}` : ""}</span></div>` : ""}
+    ${list.length ? defTable(list) : closed.length ? `<p class="empty">Every item${filtering ? " here" : ""} is closed.</p>` : all.length ? `<p class="empty">Nothing matches these filters.</p>` : `<p class="empty">No deficiency list yet. Drop one above to start.</p>`}
+    ${closed.length ? `<details class="closedlist"><summary>Closed <b>${closed.length}</b><small>Accepted items. They stay on their field review and in the project log.</small></summary>${defTable(closed)}</details>` : ""}
     ${p.packet && p.packet.unmatched.length ? `<h3 class="sec">Files that did not fit any item</h3><div class="left">${p.packet.unmatched.map(u => `
       <div class="card"><div class="thumb">${isImg(u.filename) ? `<img src="${fileUrl(u.evidence_id)}" alt="">` : esc((u.filename || "").split(".").pop().toUpperCase())}</div>
       <div><div class="file">${esc(u.filename)}</div><p>${esc(leftover(u))}</p></div></div>`).join("")}</div>` : ""}
@@ -2190,6 +2218,20 @@ function mailEntries(p) {
 }
 function mailUnread(p) { const seen = (p.seen || {}).messages || ""; return (p.inbound || []).filter(x => x.status !== "unplaced" && x.at > seen).length; }
 
+/* What the contractor wrote back, set against the items it answers: words alone never close an item that asked for a photo. */
+const WORDS_FILE = "contractor-email.txt";
+function replyLine(c, x) {
+  if (c.state === "closed") return "Already closed.";
+  if (x.status === "queued") return "The files in this email are waiting to be checked.";
+  if (c.state === "complete") return "Everything asked for is in. Ready for your call.";
+  return x.files ? "Still short after this email." : "No photo or document came with this email, so the words alone do not close it.";
+}
+function replyCheck(x, slug) {
+  const ck = x.check; if (!ck || !ck.items || !ck.items.length) return "";
+  const shown = ck.items.slice(0, 6), more = ck.items.length - shown.length;
+  return `<div class="worked checked"><b>Checked against ${ck.named ? (ck.items.length === 1 ? "the item" : "the items") : "the review's open items"}</b>${shown.map(c => `<div class="row"><a class="id" href="${pHash(slug, "/item/" + encodeURIComponent(c.item_id))}">${esc(c.item_id)}</a><div><span class="ck ${esc(c.state)}">${esc(replyLine(c, x))}</span>${c.still_needs.length && c.state !== "closed" && c.state !== "complete" ? `<small>Still needed: ${c.still_needs.map(esc).join(" · ")}</small>` : ""}</div></div>`).join("")}${more > 0 ? `<div class="row"><span></span><div>and ${more} more</div></div>` : ""}</div>`;
+}
+
 function renderMessages() {
   const p = state.p, slug = state.slug;
   const latestFor = latestMessages(p), sends = p.sends || [], gm = p.mail && p.mail.gmail;
@@ -2223,7 +2265,8 @@ function renderMessages() {
     const un = e.kind === "in" && e.at > seenAt;
     const l1 = e.kind === "in" ? esc(e.x.from_addr) : e.kind === "sent" ? `To ${esc(e.x.to_addr)}` : "To the contractor";
     const subj = e.kind === "draft" ? e.m.subject : e.x.subject;
-    const l3 = e.kind === "in" ? (filesLine(e.x) || (e.x.review_id ? `Answers ${rvName(e.x.review_id)}` : "No attachments")) : e.kind === "sent" ? `${viaWord(e.x)}${e.x.report ? " · report attached" : ""}` : (e.m.review_id ? "Not sent yet" : `About ${esc(e.m.item_id)}`);
+    const open = e.kind === "in" && !e.x.files && e.x.check && e.x.check.named ? e.x.check.items.filter(c => c.state !== "complete" && c.state !== "closed").map(c => c.item_id) : [];
+    const l3 = e.kind === "in" ? (filesLine(e.x) || (open.length ? `Words only · ${esc(open.join(", "))} still open` : e.x.review_id ? `Answers ${rvName(e.x.review_id)}` : "No attachments")) : e.kind === "sent" ? `${viaWord(e.x)}${e.x.report ? " · report attached" : ""}` : (e.m.review_id ? "Not sent yet" : `About ${esc(e.m.item_id)}`);
     return `<a class="ment ${e.key === state.mailOpen ? "on" : ""} ${un ? "unread" : ""}" data-open="${esc(e.key)}"><div class="l1"><span>${l1}</span><span>${esc(when(e.at))}</span></div><b><i class="tag ${e.kind}">${e.kind === "in" ? "Received" : e.kind === "sent" ? "Sent" : "Draft"}</i>${esc(subj || "(no subject)")}</b><small>${l3}</small></a>`;
   };
   const openPane = () => {
@@ -2231,11 +2274,11 @@ function renderMessages() {
     if (cur.kind === "draft") { const m = cur.m; return `<div class="mtop"><span>${about(m)}</span><span>Drafted ${esc(when(m.updated_at || m.created_at))}</span></div><h4>${esc(m.review_id ? withRef(m.subject, m.review_id) : m.subject)}</h4><pre>${esc(m.body)}</pre>${sendBlock(m)}`; }
     if (cur.kind === "sent") { const x = cur.x; return `<div class="mtop"><span>To <b>${esc(x.to_addr)}</b> · ${viaWord(x)}${x.report ? " · items report attached" : ""}</span><span>${esc(when(x.at))}</span></div><h4>${esc(x.subject)}</h4><pre>${esc(x.body)}</pre>${x.review_id ? `<p class="fine" style="margin:14px 0 0">About ${rvLink(x.review_id)}.</p>${sendBlock(latestFor[x.review_id])}` : ""}`; }
     const x = cur.x, b = batchOf(x), r = b && b.runs[b.runs.length - 1], worked = b && b.worked;
-    const att = !x.files ? "" : `<div class="att"><b>Attachments · ${x.files}</b>${b && b.names && b.names.length ? `<ul>${b.names.map(n => `<li><span class="f">${esc(n)}</span></li>`).join("")}</ul>` : ""}
+    const att = !x.files ? "" : `<div class="att"><b>Attachments · ${x.files}</b>${b && b.names && b.names.length ? `<ul>${b.names.filter(n => n !== WORDS_FILE).map(n => `<li><span class="f">${esc(n)}</span></li>`).join("")}</ul>` : ""}
       <p class="fine" style="margin:8px 0 0">${!b || !r ? "Waiting to be filed. Press Look now and Closeout files them." : r.status === "done" ? `Filed ${esc(when(r.finished_at || r.started_at || b.created_at))}. <a href="/api/runs/${r.id}/packet.md" target="_blank">Filing report</a>` : r.status === "failed" ? `Could not be filed. <button class="btn" data-retry="${esc(r.id)}" style="margin-left:6px">Try again</button>` : "Being filed now…"}</p></div>`;
     const wk = !worked ? "" : `${worked.items.length ? `<div class="worked"><b>What Closeout worked out</b>${worked.items.map(it => { const d = p.register.find(z => z.item_id === it.item_id); const head = d ? (d.location || d.description || "") : ""; return `<div class="row"><a class="id" href="${pHash(slug, "/item/" + encodeURIComponent(it.item_id))}">${esc(it.item_id)}</a><div>${esc(head.length > 150 ? head.slice(0, 148) + "…" : head)}<small>${it.files.map(esc).join(" · ")}</small></div></div>`; }).join("")}</div>` : `<div class="worked"><b>What Closeout worked out</b><div class="row"><span></span><div>None of the files could be tied to an item with confidence.</div></div></div>`}${worked.loose.length ? `<div class="loose"><b>Loose, for you to place:</b> ${worked.loose.map(esc).join(" · ")}. Open the item and file it there, or ask Closeout.</div>` : ""}`;
     return `<div class="mtop"><span>From <b>${esc(x.from_addr)}</b>${howWord(x) ? ` · ${howWord(x)}` : ""}</span><span>${esc(when(x.at))}</span></div><h4>${esc(x.subject || "(no subject)")}</h4>
-      ${x.review_id ? `<p class="fine" style="margin:0 0 12px">Answers ${rvLink(x.review_id)}.</p>` : ""}<pre>${esc(x.text || "")}</pre>${att}${wk}`;
+      ${x.review_id ? `<p class="fine" style="margin:0 0 12px">Answers ${rvLink(x.review_id)}.</p>` : ""}<pre>${esc(x.text || "")}</pre>${replyCheck(x, slug)}${att}${wk}`;
   };
   const rows = [...p.batches].reverse();
   $("#tab").innerHTML = `
@@ -2340,6 +2383,7 @@ function renderItem(id) {
   const draft = i.followup_draft, dec = i.decision && i.decision.decision, rid = d.review_id && state.p.reviews.some(r => r.id === d.review_id) ? d.review_id : "";
   const ref = rid ? "CO-" + rid.slice(-6).toUpperCase() : "", mailFrom = state.p.mail && (state.p.mail.gmail || state.p.mail.from), direct = !!mailFrom;
   const lastTo = (() => { const mine = (state.p.sends || []).filter(x => x.review_id === rid); return mine.length ? mine[mine.length - 1].to_addr : ""; })();
+  const wrote = (state.p.inbound || []).map(x => ({ x, c: x.check && x.check.items.find(c => c.item_id === d.item_id && x.check.named) })).filter(w => w.c).reverse();
   const what = `${d.item_id} (${d.description.replace(/[.\s]+$/, "")}${d.location ? ", " + d.location : ""})`;
   const needs = (i.missing_slots || []).map(sl => `- ${sl.type}: ${sl.description}`).join("\n");
   const tell = dec === "accept" ? null : draft && dec !== "reject" && dec !== "hold" ? draft
@@ -2364,7 +2408,8 @@ function renderItem(id) {
       </section>
     </div>
     <section class="box sent"><h2>What the contractor sent</h2>
-      ${i.evidence.length || i.unresolved.length ? `<div class="left">${i.evidence.map(f => sentCard(f, false)).join("")}${i.unresolved.map(f => sentCard(f, true)).join("")}</div>` : `<p class="empty">Nothing for this item yet.</p>`}
+      ${wrote.length ? `<div class="wrote">${wrote.map(({ x, c }) => `<div class="w"><q>${esc(x.check.words || "(no words)")}</q><small>${esc(x.from_addr)} · ${esc(when(x.at))} · <a href="${pHash(slug, "/messages")}" data-mailopen="in:${esc(x.id)}">open the email</a></small><span class="ck ${esc(c.state)}">${esc(replyLine(c, x))}</span></div>`).join("")}</div>` : ""}
+      ${i.evidence.length || i.unresolved.length ? `<div class="left">${i.evidence.map(f => sentCard(f, false)).join("")}${i.unresolved.map(f => sentCard(f, true)).join("")}</div>` : `<p class="empty">${wrote.length ? "No photos or documents for this item yet." : "Nothing for this item yet."}</p>`}
       <div class="addsent ${state.filing === d.item_id ? "busy" : ""}">${d.slots.length > 1 ? `<select id="sentSlot">${d.slots.map(sl => `<option value="${sl.index}">${esc(sl.type)}: ${esc(sl.description)}</option>`).join("")}</select>` : ""}<label class="btn"><input type="file" id="sentIn" multiple accept="image/*,.pdf,.heic,.heif">${state.filing === d.item_id ? "Filing…" : "Add what the contractor sent"}</label><small>Photos or documents handed over in person or by email. Filed to ${esc(d.item_id)} as is; nothing is read by Closeout.</small></div>
     </section>
     <section class="box call"><h2>Your call</h2>
@@ -2384,6 +2429,7 @@ function renderItem(id) {
     const r = await fetch(pUrl(slug, `/items/${encodeURIComponent(d.item_id)}/decision`), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ decision: btn.dataset.d, note: $("#decNote").value || null }) });
     if (r.ok) { toast("Recorded"); load(); } else toast("Could not record", true);
   });
+  $("#main").querySelectorAll("[data-mailopen]").forEach(a => a.onclick = () => { state.mailOpen = a.dataset.mailopen; });
   const si = $("#sentIn"); if (si) si.onchange = async () => {
     const files = [...si.files]; if (!files.length) return;
     const fd = new FormData(); files.forEach(f => fd.append("files", f, f.name)); const ss = $("#sentSlot"); if (ss) fd.append("slot", ss.value);

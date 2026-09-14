@@ -6,11 +6,13 @@ from __future__ import annotations
 import dataclasses
 import time
 from email.message import EmailMessage
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 
 from closeout import api, gmail as gmail_mod, inbox as inbox_mod, mailbox as mailbox_mod, pipeline
+from closeout.replies import own_words
 from closeout.store import Store
 from tests.test_api import FakeAgent
 from tests.test_review import FakeFieldAgent, _jpeg_bytes, client  # noqa: F401  (fixture)
@@ -354,3 +356,71 @@ def test_imap_reads_with_peek_and_finds_the_thread_from_the_headers():
     assert inc.thread_id == "<sent1@example.ca>" and inc.from_addr == "site@contractor.com" and inc.text == "Done."
     with pytest.raises(mailbox_mod.MailError):
         box.message("6:9")                                                # the provider rebuilt the mailbox: never read a stranger's uid
+
+
+def test_an_office_that_emails_itself_to_try_it_still_gets_its_reply_filed(gclient, tmp_path, monkeypatch):
+    fake = FakeAgent()
+    monkeypatch.setattr(pipeline, "run_match_job", fake.match)
+    monkeypatch.setattr(pipeline, "run_draft_job", fake.draft)
+    slug, rev, _ = _finished_review(gclient, tmp_path)
+    _connected(gclient)
+    s = gclient.post(f"/api/projects/{slug}/reviews/{rev['id']}/send", json={"to": "office@example.com"}).json()["send"]
+    # the office answers its own message from the same address: that is the reply, not Closeout's own mail
+    FakeGmail.arrive(_raw("office@example.com", "Re: " + s["subject"], "Done, it is fixed."), thread=s["thread_id"])
+    assert gclient.post("/api/mail/check").json()["check"] == {"looked_at": 1, "new": 1, "placed": 1, "unplaced": 0}
+    assert gclient.get(f"/api/projects/{slug}").json()["inbound"][0]["text"].startswith("Done, it is fixed")
+
+
+def test_the_office_writing_in_a_thread_sent_to_a_contractor_is_not_taken_for_the_contractor(gclient, tmp_path, monkeypatch):
+    fake = FakeAgent()
+    monkeypatch.setattr(pipeline, "run_match_job", fake.match)
+    monkeypatch.setattr(pipeline, "run_draft_job", fake.draft)
+    slug, rev, _ = _finished_review(gclient, tmp_path)
+    _connected(gclient)
+    s = gclient.post(f"/api/projects/{slug}/reviews/{rev['id']}/send", json={"to": "site@contractor.com"}).json()["send"]
+    FakeGmail.arrive(_raw("office@example.com", "Re: " + s["subject"], "Following up."), thread=s["thread_id"])
+    assert gclient.post("/api/mail/check").json()["check"]["new"] == 0
+
+
+def test_a_reply_in_words_only_is_checked_against_the_item_and_does_not_close_it(gclient, tmp_path, monkeypatch):
+    fake = FakeAgent()
+    monkeypatch.setattr(pipeline, "run_match_job", fake.match)
+    monkeypatch.setattr(pipeline, "run_draft_job", fake.draft)
+    slug, rev, _ = _finished_review(gclient, tmp_path)
+    _connected(gclient)
+    r = gclient.post(f"/api/projects/{slug}/items/EL-01/send", json={"to": "site@contractor.com", "subject": "EL-01 not accepted",
+                                                                     "body": "Please send the photo again."})
+    s = r.json()["send"]
+    FakeGmail.arrive(_raw("site@contractor.com", "Re: " + s["subject"], "I did it.\n\nOn Mon, Sep 14, 2026 the office wrote:\n> Please send the photo again."),
+                     thread=s["thread_id"])
+    assert gclient.post("/api/mail/check").json()["check"]["placed"] == 1
+    p = gclient.get(f"/api/projects/{slug}").json()
+    check = p["inbound"][0]["check"]
+    assert check["words"] == "I did it." and check["named"] and check["files"] == 0
+    [item] = check["items"]
+    assert item["item_id"] == "EL-01" and item["state"] == "no_evidence" and item["still_needs"]
+    assert "words alone do not close it" in item["said"] and item["still_needs"][0] in item["said"]
+    assert any("EL-01: words only, still needs 1 thing" in h["what"] for h in p["history"] if h["kind"] == "receive")
+    filed = next(u for u in gclient.get("/api/activity").json()["updates"] if u["what"].startswith("Filed an email from site@contractor.com"))
+    assert "EL-01: words only" in filed["detail"]
+
+
+def test_the_contractors_words_go_with_the_photos_they_sent(gclient, tmp_path, monkeypatch):
+    fake = FakeAgent()
+    monkeypatch.setattr(pipeline, "run_match_job", fake.match)
+    monkeypatch.setattr(pipeline, "run_draft_job", fake.draft)
+    slug, rev, _ = _finished_review(gclient, tmp_path)
+    _connected(gclient)
+    s = gclient.post(f"/api/projects/{slug}/reviews/{rev['id']}/send", json={"to": "site@contractor.com"}).json()["send"]
+    FakeGmail.arrive(_raw("site@contractor.com", "Re: " + s["subject"], "Cover plate on EL-01 is in.", [("plate.jpg", _jpeg_bytes())]), thread=s["thread_id"])
+    gclient.post("/api/mail/check")
+    st = Store(gclient.settings.data_dir / "closeout.db")
+    row = st.inbound_for_project(st.project_by_slug(slug)["id"])[0]
+    words = (Path(row["folder"]) / "contractor-email.txt").read_text()
+    assert "Cover plate on EL-01 is in." in words and "site@contractor.com" in words
+
+
+def test_own_words_leave_out_the_quoted_message():
+    assert own_words("Done\nfixed today\n\n-----Original Message-----\nFrom: office") == "Done fixed today"
+    assert own_words("Sent it.\n> old line") == "Sent it."
+    assert own_words("Yes\n\nSent from my iPhone") == "Yes"

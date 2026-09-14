@@ -1,8 +1,14 @@
 """What Closeout did on a project, as one plain list: read, drafted, sent, received, filed, with times.
 
-Built from the tables the app already keeps; nothing is written. The engineer's own decisions are not in it,
-this is the app's side of the record."""
+Built from the tables the app already keeps; nothing is written. The office's calls on items are in it too: an
+item it accepts leaves the open list but stays here, with when it was closed."""
 from __future__ import annotations
+
+from .replies import short
+
+
+def decision_words(item_id: str, decision: str) -> str:
+    return {"accept": f"Closed {item_id}", "reject": f"{item_id} not accepted", "hold": f"{item_id} put on hold"}.get(decision, "")
 
 
 def _title(reviews: dict, review_id: str) -> str:
@@ -15,7 +21,7 @@ def _n(k: int, one: str, many: str | None = None) -> str:
 
 
 def build(sends=(), inbound=(), batches=(), shares=(), reviews=(), messages=(), filings=(), document_log=(),
-          drawings_reviews=(), runs=(), limit: int = 80) -> list[dict]:
+          drawings_reviews=(), runs=(), decisions=(), register=(), limit: int = 80) -> list[dict]:
     by_id = {r["id"]: r for r in reviews}
     out: list[dict] = []
 
@@ -52,7 +58,8 @@ def build(sends=(), inbound=(), batches=(), shares=(), reviews=(), messages=(), 
     for i in inbound:
         where = f" · {_n(i['files'], 'file')}" if i.get("files") else ""
         state = {"unplaced": "waiting for you to place it", "queued": "files waiting to be filed", "placed": "placed under " + _title(by_id, i.get("review_id", ""))}.get(i.get("status"), "")
-        add(i["at"], f"Reply came in from {i['from_addr']}{where}" + (f" · {state}" if state else ""), "messages", "receive")
+        checked = short(i.get("check"))
+        add(i["at"], f"Reply came in from {i['from_addr']}{where}" + (f" · {state}" if state else "") + (f" · {checked}" if checked else ""), "messages", "receive")
     for b in batches:
         via = b.get("via") or ""
         door = "by email" if via.startswith("email:") else "through the contractor's link" if via else "dropped in by the office"
@@ -64,5 +71,11 @@ def build(sends=(), inbound=(), batches=(), shares=(), reviews=(), messages=(), 
         add(f.get("at"), f"{f['name'] or f['file']} filed under {f.get('discipline') or f.get('building') or 'the project'} by {who}", "docs", "file")
     for d in document_log:
         add(d.get("at"), d.get("note") or f"{d.get('kind', 'note')}: {d['file']}", "docs", "doc")
+    what = {d["item_id"]: d.get("description", "") for d in register}
+    for d in decisions:
+        said = decision_words(d["item_id"], d["decision"])
+        if said:
+            add(d.get("created_at"), said + (f": {what[d['item_id']][:120]}" if what.get(d["item_id"]) else "") + (f" · “{d['note']}”" if d.get("note") else ""),
+                f"item/{d['item_id']}", "decision")
     out.sort(key=lambda e: e["at"], reverse=True)
     return out[:limit]

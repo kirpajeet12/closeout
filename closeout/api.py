@@ -31,7 +31,7 @@ import dataclasses
 from .config import SETTINGS, Settings
 from .ingest import _exif, _heic_to_jpeg
 from .packet import build_packet, packet_markdown
-from . import report as report_mod
+from . import replies as replies_mod, report as report_mod
 from . import notice as notice_mod
 from . import history as history_mod
 from . import brief as brief_mod
@@ -328,9 +328,11 @@ def project_card(st: Store, prj: dict, active_run_id: str | None) -> dict:
     latest = batch_runs[-1] if batch_runs else None
     status = st.item_status_for_run(latest["id"]) if latest else {}
     decisions = {d["item_id"]: d["decision"] for d in st.decisions(pid)}
-    call = {"accept": "complete", "reject": "incomplete", "hold": "needs_clarification"}   # the engineer's call counts over the evidence reading
+    call = {"reject": "incomplete", "hold": "needs_clarification"}   # the engineer's call counts over the evidence reading
     n = {"complete": 0, "incomplete": 0, "needs_clarification": 0, "no_evidence": 0}
     for d in items:
+        if decisions.get(d["item_id"]) == "accept":    # closed: off the open counts, still on its field review and in the log
+            continue
         n[call.get(decisions.get(d["item_id"])) or (status.get(d["item_id"]) or {}).get("completeness", "no_evidence")] += 1
     m = prj["model"]
     runs = st.runs(pid)
@@ -339,7 +341,8 @@ def project_card(st: Store, prj: dict, active_run_id: str | None) -> dict:
         "id": pid, "slug": prj["slug"], "name": prj["name"], "address": m.get("address", ""), "city": m.get("city", ""),
         "building_type": m.get("building_type", ""), "sheets": len(st.sheets(pid)), "documents": len(st.documents(pid)),
         "items": len(items), "ready": n["complete"], "needs": n["incomplete"], "unclear": n["needs_clarification"], "nothing": n["no_evidence"],
-        "closed": sum(1 for v in decisions.values() if v == "accept"),
+        "closed": sum(1 for d in items if decisions.get(d["item_id"]) == "accept"),
+        "open": sum(1 for d in items if decisions.get(d["item_id"]) != "accept"),
         "drops": len(st.batches(pid)), "last_activity": prj["updated_at"],
         "units": len(m.get("units") or []), "disciplines": sorted({s["discipline"] for s in st.sheets(pid) if s.get("discipline")}),
         "reviews_active": sum(1 for r in reviews if r["status"] == "active"),
@@ -570,9 +573,12 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
                 "occupancy_docs": [list(row) for row in documents_mod.OCCUPANCY_DOCS],
                 "filings": st.filings(pid), "filing_history": st.filing_history(pid), "document_log": st.document_log(pid), "folders": st.folders(pid),
                 "drawings_reviews": st.drawings_reviews(pid), "seen": st.seen(pid)}
+        checks = replies_mod.check(st, pid, out["inbound"])
+        for x in out["inbound"]:
+            x["check"] = checks.get(x["id"])
         out["history"] = history_mod.build(sends=out["sends"], inbound=out["inbound"], batches=batches, shares=out["shares"], reviews=out["reviews"],
                                            messages=out["messages"], filings=out["filing_history"], document_log=out["document_log"],
-                                           drawings_reviews=out["drawings_reviews"], runs=runs)
+                                           drawings_reviews=out["drawings_reviews"], runs=runs, decisions=out["decisions"], register=out["register"])
         return out
 
     @app.get("/api/sheets/{sheet_id}/image")

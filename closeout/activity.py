@@ -3,7 +3,9 @@ first. Closeout's own work (reading a folder, checking evidence, filing an email
 (finishing a review, sending the items), so the office can see at a glance what was done for it."""
 from __future__ import annotations
 
+from .history import decision_words
 from .project import DISCIPLINES
+from .replies import check as check_replies, short as reply_line
 from .store import Store
 
 LIMIT = 300
@@ -112,8 +114,11 @@ def updates(st: Store, projects: dict | None = None, reviews: dict | None = None
         add(r.get("finished_at") or r["started_at"], "closeout", what, detail, r.get("project_id") or "",
             {"batch": "list", "review": "messages", "documents": "docs", "project": "", "ask": ""}[kind], state)
 
-    for r in st.conn.execute("SELECT * FROM inbound ORDER BY at DESC LIMIT ?", (LIMIT,)):
-        r = dict(r)
+    inbound = [dict(r) for r in st.conn.execute("SELECT * FROM inbound ORDER BY at DESC LIMIT ?", (LIMIT,))]
+    checks: dict[str, dict] = {}
+    for pid in {r["project_id"] for r in inbound if r["project_id"] in projects}:
+        checks.update(check_replies(st, pid, [r for r in inbound if r["project_id"] == pid]))
+    for r in inbound:
         who = r["from_addr"]
         files = f" with {_plural(r['files'], 'file')}" if r["files"] else ""
         if r["status"] == "unplaced":
@@ -121,7 +126,9 @@ def updates(st: Store, projects: dict | None = None, reviews: dict | None = None
         elif r["how"] == "engineer":
             add(r["at"], "office", f"Placed an email from {who}{files}", _review_name(reviews.get(r["review_id"])), r["project_id"], "messages")
         else:
-            add(r["at"], "closeout", f"Filed an email from {who}{files}", _review_name(reviews.get(r["review_id"])) or r["subject"], r["project_id"], "messages")
+            checked = reply_line(checks.get(r["id"]))
+            add(r["at"], "closeout", f"Filed an email from {who}{files}",
+                " · ".join(x for x in (_review_name(reviews.get(r["review_id"])) or r["subject"], checked) if x), r["project_id"], "messages")
 
     for r in st.conn.execute("SELECT * FROM sends ORDER BY at DESC LIMIT ?", (LIMIT,)):
         r = dict(r)
@@ -133,6 +140,13 @@ def updates(st: Store, projects: dict | None = None, reviews: dict | None = None
             n = (rv.get("package") or {}).get("count")
             add(rv.get("finished_at"), "office", f"Finished {_review_name(rv)}", _plural(n, "item") + " for the contractor" if n is not None else "", pid, "field")
         add(rv["started_at"], "office", f"Started {_review_name(rv)}", "", pid, "field")
+
+    for pid in projects:
+        what = {d["item_id"]: d["description"] for d in st.deficiencies(pid)}
+        for d in st.decisions(pid):
+            said = decision_words(d["item_id"], d["decision"])
+            if said:
+                add(d["created_at"], "office", said, (what.get(d["item_id"]) or "")[:160], pid, f"item/{d['item_id']}")
 
     for pid in projects:
         batches: dict[str, list[dict]] = {}

@@ -11,6 +11,7 @@ from typing import Callable
 
 from .config import Settings
 from .gmail import Incoming
+from .replies import own_words
 from .store import Store
 
 LINK = re.compile(r"/c/([A-Za-z0-9_-]{16,})")
@@ -71,6 +72,9 @@ def receive(st: Store, settings: Settings, inc: Incoming, run_batch: RunBatch | 
         folder.mkdir(parents=True, exist_ok=True)
         for name, data in inc.files:
             (folder / _safe(name)).write_bytes(data)
+        words = own_words(inc.text)
+        if words and where["project_id"]:   # the contractor's words go with the photos, so they are weighed together
+            (folder / "contractor-email.txt").write_text(f"Email from {inc.from_addr}: {inc.subject}\n\n{words}\n")
         st.set_inbound_folder(row["id"], str(folder))
     if status == "queued" and run_batch:
         file_queued(st, row["id"], run_batch)
@@ -112,6 +116,11 @@ def check(st: Store, settings: Settings, mailbox, run_batch: RunBatch | None) ->
                 ids.append(mid)
 
     sent = set()
+    # the office sent it to its own mailbox (trying Closeout out): a reply from that same address still counts as the reply
+    own = (getattr(mailbox, "address", "") or "").lower()
+    to_self = [x for x in st.all_sends() if own and x["to_addr"].lower() == own]
+    self_threads = {x[k] for x in to_self for k in ("thread_id", "message_id") if x[k]}
+    self_refs = {review_ref(x["review_id"]) for x in to_self if x["review_id"]}
     try:
         for s in st.sends_with_threads():
             sent.add(s["message_id"])
@@ -125,7 +134,8 @@ def check(st: Store, settings: Settings, mailbox, run_batch: RunBatch | None) ->
                 continue
             inc = mailbox.message(mid)
             seen += 1
-            if inc.from_me:
+            if inc.from_me and not (inc.thread_id in self_threads or self_threads.intersection(inc.refs)
+                                    or any(ref in inc.subject for ref in self_refs)):
                 continue
             new.append(receive(st, settings, inc, run_batch))
             try:

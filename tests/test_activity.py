@@ -57,3 +57,21 @@ def test_a_failed_or_unfinished_job_says_so_plainly(client):
     assert whats["Could not answer a question"]["state"] == "failed"
     assert whats["Checking the folder for missing documents"]["state"] == "working"
     assert whats["Checking the folder for missing documents"]["project"]["slug"] == "maple-court"
+
+
+def test_an_accepted_item_leaves_the_open_counts_and_is_written_in_the_logs(client, tmp_path):
+    slug, rev, _ = _finished_review(client, tmp_path)
+    p = client.get(f"/api/projects/{slug}").json()
+    item = p["register"][0]["item_id"]
+    before = p["card"]
+    assert before["open"] == before["items"] and before["closed"] == 0
+    assert client.post(f"/api/projects/{slug}/items/{item}/decision", json={"decision": "accept", "note": "Seen fixed."}).status_code == 200
+    p = client.get(f"/api/projects/{slug}").json()
+    card = p["card"]
+    assert card["closed"] == 1 and card["open"] == before["items"] - 1 and card["items"] == before["items"]
+    assert card["ready"] + card["needs"] + card["unclear"] + card["nothing"] == card["open"]
+    assert item in {d["item_id"] for d in p["register"]}                              # still on the list its field review keeps
+    logged = next(h for h in p["history"] if h["kind"] == "decision")
+    assert logged["what"].startswith(f"Closed {item}") and "Seen fixed." in logged["what"] and logged["tab"] == f"item/{item}"
+    upd = next(u for u in client.get("/api/activity").json()["updates"] if u["what"] == f"Closed {item}")
+    assert upd["by"] == "office" and upd["project"]["slug"] == slug and upd["tab"] == f"item/{item}"
