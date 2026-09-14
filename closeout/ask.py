@@ -36,7 +36,7 @@ Rules
   moves there. Only move the screen when it helps; do not move it for a plain question.
 - The engineer's current screen is given with the question; "here" and "this" refer to it.
 - When the engineer asks you to change something (mark an item, start or finish a field review, draft or redraft the
-  message, create or turn off the contractor link, change an item's wording, move a file to another building or
+  message, change an item's wording, move a file to another building or
   discipline folder, rename a file, add a discipline folder the project does not have yet, rename a folder the engineer
   added, or remove an empty folder the engineer added), call propose once with the change, then call answer with one
   short sentence saying what is ready to confirm. You never make the change yourself; the engineer confirms it on screen.
@@ -468,11 +468,11 @@ def facts_text(facts: Facts, office: str) -> str:
     links = sum(1 for s in facts.shares if not s.get("revoked_at"))
     via = sum(1 for b in facts.batches if b.get("via"))
     lines.append(f"WITH THE CONTRACTOR: {len(facts.drafts)} messages drafted, {len(facts.sends)} sent by email on the engineer's press, "
-                 f"{links} contractor links active, {len(facts.batches)} evidence drops received ({via} through a link)")
+                 f"{len(facts.batches)} evidence drops received" + (f" ({via} through an older contractor link, {links} still active)" if via or links else ""))
     for s_ in facts.sends[-5:]:
         rv = next((r for r in facts.reviews if r["id"] == s_["review_id"]), None)
         lines.append(f"- sent {str(s_['at'])[:10]} to {s_['to_addr']} for {rv['title'] if rv else s_['review_id']}"
-                     f" ({'from the office Gmail' if s_['via'] == 'gmail' else 'from the app' if s_['via'] == 'ses' else 'from the engineer\'s mail app'}); replies come back through the link")
+                     f" ({'from the office mailbox' if s_['via'] in ('gmail', 'email') else 'from the app' if s_['via'] == 'ses' else 'from the engineer\'s mail app'}); the contractor replies by email")
     emails = [i for i in facts.inbound if i.get("status") != "unplaced"]
     if emails:
         lines.append(f"EMAILS RECEIVED: {len(emails)} read from the office mailbox and filed to their reviews")

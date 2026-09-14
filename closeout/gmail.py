@@ -72,6 +72,7 @@ class Incoming:
     sent_at: str = ""
     files: list[tuple[str, bytes]] = field(default_factory=list)
     from_me: bool = False
+    refs: list[str] = field(default_factory=list)   # Message-IDs this one answers (plain IMAP mail)
 
 
 def parse_raw(raw: bytes, own_address: str = "") -> Incoming:
@@ -97,6 +98,8 @@ def parse_raw(raw: bytes, own_address: str = "") -> Incoming:
 
 class Gmail:
     """Thin client over the Gmail REST API for one connected account."""
+
+    kind = "gmail"
 
     def __init__(self, settings: Settings, refresh_token: str, address: str = ""):
         self.settings = settings
@@ -132,6 +135,12 @@ class Gmail:
     def search(self, query: str, limit: int = 50) -> list[str]:
         out = self._get("messages", q=query, maxResults=limit)
         return [m["id"] for m in out.get("messages", [])]
+
+    def subject_ids(self, ref: str) -> list[str]:
+        return self.search(f'subject:"{ref}" newer_than:90d')
+
+    def close(self) -> None:
+        return None
 
     def thread_message_ids(self, thread_id: str) -> list[str]:
         out = self._get(f"threads/{thread_id}", format="minimal")

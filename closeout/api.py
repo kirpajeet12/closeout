@@ -25,7 +25,7 @@ from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse, Response, StreamingResponse
 from pydantic import BaseModel
 
-from . import ask as ask_mod, documents as documents_mod, gmail as gmail_mod, inbox as inbox_mod, mail as mail_mod, drawings as drawings_mod, usage as usage_mod, pipeline, plans as plans_mod, project as project_mod, review as review_mod, revisions as revisions_mod
+from . import ask as ask_mod, documents as documents_mod, gmail as gmail_mod, inbox as inbox_mod, mail as mail_mod, mailbox as mailbox_mod, drawings as drawings_mod, usage as usage_mod, pipeline, plans as plans_mod, project as project_mod, review as review_mod, revisions as revisions_mod
 import dataclasses
 
 from .config import SETTINGS, Settings
@@ -166,6 +166,16 @@ class DocsAnswerIn(BaseModel):
 class DocsScopeIn(BaseModel):
     name: str             # exact checklist row name
     in_scope: bool = True      # the gaps the web app's rules already show, so the agent does not repeat them
+
+
+class EmailIn(BaseModel):
+    address: str
+    password: str              # an app password; kept in the database only, never echoed back
+    host: str = ""             # google | microsoft | hostinger | godaddy | zoho, when the address alone does not say
+    imap_host: str = ""
+    imap_port: int = 0
+    smtp_host: str = ""
+    smtp_port: int = 0
 
 
 class SendIn(BaseModel):
@@ -548,7 +558,7 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
                 "reviews": coverage_mod.decorate_reviews(st, prj, st.reviews(pid)), "shares": st.shares(pid), "office": settings.office,
                 "sends": st.sends(pid), "inbound": st.inbound_for_project(pid),
                 "notes": [_note_view(prj["slug"], n) for n in st.site_notes(pid)],
-                "mail": {"from": settings.mail_from, "gmail": (st.mail_account() or {}).get("address", "") if gmail_mod.configured(gs()) else "", "can_connect": gmail_mod.configured(gs())},
+                "mail": {"from": settings.mail_from, "gmail": _mail_address(st), "can_connect": True},
                 "stages": {code: coverage_mod.stages_for(prj, code) for code in sorted({*(prj.get("stages") or {}), *(r["discipline"] for r in st.reviews(pid)), *(d["discipline"] for d in st.documents(pid) if d.get("kind") == "drawing" and d.get("discipline"))})},
                 "units": coverage_mod.buildings(prj),
                 "docs_review": prj.get("docs_review"), "docs_scope": prj.get("docs_scope") or [],
@@ -1322,8 +1332,9 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
     @app.post("/api/projects/{slug}/reviews/{review_id}/send")
     def send_review_message(slug: str, review_id: str, body: SendIn, request: Request) -> dict:
         """The engineer sends the covering message to the contractor. Only on their press, one message at a time.
-        With a verified sender configured the app sends it by email; otherwise the mail app sends it and this records that.
-        Either way the contractor's link must already be in the message, so what comes back has a way home."""
+        From the connected mailbox (Gmail or the office's work email) or a verified sender the app sends it; otherwise the
+        mail app sends it and this records that. The subject carries the review's reference, so a reply finds its way home
+        even outside the thread."""
         st = store()
         prj = _project(st, slug)
         r = st.review(review_id)
@@ -1333,36 +1344,34 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         if not mail_mod.valid_address(to):
             raise HTTPException(400, "give the contractor's email address")
         share = st.share_for_review(review_id)
-        if not share or share.get("revoked_at"):
-            raise HTTPException(409, "create the contractor's link first, so what they send comes back to this review")
+        if share and share.get("revoked_at"):
+            share = None
         msg = st.draft_for_review(review_id)
         if not msg:
             raise HTTPException(409, "there is no message for this review yet")
-        subject = " ".join((body.subject if body.subject is not None else msg["subject"]).split())[:200]
+        subject = inbox_mod.with_ref(" ".join((body.subject if body.subject is not None else msg["subject"]).split())[:190], review_id)
         text = (body.body if body.body is not None else msg["body"]).strip()
-        if "/c/" not in text:
-            raise HTTPException(409, "the message must carry the contractor's link")
-        account = st.mail_account() if gmail_mod.configured(gs()) else None
+        account = _usable_account(st)
         if body.via == "mail-app":
             via = "mail-app"
         elif account:
-            via = "gmail"
+            via = "gmail" if account["kind"] == "gmail" else "email"
         elif mail_mod.can_send(settings):
             via = "ses"
         else:
             via = "mail-app"
         message_id = thread_id = report = ""
-        if via in ("gmail", "ses"):    # the items report travels with it: photos, plan marks, the page link
-            report, pdf = notice_mod.build_notice(st, prj["id"], review_id, settings.office, _share_url(request, share["id"]))
+        if via in ("gmail", "email", "ses"):    # the items report travels with it: photos, plan marks, the page link
+            report, pdf = notice_mod.build_notice(st, prj["id"], review_id, settings.office, _share_url(request, share["id"]) if share else "")
             _keep_report(slug, report, pdf)
         try:
-            if via == "gmail":
-                out = _gmail(account).send(to, subject, text, [(report, pdf, "application/pdf")])
+            if via in ("gmail", "email"):
+                out = _mailbox(account).send(to, subject, text, [(report, pdf, "application/pdf")])
                 message_id, thread_id = out["id"], out["thread_id"]
             elif via == "ses":
                 message_id = mail_mod.send_email(settings, to, subject, text, [(report, pdf, "application/pdf")])
         except Exception as e:  # the mail service refused; nothing recorded, the engineer sees why
-            log.warning("send refused: %s", e)
+            log.warning("send refused: %s", type(e).__name__)
             raise HTTPException(502, "the email could not be sent; the message is unchanged, try again or use your mail app")
         sent = st.record_send(prj["id"], review_id, msg["id"], to, subject, text, via, message_id, thread_id, report)
         st.touch_project(prj["id"])
@@ -1396,8 +1405,22 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         cid, sec = st.setting("google_client_id"), st.setting("google_client_secret")
         return dataclasses.replace(settings, google_client_id=cid, google_client_secret=sec) if cid and sec else settings
 
-    def _gmail(account: dict) -> gmail_mod.Gmail:
-        return gmail_mod.Gmail(gs(), account["refresh_token"], account["address"])
+    def _mailbox(account: dict):
+        """The connected mailbox: Google's API for a Gmail sign-in, IMAP and SMTP for a work email."""
+        if account.get("kind", "gmail") == "gmail":
+            return gmail_mod.Gmail(gs(), account["refresh_token"], account["address"])
+        return mailbox_mod.ImapMail(account["address"], account["password"], account["imap_host"], account["imap_port"],
+                                    account["smtp_host"], account["smtp_port"], account["username"])
+
+    def _usable_account(st: Store) -> dict | None:
+        """The connected mailbox when it can be used: a Gmail sign-in also needs the server's Google client."""
+        account = st.mail_account()
+        if account and account.get("kind", "gmail") == "gmail" and not gmail_mod.configured(gs()):
+            return None
+        return account
+
+    def _mail_address(st: Store) -> str:
+        return (_usable_account(st) or {}).get("address", "")
 
     def _mail_state(request: Request) -> str:
         return hmac.new(_access_token().encode(), b"connect-gmail", hashlib.sha256).hexdigest()[:32]
@@ -1426,11 +1449,15 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
 
     def _mail_check() -> dict:
         st = store()
-        account = st.mail_account()
-        if not account or not gmail_mod.configured(gs()):
+        account = _usable_account(st)
+        if not account:
             raise HTTPException(409, "no mailbox is connected")
         try:
-            return inbox_mod.check(st, settings, _gmail(account), _run_batch)
+            return inbox_mod.check(st, settings, _mailbox(account), _run_batch)
+        except mailbox_mod.MailError as e:  # a sentence the office can act on; never the password
+            log.warning("mail check failed: %s", type(e).__name__)
+            st.touch_mail_check(str(e)[:200])
+            raise HTTPException(502, f"the mailbox could not be read: {e}")
         except Exception as e:  # the mailbox could not be read; the Office page shows why
             log.warning("mail check failed: %s", type(e).__name__)
             st.touch_mail_check(f"{type(e).__name__}: {str(e)[:120]}")
@@ -1446,8 +1473,9 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         client = {"where": "server" if settings.google_client_id and settings.google_client_secret else "office" if eff.google_client_id else "",
                   "hint": eff.google_client_id[:8] if eff.google_client_id else ""}
         return {"configured": gmail_mod.configured(eff), "label": settings.mail_label, "client": client,
-                "account": {"address": account["address"], "connected_at": account["connected_at"], "last_check": account["last_check"],
-                            "last_error": account["last_error"]} if account else None,
+                "account": {"address": account["address"], "kind": account.get("kind", "gmail"), "connected_at": account["connected_at"],
+                            "last_check": account["last_check"], "last_error": account["last_error"],
+                            "servers": f"{account['imap_host']} · {account['smtp_host']}" if account.get("kind") == "email" else ""} if account else None,
                 "unplaced": unplaced, "projects": [{"slug": p["slug"], "name": p["name"]} for p in st.projects()]}
 
     @app.get("/api/mail")
@@ -1512,6 +1540,30 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         store().connect_mail(address, refresh)
         return RedirectResponse("/#/office?mail=connected", status_code=303)
 
+    @app.post("/api/mail/email")
+    def mail_connect_email(body: EmailIn) -> dict:
+        """The office's work email, any provider: address and app password. Closeout logs in once to prove both work
+        before anything is kept. The password is never logged or sent back."""
+        address, password, host = body.address.strip(), body.password, body.host.strip().lower()
+        if host == "google" or address.lower().endswith(("@gmail.com", "@googlemail.com")):
+            password = password.replace(" ", "")          # Google shows app passwords in groups of four
+        if not mail_mod.valid_address(address):
+            raise HTTPException(400, "type the full work email address")
+        if not password.strip():
+            raise HTTPException(400, "type the app password for that address")
+        box = mailbox_mod.ImapMail(address, password, body.imap_host.strip(), body.imap_port, body.smtp_host.strip(), body.smtp_port,
+                                   host=host)
+        try:
+            box.verify()
+        except mailbox_mod.MailError as e:
+            raise HTTPException(400, str(e))
+        except Exception as e:
+            log.warning("work email connect failed: %s", type(e).__name__)
+            raise HTTPException(400, "Closeout could not sign in to that mailbox; check the address, the app password and the server names")
+        store().connect_mail(address, kind="email", password=password, imap_host=box.imap_host, imap_port=box.imap_port,
+                             smtp_host=box.smtp_host, smtp_port=box.smtp_port)
+        return _mail_status()
+
     @app.delete("/api/mail")
     def mail_disconnect() -> dict:
         store().disconnect_mail()
@@ -1544,7 +1596,7 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         while True:
             time.sleep(settings.mail_check_seconds)
             try:
-                if gmail_mod.configured(gs()) and store().mail_account():
+                if _usable_account(store()):
                     _mail_check()
             except Exception:  # already recorded on the account row
                 pass
@@ -1589,9 +1641,11 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         items = []
         for it in pkg.get("items", []):
             stt = status.get(it["item_id"]) or {}
+            call = decisions.get(it["item_id"])    # the office's latest call; its note stays with the office
             items.append({"item": {k: it.get(k, "") for k in ("item_id", "location", "description", "evidence_required", "sheet", "unit", "level", "space")},
-                          "completeness": "complete" if decisions.get(it["item_id"]) == "accept" else stt.get("completeness", "no_evidence"),
-                          "missing_slots": stt.get("missing_slots", it.get("slots") or []), "closed": decisions.get(it["item_id"]) == "accept"})
+                          "completeness": "complete" if call == "accept" else stt.get("completeness", "no_evidence"),
+                          "missing_slots": stt.get("missing_slots", it.get("slots") or []), "closed": call == "accept",
+                          "call": call if call in ("reject", "hold") else None})
         runs = st.runs(pid)
         drops = []
         for b in st.batches(pid):

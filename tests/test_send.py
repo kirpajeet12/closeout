@@ -1,8 +1,8 @@
-"""Sending the covering message by email: only on the engineer's press, only with the contractor's link inside."""
+"""Sending the covering message by email: only on the engineer's press, with the review's reference in the subject so replies come home."""
 
 from __future__ import annotations
 
-from closeout import mail as mail_mod
+from closeout import inbox as inbox_mod, mail as mail_mod
 from closeout.store import Store
 from tests.test_review import FakeFieldAgent, client  # noqa: F401  (fixture)
 from tests.test_share import _finished_review
@@ -22,28 +22,27 @@ class FakeSES:
         return {"MessageId": f"msg-{len(FakeSES.calls)}"}
 
 
-def test_the_message_needs_an_address_and_the_link_before_it_leaves(client, tmp_path):
+def test_the_message_needs_an_address_and_carries_the_review_reference_not_a_link(client, tmp_path):
     slug, rev, _ = _finished_review(client, tmp_path)
     url = f"/api/projects/{slug}/reviews/{rev['id']}/send"
     assert client.post(url, json={"to": "not an address"}).status_code == 400
-    assert client.post(url, json={"to": "site@contractor.com"}).status_code == 409          # no link yet
     assert client.post(f"/api/projects/{slug}/reviews/nope/send", json={"to": "site@contractor.com"}).status_code == 404
-    client.post(f"/api/projects/{slug}/reviews/{rev['id']}/share")
-    r = client.post(url, json={"to": "site@contractor.com", "body": "a copy with the link taken out"})
-    assert r.status_code == 409 and "link" in r.json()["detail"]
     assert client.get(f"/api/projects/{slug}").json()["sends"] == []                        # nothing recorded
+    r = client.post(url, json={"to": "site@contractor.com"})                                 # no link needed: the reply is by email
+    assert r.status_code == 200, r.text
+    s = r.json()["send"]
+    assert "/c/" not in s["body"] and s["subject"].endswith(f"[{inbox_mod.review_ref(rev['id'])}]")
 
 
 def test_without_a_sender_the_mail_app_sends_and_the_app_only_keeps_the_record(client, tmp_path):
     slug, rev, _ = _finished_review(client, tmp_path)
-    client.post(f"/api/projects/{slug}/reviews/{rev['id']}/share")
     assert client.settings.mail_from == ""
     j = client.get(f"/api/projects/{slug}").json()
     assert j["mail"]["from"] == "" and j["mail"]["gmail"] == ""
     r = client.post(f"/api/projects/{slug}/reviews/{rev['id']}/send", json={"to": " Site@Contractor.com "})
     assert r.status_code == 200, r.text
     s = r.json()["send"]
-    assert s["via"] == "mail-app" and s["to_addr"] == "Site@Contractor.com" and "/c/" in s["body"] and s["message_id"] == ""
+    assert s["via"] == "mail-app" and s["to_addr"] == "Site@Contractor.com" and "/c/" not in s["body"] and s["message_id"] == ""
     assert s["subject"].startswith("Field review 1 (Electrical)")
     assert [x["id"] for x in client.get(f"/api/projects/{slug}").json()["sends"]] == [s["id"]]
     # the record is what the Ask panel reads

@@ -84,7 +84,7 @@ CREATE TABLE IF NOT EXISTS inbound (
   files INTEGER NOT NULL DEFAULT 0,
   folder TEXT NOT NULL DEFAULT '',
   status TEXT NOT NULL,            -- placed | queued (files wait for the desk) | unplaced (no review matched)
-  how TEXT NOT NULL DEFAULT '',    -- thread | link | engineer
+  how TEXT NOT NULL DEFAULT '',    -- thread | ref (review reference in the subject) | link | engineer
   at TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS shares (
@@ -391,7 +391,14 @@ class Store:
                                 ("sends", "thread_id", "TEXT NOT NULL DEFAULT ''"),
                                 ("sends", "report", "TEXT NOT NULL DEFAULT ''"),
                                 ("projects", "seen_json", "TEXT NOT NULL DEFAULT '{}'"),
-                                ("filings", "folder", "TEXT NOT NULL DEFAULT ''")):
+                                ("filings", "folder", "TEXT NOT NULL DEFAULT ''"),
+                                ("mail_accounts", "kind", "TEXT NOT NULL DEFAULT 'gmail'"),
+                                ("mail_accounts", "password", "TEXT NOT NULL DEFAULT ''"),
+                                ("mail_accounts", "username", "TEXT NOT NULL DEFAULT ''"),
+                                ("mail_accounts", "imap_host", "TEXT NOT NULL DEFAULT ''"),
+                                ("mail_accounts", "imap_port", "INTEGER NOT NULL DEFAULT 0"),
+                                ("mail_accounts", "smtp_host", "TEXT NOT NULL DEFAULT ''"),
+                                ("mail_accounts", "smtp_port", "INTEGER NOT NULL DEFAULT 0")):
             if col not in self._cols(table):
                 self.conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {ddl}")
         if "project_id" not in self._cols("deficiencies"):
@@ -535,6 +542,12 @@ class Store:
     def review(self, review_id: str) -> dict | None:
         r = self.conn.execute("SELECT * FROM reviews WHERE id=?", (review_id,)).fetchone()
         return self._rv(r) if r else None
+
+    def review_by_ref(self, ref: str) -> dict | None:
+        """The review a subject reference like CO-3F9A1C names; None when no review, or more than one, ends that way."""
+        tail = ref.upper().removeprefix("CO-").lower()
+        rows = self.conn.execute("SELECT * FROM reviews WHERE substr(id, -6)=?", (tail,)).fetchall() if len(tail) == 6 else []
+        return self._rv(rows[0]) if len(rows) == 1 else None
 
     def reviews(self, project_id: str) -> list[dict]:
         return [self._rv(r) for r in self.conn.execute("SELECT * FROM reviews WHERE project_id=? ORDER BY started_at", (project_id,))]
@@ -685,11 +698,15 @@ class Store:
         r = self.conn.execute("SELECT * FROM mail_accounts ORDER BY connected_at DESC").fetchone()
         return dict(r) if r else None
 
-    def connect_mail(self, address: str, refresh_token: str) -> dict:
-        """One mailbox per office: connecting again replaces the old one."""
+    def connect_mail(self, address: str, refresh_token: str = "", kind: str = "gmail", password: str = "", username: str = "",
+                     imap_host: str = "", imap_port: int = 0, smtp_host: str = "", smtp_port: int = 0) -> dict:
+        """One mailbox per office: connecting again replaces the old one. Gmail keeps Google's token; a work mailbox keeps
+        its app password and servers. Neither ever leaves this database."""
         self.conn.execute("DELETE FROM mail_accounts")
-        self.conn.execute("INSERT INTO mail_accounts(id, address, refresh_token, connected_at) VALUES(?,?,?,?)",
-                          ("mail_" + uuid.uuid4().hex[:10], address, refresh_token, now()))
+        self.conn.execute("INSERT INTO mail_accounts(id, address, refresh_token, connected_at, kind, password, username, imap_host, imap_port, "
+                          "smtp_host, smtp_port) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                          ("mail_" + uuid.uuid4().hex[:10], address, refresh_token, now(), kind, password, username, imap_host, int(imap_port or 0),
+                           smtp_host, int(smtp_port or 0)))
         self.conn.commit()
         return self.mail_account()
 
@@ -747,6 +764,9 @@ class Store:
     def send(self, send_id: str) -> dict | None:
         r = self.conn.execute("SELECT * FROM sends WHERE id=?", (send_id,)).fetchone()
         return dict(r) if r else None
+
+    def all_sends(self) -> list[dict]:
+        return [dict(r) for r in self.conn.execute("SELECT * FROM sends ORDER BY at, rowid")]
 
     def sends(self, project_id: str) -> list[dict]:
         return [dict(r) for r in self.conn.execute("SELECT * FROM sends WHERE project_id=? ORDER BY at, rowid", (project_id,))]

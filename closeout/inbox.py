@@ -1,5 +1,6 @@
 """What Closeout does with mail that comes in: match it to a review, file the attachments, keep the text as the
-contractor's word. It reads only replies in threads Closeout sent and mail carrying the office's label."""
+contractor's word. It reads only replies to what Closeout sent, mail whose subject carries a review's reference, and
+(on Gmail) mail carrying the office's label."""
 
 from __future__ import annotations
 
@@ -9,22 +10,37 @@ from pathlib import Path
 from typing import Callable
 
 from .config import Settings
-from .gmail import Gmail, Incoming
+from .gmail import Incoming
 from .store import Store
 
 LINK = re.compile(r"/c/([A-Za-z0-9_-]{16,})")
+REF = re.compile(r"\bCO-([0-9A-Fa-f]{6})\b")
 DONE_LABEL = "Closeout/Filed"
 
 # files a batch: (project_id, files, label, root, via) -> None; raises RuntimeError("busy") when the desk is taken
 RunBatch = Callable[[str, list[Path], str, Path, str], None]
 
 
+def review_ref(review_id: str) -> str:
+    """The short reference a review carries in every subject Closeout sends: CO- and the last six of its id."""
+    return "CO-" + review_id[-6:].upper()
+
+
+def with_ref(subject: str, review_id: str) -> str:
+    ref = review_ref(review_id)
+    return subject if ref in subject else f"{subject.rstrip()} [{ref}]".strip()
+
+
 def place(st: Store, inc: Incoming) -> dict:
     """Which project and review a message belongs to, and how that was decided."""
-    if inc.thread_id:
-        s = st.send_by_thread(inc.thread_id)
+    for tid in [inc.thread_id, *inc.refs]:
+        s = st.send_by_thread(tid) if tid else None
         if s:
             return {"project_id": s["project_id"], "review_id": s["review_id"], "how": "thread"}
+    for tail in dict.fromkeys(REF.findall(inc.subject + " " + inc.text[:4000])):
+        r = st.review_by_ref("CO-" + tail)
+        if r:
+            return {"project_id": r["project_id"], "review_id": r["id"], "how": "ref"}
     for tok in LINK.findall(inc.text + " " + inc.subject):
         sh = st.share(tok)
         if sh:
@@ -79,34 +95,45 @@ def file_queued(st: Store, inbound_id: str, run_batch: RunBatch) -> bool:
     return True
 
 
-def check(st: Store, settings: Settings, gmail: Gmail, run_batch: RunBatch | None) -> dict:
-    """One pass over the mailbox: replies in Closeout's own threads, then anything labelled for it. Each message is
-    read once and labelled Filed so the next pass skips it."""
+def check(st: Store, settings: Settings, mailbox, run_batch: RunBatch | None) -> dict:
+    """One pass over the mailbox: replies to what Closeout sent, then mail naming a review's reference, then (Gmail only)
+    anything labelled for it. Each message is recorded once, so the next pass skips it. `mailbox` is the Gmail connection
+    or the office's work mailbox; both answer thread_message_ids, subject_ids, message and mark."""
     seen = 0
     new: list[dict] = []
     for r in st.inbound_queued():
         if run_batch:
             file_queued(st, r["id"], run_batch)
     ids: list[str] = []
-    for s in st.sends_with_threads():
-        for mid in gmail.thread_message_ids(s["thread_id"]):
-            if mid != s["message_id"] and mid not in ids:
+
+    def add(found):
+        for mid in found:
+            if mid not in ids:
                 ids.append(mid)
-    for mid in gmail.search(f"label:{settings.mail_label} -label:{DONE_LABEL}"):
-        if mid not in ids:
-            ids.append(mid)
-    for mid in ids:
-        if st.inbound_by_gmail_id(mid):
-            continue
-        inc = gmail.message(mid)
-        seen += 1
-        if inc.from_me:
-            continue
-        new.append(receive(st, settings, inc, run_batch))
-        try:
-            gmail.mark(mid, DONE_LABEL)
-        except Exception:  # labelling is a courtesy; the inbound row already stops a re-read
-            pass
+
+    sent = set()
+    try:
+        for s in st.sends_with_threads():
+            sent.add(s["message_id"])
+            add(m for m in mailbox.thread_message_ids(s["thread_id"]) if m != s["message_id"])
+        for rid in dict.fromkeys(s["review_id"] for s in st.all_sends() if s["review_id"]):
+            add(mailbox.subject_ids(review_ref(rid)))
+        if mailbox.kind == "gmail":
+            add(mailbox.search(f"label:{settings.mail_label} -label:{DONE_LABEL}"))
+        for mid in ids:
+            if mid in sent or st.inbound_by_gmail_id(mid):
+                continue
+            inc = mailbox.message(mid)
+            seen += 1
+            if inc.from_me:
+                continue
+            new.append(receive(st, settings, inc, run_batch))
+            try:
+                mailbox.mark(mid, DONE_LABEL)
+            except Exception:  # labelling is a courtesy; the inbound row already stops a re-read
+                pass
+    finally:
+        mailbox.close()
     st.touch_mail_check("")
     return {"looked_at": seen, "new": len(new), "placed": sum(1 for r in new if r["status"] != "unplaced"),
             "unplaced": sum(1 for r in new if r["status"] == "unplaced")}

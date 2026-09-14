@@ -81,3 +81,15 @@ def test_contractor_upload_is_filed_as_a_drop_from_them(client, tmp_path, monkey
     assert client.get(f"/api/c/{tok}").json()["active"] is False
     assert client.post(f"/api/c/{tok}/batches", files=[("files", ("IMG_0010.jpg", _jpeg_bytes(), "image/jpeg"))]).status_code == 410
     assert client.get(f"/api/projects/{slug}").json()["card"]["links"] == 0
+
+
+def test_contractor_sees_the_offices_call_but_not_its_note(client, tmp_path):
+    slug, rev, msg = _finished_review(client, tmp_path)
+    tok = client.post(f"/api/projects/{slug}/reviews/{rev['id']}/share").json()["share"]["id"]
+    item = lambda: client.get(f"/api/c/{tok}").json()["items"][0]
+    assert item()["call"] is None and not item()["closed"]
+    for decision, call, closed in (("reject", "reject", False), ("hold", "hold", False), ("accept", None, True)):
+        r = client.post(f"/api/projects/{slug}/items/EL-01/decision", json={"decision": decision, "note": "office only: photo too dark"})
+        assert r.status_code == 200, r.text
+        assert item()["call"] == call and item()["closed"] is closed
+    assert "office only" not in client.get(f"/api/c/{tok}").text
