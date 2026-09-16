@@ -300,7 +300,7 @@ def test_a_site_photo_is_kept_for_the_office_and_never_sent(client, tmp_path):
     assert len(p["notes"]) == 2 and p["register"] == []              # listed for the office, never a numbered deficiency
     rep = client.get(f"/api/projects/{slug}/reviews/{rv['id']}/report.json").json()
     assert rep["count"] == 0 and len(rep["site_notes"]) == 2
-    assert "Notes for the record" in client.get(f"/api/projects/{slug}/reviews/{rv['id']}/report").text
+    assert "Observations" in client.get(f"/api/projects/{slug}/reviews/{rv['id']}/report").text
     j = client.post(f"/api/projects/{slug}/reviews/{rv['id']}/finish").json()
     assert j["package"]["items"] == [] and j["message"] is None and "nothing to send" in j["error"]
     assert client.delete(f"/api/projects/{slug}/notes/{n['id']}").status_code == 200

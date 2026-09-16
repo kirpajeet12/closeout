@@ -20,8 +20,59 @@ OPEN = "Open"
 TZ = ZoneInfo(os.environ.get("CLOSEOUT_TZ", "America/Vancouver"))
 
 
-def review_report(store: Store, project_id: str, review_id: str, office: str = "the engineer's office") -> dict:
-    """Everything the printed report shows, as plain data."""
+def item_building(item: dict, project: dict) -> dict | None:
+    """The building a deficiency or observation belongs to, from its unit or location line."""
+    blds = coverage.buildings(project)
+    unit = (item.get("unit") or "").strip()
+    if unit:
+        su = coverage.short_unit(unit).lower()
+        for b in blds:
+            if any(coverage.short_unit(u).lower() == su or u == unit for u in b["units"]):
+                return b
+    loc = coverage.building_of(item.get("location") or "")
+    if loc:
+        return next((b for b in blds if b["key"] == loc["key"]), loc)
+    return None
+
+
+def _matches_filter(row: dict, project: dict, building: str, level: str) -> bool:
+    if level and (row.get("level") or "").strip().lower() != level.strip().lower():
+        return False
+    if not building:
+        return True
+    b = item_building(row, project)
+    return bool(b) and (b.get("key") == building or b.get("name") == building)
+
+
+def suggest_comments(data: dict, prior: dict | None = None) -> str:
+    """A short report comment drafted from what this filter already holds. The engineer edits it."""
+    bits = []
+    n, obs = data.get("count") or 0, len(data.get("site_notes") or [])
+    where = " · ".join(x for x in ((data.get("filter") or {}).get("building_name"), (data.get("filter") or {}).get("level")) if x)
+    if n or obs:
+        parts = []
+        if n:
+            parts.append(f"{n} deficienc{'y' if n == 1 else 'ies'}")
+        if obs:
+            parts.append(f"{obs} observation{'s' if obs != 1 else ''}")
+        bits.append((", ".join(parts) + (f" on {where}" if where else "") + ".").capitalize())
+    open_n = (data.get("status_counts") or {}).get(OPEN, 0)
+    if open_n:
+        bits.append(f"{open_n} still open.")
+    for i in (data.get("items") or [])[:5]:
+        bits.append(f"{i['item_id']}: {i['description'].split('.')[0].strip()}.")
+    for n in (data.get("site_notes") or [])[:3]:
+        if n.get("note"):
+            bits.append("Observation: " + n["note"].split(".")[0].strip() + ".")
+    if prior and (prior.get("comments") or "").strip():
+        bits.append("Previous report on this building/floor noted: " + prior["comments"].strip())
+    return " ".join(bits)
+
+
+def review_report(store: Store, project_id: str, review_id: str, office: str = "the engineer's office",
+                  building: str = "", level: str = "", logo_url: str = "", project_url: str = "",
+                  comments: str = "") -> dict:
+    """Everything the printed report shows, as plain data. building/level filter the walk to one place."""
     rv = store.review(review_id)
     if not rv or rv["project_id"] != project_id:
         raise ValueError("no such review")
@@ -33,6 +84,8 @@ def review_report(store: Store, project_id: str, review_id: str, office: str = "
         latest[d["item_id"]] = d
     items = []
     for d in store.review_items(project_id, review_id):
+        if not _matches_filter(d, prj, building, level):
+            continue
         sh = sheets.get(d.get("sheet_id") or "") or {}
         call = latest.get(d["item_id"])
         meta = d.get("ref_meta") or {}
@@ -53,8 +106,10 @@ def review_report(store: Store, project_id: str, review_id: str, office: str = "
     site_notes = [{"id": n["id"], "note": n.get("note", ""), "unit": n.get("unit", ""), "level": n.get("level", ""), "space": n.get("space", ""),
                    "photo_url": f"/api/projects/{slug}/notes/{n['id']}/photo" if n.get("photo") else "",
                    "sheet": (sheets.get(n.get("sheet_id") or "") or {}).get("sheet_number", ""),
-                   "taken_at": (n.get("meta") or {}).get("taken_at", ""), "created_at": n["created_at"]}
-                  for n in store.site_notes(project_id) if n.get("review_id") == review_id]
+                   "taken_at": (n.get("meta") or {}).get("taken_at", ""), "created_at": n["created_at"],
+                   "pin": [n["pin_x"], n["pin_y"]] if n.get("pin_x") is not None else None}
+                  for n in store.site_notes(project_id)
+                  if n.get("review_id") == review_id and _matches_filter(n, prj, building, level)]
     all_docs = store.documents(project_id)
     members = revisions.set_members(all_docs, rv["discipline"])
     docs = [x for x in all_docs if x.get("kind") == "drawing" and x.get("discipline") == rv["discipline"]]
@@ -79,10 +134,19 @@ def review_report(store: Store, project_id: str, review_id: str, office: str = "
     for i in items:
         key = coverage.short_unit(i["unit"]) if i["unit"] else ""
         per_unit[key] = per_unit.get(key, 0) + 1
+    blds = coverage.buildings(prj)
+    if building:
+        blds = [b for b in blds if b["key"] == building or b["name"] == building]
     units_walked = [{"key": b["key"], "name": b["name"],
                      "units": [{"label": u, "short": coverage.short_unit(u), "walked": u in rv["units"], "items": per_unit.get(coverage.short_unit(u), 0)} for u in b["units"]]}
-                    for b in coverage.buildings(prj)]
-    return {
+                    for b in blds]
+    bld_name = (blds[0]["name"] if len(blds) == 1 and building else (next((b["name"] for b in coverage.buildings(prj) if b["key"] == building), building) if building else ""))
+    filt_bits = [_safe(x) for x in (bld_name, level) if x]
+    name = f"FieldReview_{_safe(prj.get('name') or slug)}_{stamp}_{rv['discipline']}{rv['sequence']}"
+    if filt_bits:
+        name += "_" + "_".join(filt_bits)
+    prior = store.prior_report_save(project_id, review_id, building, level)
+    data = {
         "project": {"name": prj.get("name", ""), "slug": slug, "type": (prj.get("model") or {}).get("building_type", "")},
         "review": {"id": review_id, "title": rv["title"], "discipline": rv["discipline"], "sequence": rv["sequence"],
                    "discipline_name": DISCIPLINES.get(rv["discipline"], rv["discipline"]), "status": rv["status"],
@@ -91,23 +155,37 @@ def review_report(store: Store, project_id: str, review_id: str, office: str = "
         "walked": [coverage.short_unit(u) for u in rv["units"]],
         "not_walked": [coverage.short_unit(u) for b in units_walked for u in [x["label"] for x in b["units"] if not x["walked"]]],
         "office": office, "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "name": f"FieldReview_{_safe(prj.get('name') or slug)}_{stamp}_{rv['discipline']}{rv['sequence']}",
+        "name": name,
         "drawings": drawings, "current_set": current,
         "items": items, "count": len(items), "photos": sum(1 for i in items if i["photo_url"]),
-        "site_notes": site_notes,
+        "site_notes": site_notes, "observations": site_notes,
         "units": sorted({i["unit"] for i in items if i["unit"]}), "sheets_used": sorted({i["sheet"] for i in items if i["sheet"]}),
         "status_counts": counts,
+        "filter": {"building": building, "building_name": bld_name, "level": level, "discipline": rv["discipline"]},
+        "logo_url": logo_url, "project_url": project_url, "comments": comments,
+        "prior": ({"id": prior["id"], "created_at": prior["created_at"], "comments": prior.get("comments") or "",
+                   "name": prior["name"], "email": prior.get("email") or ""} if prior else None),
+        "history": [{"id": s["id"], "created_at": s["created_at"], "building": s.get("building") or "", "level": s.get("level") or "",
+                     "comments": s.get("comments") or "", "name": s["name"], "email": s.get("email") or ""}
+                    for s in store.report_saves(project_id, review_id)],
     }
+    data["suggested_comments"] = suggest_comments(data, prior)
+    return data
 
 
 def report_html(data: dict) -> str:
     e = html.escape
     rv, pr = data["review"], data["project"]
     live = rv["status"] != "finished"
+    filt = data.get("filter") or {}
     meta = [("Discipline", rv["discipline_name"]), ("Review", rv["title"] + (" · " + rv["stage"] if rv.get("stage") else "")), ("Walked", _day(rv["started_at"])),
             ("Finished", _day(rv["finished_at"]) if rv["finished_at"] else "In progress"),
             ("Drawings reviewed", f"{data['current_set']['file']} · issued {data['current_set']['dated'] or 'undated'}" if data["current_set"] else "No current set on file"),
             ("Report date", _day(data["generated_at"]))]
+    if filt.get("building_name"):
+        meta.append(("Building", filt["building_name"]))
+    if filt.get("level"):
+        meta.append(("Floor", filt["level"]))
     cards = []
     groups: list[tuple[str, list[str]]] = []
     for i in data["items"]:
@@ -154,31 +232,49 @@ def report_html(data: dict) -> str:
         pic = f'<img src="{e(n["photo_url"])}" alt="">' if n["photo_url"] else ""
         cap = " · ".join(x for x in (where, _when(n["taken_at"]) if n["taken_at"] else _day(n["created_at"])) if x)
         notes += f'<figure class="snote">{pic}<figcaption>{("<b>" + e(n["note"]) + "</b>") if n["note"] else ""}{("<span>" + e(cap) + "</span>") if cap else ""}</figcaption></figure>'
-    notes_section = (f'<section class="snotes"><h2>Notes for the record</h2><p class="lead">What was seen and logged on the walk, as written. Not deficiencies; not sent to the contractor.</p>'
+    notes_section = (f'<section class="snotes"><h2>Observations</h2><p class="lead">What was seen and logged on the walk, as written. Not deficiencies; not sent to the contractor.</p>'
                      f'<div class="grid">{notes}</div></section>') if notes else ""
+    comments = (data.get("comments") or "").strip()
+    comments_section = f'<section class="comments"><h2>Report comments</h2><p>{e(comments)}</p></section>' if comments else ""
+    prior = data.get("prior")
+    prior_banner = ""
+    if prior:
+        prior_banner = (f'<p class="prior">A report for this building and floor was already saved on {_day(prior["created_at"])}'
+                        f'{(" · “" + e(prior["comments"][:180]) + "”") if prior.get("comments") else ""}. This copy updates that history.</p>')
+    logo = data.get("logo_url") or ""
+    draft_tag = ' <span class="tag">draft</span>' if live else ""
+    logo_img = f'<img class="logo" src="{e(logo)}" alt="">' if logo else ""
+    brand = (f'<div class="brandrow">'
+             f'<div class="co"><p class="office">{e(data["office"])}</p><h1>Field review report{draft_tag}</h1>'
+             f'<p class="project">{e(pr["name"])}</p></div>'
+             f'{logo_img}'
+             f'</div>')
+    sign = '''<section class="sign">
+    <div><span>Reviewed by</span><i></i><small>Name, P.Eng.</small></div>
+    <div><span>Signature</span><i></i><small></small></div>
+    <div><span>Date</span><i></i><small></small></div>
+    <div class="seal"><span>Seal</span></div>
+  </section>'''
+    link = data.get("project_url") or ""
+    link_line = f'<p class="plink">Project in Closeout: <a href="{e(link)}">{e(link)}</a></p>' if link else ""
     return f'''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{e(data["name"])}</title>
 <style>{CSS}</style></head><body class="{"draft" if live else ""}">
 <div class="bar"><a href="/#/p/{e(pr["slug"])}/field">← Back to the field review</a><span>{"In progress · this is the report so far" if live else "Check every item, then print or save as PDF"}</span><button onclick="window.print()">Print / Save as PDF</button></div>
 <main>
   <header class="title">
-    <p class="office">{e(data["office"])}</p>
-    <h1>Field review report{(' <span class="tag">draft</span>' if live else "")}</h1>
-    <p class="project">{e(pr["name"])}</p>
+    {brand}
     <dl class="meta">{"".join(f"<div><dt>{e(k)}</dt><dd>{e(v)}</dd></div>" for k, v in meta)}</dl>
     <p class="sum">{" · ".join(e(s) for s in summary)}</p>
+    {prior_banner}{link_line}
   </header>
+  {sign}
+  {comments_section}
   {_units_section(data)}
-  <section class="items">{grouped if cards else '<p class="none">Nothing was recorded during this walk.</p>'}</section>
+  <section class="items">{grouped if cards else '<p class="none">Nothing was recorded during this walk for this filter.</p>'}</section>
   {notes_section}
   <section class="docs"><h2>Drawings on file for {e(rv["discipline_name"].lower())}</h2>
     {("<table><thead><tr><th>File</th><th>Issued</th><th>Pages</th><th></th></tr></thead><tbody>" + drawings + "</tbody></table>") if drawings else "<p class='none'>No drawings on file for this discipline.</p>"}
-  </section>
-  <section class="sign">
-    <div><span>Reviewed by</span><i></i><small>Name, P.Eng.</small></div>
-    <div><span>Signature</span><i></i><small></small></div>
-    <div><span>Date</span><i></i><small></small></div>
-    <div class="seal"><span>Seal</span></div>
   </section>
   <p class="disclaimer">Prepared by {e(data["office"])} in Closeout from the notes and photos recorded during the walk. Nothing in this report is issued until the reviewing engineer has checked every item and signed above.</p>
   <footer><span>{e(data["office"])}</span><span>{e(pr["name"])} · {e(rv["title"])} · {e(rv["discipline_name"])}</span><span>{e(data["name"])}</span></footer>
@@ -195,7 +291,14 @@ CSS = """
 .bar a{color:#fff;text-decoration:none;opacity:.85}.bar span{flex:1;opacity:.7}.bar button{background:#fff;color:var(--ink);border:0;border-radius:999px;padding:8px 16px;font:inherit;font-weight:600;cursor:pointer}
 main{max-width:860px;margin:28px auto 60px;background:var(--paper);padding:56px 64px;box-shadow:0 20px 60px rgba(0,0,0,.08)}
 .title{border-bottom:2px solid var(--ink);padding-bottom:24px;margin-bottom:28px}
+.brandrow{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;margin-bottom:18px}
+.brandrow .co{min-width:0;flex:1}.logo{max-height:88px;max-width:200px;object-fit:contain}
 .office{margin:0 0 18px;letter-spacing:.14em;text-transform:uppercase;font-size:12px;color:var(--ink2)}
+.brandrow .office{margin-bottom:10px}
+.comments{margin:0 0 26px;padding:18px 20px;border:1px solid var(--line);border-radius:14px;background:var(--wash);break-inside:avoid}
+.comments h2{font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute);margin:0 0 8px}
+.comments p{margin:0;white-space:pre-wrap}
+.prior,.plink{margin:14px 0 0;font-size:13px;color:var(--ink2)}.plink a{color:var(--ink)}
 h1{margin:0;font-size:34px;letter-spacing:-.02em;line-height:1.05}h1 .tag{display:inline-block;vertical-align:middle;margin-left:12px;padding:3px 10px;border:1.5px solid var(--hold);color:var(--hold);border-radius:999px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;font-weight:600}
 .project{margin:8px 0 22px;font-size:20px;color:var(--ink2)}
 .meta{display:grid;grid-template-columns:repeat(3,1fr);gap:14px 24px;margin:0}.meta div{min-width:0}.meta dt{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}.meta dd{margin:2px 0 0;font-weight:500;overflow-wrap:anywhere}
@@ -219,7 +322,7 @@ h2.unit{font-size:15px;margin:10px 0 -6px;padding:0 2px;color:var(--ink2);letter
 .docs{margin-top:36px}.docs h2,.sign h2{font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute);margin:0 0 10px}
 table{width:100%;border-collapse:collapse;font-size:14px}td:nth-child(2),td:nth-child(3),td:nth-child(4){white-space:nowrap}th{text-align:left;font-weight:600;color:var(--ink2);border-bottom:1px solid var(--line);padding:6px 8px 6px 0}td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line);overflow-wrap:anywhere}
 .none{color:var(--mute)}
-.sign{display:grid;grid-template-columns:1.4fr 1fr .8fr auto;gap:22px;margin-top:44px;padding-top:20px;border-top:1px solid var(--line);break-inside:avoid;page-break-inside:avoid}
+.sign{display:grid;grid-template-columns:1.4fr 1fr .8fr auto;gap:22px;margin:8px 0 28px;padding-top:8px;border-top:0;break-inside:avoid;page-break-inside:avoid}
 .sign span{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}.sign i{display:block;height:38px;border-bottom:1px solid var(--ink);margin-top:10px}.sign small{display:block;color:var(--mute);font-size:12px;margin-top:4px}
 .seal{width:120px;height:120px;border:1px dashed var(--mute);border-radius:50%;display:flex;align-items:center;justify-content:center}
 .disclaimer{margin:36px 0 0;font-size:12px;color:var(--mute);line-height:1.5}
@@ -269,3 +372,68 @@ def _day(iso: str | None) -> str:
 def _when(iso: str | None) -> str:
     d = _dt(iso or "")
     return d.strftime("%-d %b %Y, %-I:%M %p").replace("AM", "am").replace("PM", "pm") if d else ""
+
+
+def report_pdf(data: dict) -> bytes:
+    """A filed copy of the filtered report. Deterministic; the engineer still signs on paper or in the HTML view."""
+    import io
+    from xml.sax.saxutils import escape
+
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.units import inch
+    from reportlab.platypus import Image, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+
+    from pathlib import Path
+
+    buf = io.BytesIO()
+    styles = {
+        "h": ParagraphStyle("h", fontName="Helvetica-Bold", fontSize=16, leading=20, textColor=colors.HexColor("#111")),
+        "sub": ParagraphStyle("sub", fontName="Helvetica", fontSize=10, leading=13, textColor=colors.HexColor("#555")),
+        "body": ParagraphStyle("body", fontName="Helvetica", fontSize=10, leading=13, textColor=colors.HexColor("#111")),
+        "small": ParagraphStyle("small", fontName="Helvetica", fontSize=8, leading=11, textColor=colors.HexColor("#666")),
+        "item": ParagraphStyle("item", fontName="Helvetica-Bold", fontSize=11, leading=14, textColor=colors.HexColor("#111")),
+    }
+    doc = SimpleDocTemplate(buf, pagesize=letter, leftMargin=0.75 * inch, rightMargin=0.75 * inch,
+                            topMargin=0.7 * inch, bottomMargin=0.7 * inch, title=data["name"], author=data["office"])
+    rv, pr = data["review"], data["project"]
+    filt = data.get("filter") or {}
+    flow = []
+    head = [Paragraph(escape(data["office"]), styles["small"]),
+            Paragraph("Field review report", styles["h"]),
+            Paragraph(escape(pr["name"]), styles["sub"])]
+    logo_path = data.get("logo_path") or ""
+    if logo_path and Path(logo_path).is_file():
+        try:
+            img = Image(logo_path, width=1.4 * inch, height=0.7 * inch, kind="proportional")
+            flow.append(Table([[head, img]], colWidths=[5.2 * inch, 1.6 * inch],
+                              style=TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP"), ("ALIGN", (1, 0), (1, 0), "RIGHT")])))
+        except Exception:
+            flow.extend(head)
+    else:
+        flow.extend(head)
+    where = " · ".join(x for x in (filt.get("building_name"), filt.get("level"), rv["discipline_name"], rv["title"]) if x)
+    flow += [Spacer(1, 8), Paragraph(escape(where), styles["sub"]), Spacer(1, 10)]
+    flow.append(Paragraph("Inspector signature &nbsp;&nbsp;&nbsp; ______________________ &nbsp;&nbsp; Date ______________", styles["small"]))
+    flow.append(Spacer(1, 12))
+    if (data.get("comments") or "").strip():
+        flow.append(Paragraph("<b>Report comments</b>", styles["item"]))
+        flow.append(Paragraph(escape(data["comments"]).replace("\n", "<br/>"), styles["body"]))
+        flow.append(Spacer(1, 10))
+    if data.get("project_url"):
+        flow.append(Paragraph("Project: " + escape(data["project_url"]), styles["small"]))
+        flow.append(Spacer(1, 8))
+    for i in data.get("items") or []:
+        where_i = " · ".join(x for x in (i.get("unit"), i.get("level"), i.get("space")) if x) or i.get("location") or ""
+        flow.append(Paragraph(escape(f"{i['item_id']}  {i['description']}"), styles["item"]))
+        flow.append(Paragraph(escape(where_i), styles["small"]))
+        flow.append(Spacer(1, 8))
+    if data.get("site_notes"):
+        flow.append(Paragraph("Observations", styles["item"]))
+        for n in data["site_notes"]:
+            flow.append(Paragraph(escape(n.get("note") or "Photo only"), styles["body"]))
+        flow.append(Spacer(1, 8))
+    flow.append(Paragraph(escape(f"Prepared by {data['office']} in Closeout. Nothing is issued until the reviewing engineer has signed."), styles["small"]))
+    doc.build(flow)
+    return buf.getvalue()

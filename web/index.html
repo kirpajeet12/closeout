@@ -129,6 +129,12 @@
   body.contractor .rpt { display: none; } @media (max-width: 760px) { .rpt { display: none; } }
   .office { max-width: 720px; }
   .office .ohead { display: flex; align-items: center; gap: 18px; padding: 26px 0 8px; }
+  .obrand { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; margin: 10px 0 14px; }
+  .obrand label { flex: 1; min-width: 200px; display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 600; color: var(--mute); }
+  .obrand input { font: inherit; font-size: 15px; font-weight: 500; color: var(--ink); border: 1px solid var(--line-2); border-radius: 10px; padding: 8px 12px; }
+  .ologo { display: flex; align-items: center; gap: 14px; }
+  .ologo img { max-height: 56px; max-width: 160px; object-fit: contain; background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 6px; }
+  .ologo span { font-size: 13px; color: var(--mute); }
   .office .ohead .orb { width: 56px; height: 56px; border-radius: 50%; flex: 0 0 56px; background: radial-gradient(circle at 30% 30%, #ff9a5c, var(--hot) 60%, #b4400a); box-shadow: 0 14px 30px -14px rgba(232,89,12,.7); }
   .office h1 { margin: 0; font-size: 30px; letter-spacing: -.02em; } .office .ohead p { margin: 4px 0 0; color: var(--mute); font-size: 14px; }
   .oblock { margin-top: 22px; background: var(--card); border: 1px solid var(--line-2); border-radius: 18px; padding: 20px 22px 22px; }
@@ -561,6 +567,20 @@
   .cov td.no { color: var(--line-2); text-align: center; } .cov td.yes b { color: var(--ready); } .cov td.now b { color: var(--hot); }
   .cov td small { display: block; color: var(--mute); font-size: 11.5px; } .cov .note { margin: 10px 0 0; font-size: 13px; color: var(--mute); }
   .ulog .bh .x { margin-left: auto; border: 0; background: none; color: var(--mute); font-size: 13px; padding: 0; cursor: pointer; }
+  .fr-report { margin-top: 18px; border-radius: 18px; background: var(--card); border: 1px solid var(--line); padding: 16px 18px 18px; }
+  .fr-report .bh { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+  .fr-report .bh h3 { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: .14em; color: var(--mute); font-weight: 600; }
+  .fr-report .bh > span { font-size: 13px; color: var(--mute); }
+  .fr-report .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .fr-report label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 600; color: var(--mute); }
+  .fr-report select, .fr-report input[type=email], .fr-report textarea { font: inherit; font-size: 14px; font-weight: 500; color: var(--ink); border: 1px solid var(--line-2); border-radius: 10px; padding: 8px 10px; background: #fff; }
+  .fr-report textarea { min-height: 72px; resize: vertical; }
+  .fr-report .prior { margin: 10px 0 0; padding: 10px 12px; border-radius: 10px; background: var(--wash); font-size: 13px; color: var(--ink-2); }
+  .fr-report .hist { margin: 10px 0 0; font-size: 12.5px; color: var(--mute); }
+  .fr-report .hist li { margin: 4px 0; }
+  .fr-report .acts { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; align-items: center; }
+  .fr-report .chk { display: flex; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 500; color: var(--ink); margin-top: 10px; }
+  @media (max-width: 640px) { .fr-report .row { grid-template-columns: 1fr; } }
   @media (max-width: 600px) { .ubld { grid-template-columns: 1fr; gap: 4px; } }
   .brief .chg { display: grid; grid-template-columns: 64px 1fr; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line); }
   .brief .chg:first-of-type { border-top: 0; } .brief .chg > b { font-size: 14px; } .brief .chg .t { font-size: 14px; font-weight: 600; } .brief .chg em { color: var(--mute); font-style: normal; font-weight: 400; font-size: 13px; }
@@ -906,6 +926,13 @@
   @media (max-width: 600px) { .flog li { grid-template-columns: 1fr; gap: 2px; } }
   @media (min-width: 900px) { .explorer { grid-template-columns: 280px 1fr; } .treepane { display: block; padding: 10px 8px; border-right: 1px solid var(--line-2); background: var(--paper); } .folderpane { padding: 8px 14px 14px; } }
   .viewer .floors .pinf { display: flex; gap: 6px; margin-left: auto; padding-left: 10px; border-left: 1px solid #2b2d31; }
+  .viewer .floors .lyr { display: flex; gap: 6px; margin-left: auto; padding-left: 10px; border-left: 1px solid #2b2d31; }
+  .viewer .floors .lyr button { background: transparent; border: 1px solid #3a3d42; color: #b9bcc2; }
+  .viewer .floors .lyr button.on { background: #fff; color: var(--ink); border-color: #fff; }
+  .stage { position: relative; }
+  .stage img.olay, .stage img.elay { position: absolute; left: 0; top: 0; width: 100%; height: auto; pointer-events: none; }
+  .stage img.olay { mix-blend-mode: multiply; opacity: .9; }
+  .stage img.elay { mix-blend-mode: multiply; opacity: .4; }
   .viewer .floors .pinf button { background: transparent; border: 1px solid #3a3d42; color: #b9bcc2; } .viewer .floors .pinf button.on { background: #fff; color: var(--ink); border-color: #fff; }
   .pin.other { opacity: .38; width: 22px; height: 22px; font-size: 8px; } .pin.other small { display: none; } .pin.closed { background: var(--ready); }
   @media (max-width: 760px) { .tier { padding: 16px 14px 18px; border-radius: 14px; } .tier .th { gap: 12px; } .tier .th .k { min-width: 42px; height: 42px; font-size: 13px; } .tier .th h2 { font-size: 19px; } }
@@ -963,7 +990,7 @@
     table.deflist td.call:empty { display: none; }
     table.deflist td.call:empty::before { content: none; }
     .viewer .floors { flex-wrap: wrap; }
-    .viewer .floors .pinf { flex-basis: 100%; margin-left: 0; padding-left: 0; border-left: 0; padding-top: 6px; border-top: 1px solid #2b2d31; }
+    .viewer .floors .pinf, .viewer .floors .lyr { flex-basis: 100%; margin-left: 0; padding-left: 0; border-left: 0; padding-top: 6px; border-top: 1px solid #2b2d31; }
   }
   /* Ask Closeout: a round button on every project screen opens a side panel. The conversation reads like
      messages; answers come from the records; when the answer is "look here", the screen moves. Every
@@ -1093,7 +1120,7 @@ const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt
 const when = s => { const d = new Date(s); return isNaN(d) ? String(s ?? "") : d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }); };
 const fileUrl = (id, page) => `/api/evidence/${id}/file` + (page ? `#page=${page}` : "");
 const isImg = name => /\.(jpe?g|png|heic|heif|webp)$/i.test(name || "");
-const state = { home: null, p: null, slug: null, es: null, run: { kind: "idle", text: "", done: 0, total: 0 }, fieldDisc: null, walk: null, rmNote: null, filing: null, viewer: null, shot: null, openReview: null, mailOpen: null, finishing: null, confirmFinish: null, finishTo: null, hoEdit: null, resend: null, sending: null, drafting: null, mapping: null, docsAsking: false, filters: { bld: "", disc: "", rv: "" }, folder: [], pinMode: "", brief: {}, briefOpen: {}, starting: null, cov: {}, unitLog: null, stagesEdit: null };
+const state = { home: null, p: null, slug: null, es: null, run: { kind: "idle", text: "", done: 0, total: 0 }, fieldDisc: null, walk: null, rmNote: null, filing: null, viewer: null, shot: null, openReview: null, mailOpen: null, finishing: null, confirmFinish: null, finishTo: null, hoEdit: null, resend: null, sending: null, drafting: null, mapping: null, docsAsking: false, filters: { bld: "", disc: "", rv: "" }, folder: [], pinMode: "", brief: {}, briefOpen: {}, starting: null, cov: {}, unitLog: null, stagesEdit: null, layers: { outline: true, drawing: false, electrical: false }, rpt: null };
 
 function toast(msg, err) { if (typeof msg !== "string") msg = Array.isArray(msg) ? "Fill in " + msg.map(e => String((e.loc || []).slice(-1)[0] || "").replace(/_/g, " ")).filter(Boolean).join(", ") : "Something went wrong"; const t = $("#toast"); t.textContent = msg; t.className = "toast show" + (err ? " err" : ""); setTimeout(() => t.className = "toast", 3200); }
 function route() {
@@ -1189,7 +1216,7 @@ function renderHome() {
   const h = state.home, list = h.projects;
   $("#main").innerHTML = `
     ${dashHead("home")}
-    <p class="dlead">${list.length ? "Open a project to review its deficiencies, drawings and the evidence contractors sent." : "Start with a project: upload one zip of its folder. Closeout files it, reads the current sheets and lists what is missing."}</p>
+    <p class="dlead">${list.length ? "Open a project to review its deficiencies, drawings and the evidence contractors sent." : "Start with a project: upload one zip. Closeout files the drawings. Then you walk, pin, and report — no more files for that core flow."}</p>
     <div class="status ${esc(state.run.kind)}" id="status" ${state.run.kind === "idle" ? "hidden" : ""}></div>
     <div class="cards" style="margin-top:14px">
       ${list.map(c => { const open = c.open ?? c.items, pct = k => open ? (c[k] / open * 100) + "%" : "0%"; return `
@@ -1203,9 +1230,9 @@ function renderHome() {
         <div class="meta">${cardLast(c)}</div>
       </div>`; }).join("")}
       <div class="newp" id="newp">
-        <div><span class="np-k">New project</span><h2 class="np-t">Send the whole folder once.</h2></div>
-        <div class="np-steps"><div><i>1</i>Zip the project folder as it is: every discipline, every issue, the letters too.</div><div><i>2</i>Closeout files it by discipline and date, and reads every current sheet.</div><div><i>3</i>You see what is missing: drawings before the review, documents before occupancy.</div></div>
-        <label class="np-zip"><b>Upload the project zip</b><span>From the phone or the computer · one .zip</span><input type="file" accept=".zip,application/zip,application/x-zip-compressed"></label>
+        <div><span class="np-k">New project</span><h2 class="np-t">One zip. Then walk the site.</h2></div>
+        <div class="np-steps"><div><i>1</i>Upload one zip of the project folder. Closeout files every drawing and the related documents.</div><div><i>2</i>After that you do not need to add more files for the walk or the report.</div><div><i>3</i>Field review: pin deficiencies and observations on a clean outline, then save a filtered report.</div></div>
+        <label class="np-zip"><b>Upload the project zip</b><span>The only file the core flow needs · one .zip</span><input type="file" accept=".zip,application/zip,application/x-zip-compressed"></label>
         <div class="folder">or drop the folder here from a computer<input type="file" webkitdirectory multiple></div>
         <div class="or"><span>or start by name</span></div>
         <form id="newForm"><input type="text" id="newName" placeholder="Project name, e.g. Maple Court" autocomplete="off"><button type="submit">Create</button></form>
@@ -1467,6 +1494,18 @@ function renderOffice() {
         ${kinds.length ? `<ul class="ukinds">${kinds.map(k => `<li><span>${esc(k.name)}</span><small>${times(k.runs)}</small><b>${usd(k.usd) || "$0.00"}</b></li>`).join("")}</ul>` : `<p class="empty">Nothing read or answered yet.</p>`}
       </section>
       <section class="oblock">
+        <h2>Company on reports</h2>
+        <p class="fine">Printed at the top of every field review report, logo on the right, inspector signature underneath. The engineer still signs; nothing is issued until then.</p>
+        <form id="officeBrand" class="obrand">
+          <label>Company name<input name="office_name" value="${esc(h.office || "")}" maxlength="80" autocomplete="organization"></label>
+          <button class="btn" type="submit">Save the name</button>
+        </form>
+        <div class="ologo">
+          ${h.office_logo ? `<img src="/api/office/logo?t=${Date.now()}" alt="Office logo">` : `<span>No logo yet</span>`}
+          <label class="btn">Upload a logo<input type="file" id="logoIn" accept="image/png,image/jpeg,image/webp" hidden></label>
+        </div>
+      </section>
+      <section class="oblock">
         <h2>Email</h2>
         ${mailBlock()}
       </section>
@@ -1505,6 +1544,26 @@ function renderOffice() {
     btn.disabled = false; btn.textContent = "Connect";
     if (!r.ok) return toast(j.detail || "The mailbox could not be connected", true);
     wf.reset(); state.mail = j; toast("Mailbox connected"); renderOffice();
+  };
+  const bf = $("#officeBrand");
+  if (bf) bf.onsubmit = async e => {
+    e.preventDefault();
+    const name = (bf.office_name.value || "").trim();
+    const r = await fetch("/api/office/brand", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ office_name: name }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) return toast(j.detail || "Could not save the name", true);
+    if (state.home) { state.home.office = j.office; state.home.office_logo = j.office_logo; }
+    toast("Company name saved"); renderOffice();
+  };
+  const li = $("#logoIn");
+  if (li) li.onchange = async () => {
+    const file = li.files[0]; if (!file) return;
+    const fd = new FormData(); fd.append("file", file, file.name);
+    const r = await fetch("/api/office/logo", { method: "POST", body: fd });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) return toast(j.detail || "Could not save the logo", true);
+    if (state.home) state.home.office_logo = true;
+    toast("Logo saved · it will print on reports"); renderOffice();
   };
 }
 function signedInLine() {
@@ -2808,7 +2867,7 @@ function renderField() {
   const hasPlans = plans.includes(`class="sheet"`);
   const otherWays = `<div class="ways"><label class="way"><input type="file" accept="image/*" capture="environment" id="shotIn"><span class="ico">📷</span><span><b>Photo first</b><small>Then say the unit and floor; Closeout can find the sheet</small></span></label><button class="way" id="noShot"><span class="ico">✎</span><span><b>Write it down${hasPlans ? " without a plan" : ""}</b><small>Saved with the unit and floor</small></span></button></div>`;
   const capture = shot && shot.disc === cur.code ? renderWhere(cur, rv)
-    : hasPlans ? `<section class="planfirst"><div class="pfh"><h3>Open a plan and tap the spot</h3><span>Then write or dictate what you saw: a deficiency for the contractor, or a note for the record.</span></div>${plans}${otherWays}</section>`
+    : hasPlans ? `<section class="planfirst"><div class="pfh"><h3>Open a plan and tap the spot</h3><span>Then write or dictate what you saw: a deficiency for the contractor, or an observation for the record. The outline strips measurements and pipe clutter so you can see where you are.</span></div>${plans}${otherWays}</section>`
     : `${plans}${otherWays}`;
   $("#tab").innerHTML = `
     <div class="discs">${discs.map(d => { const a = activeReview(d.code), n = p.register.filter(x => x.discipline === d.code && x.source === "field").length; return `
@@ -2819,7 +2878,7 @@ function renderField() {
       ${capture}
       ${rv && state.confirmFinish !== rv.id ? renderUnitsStrip(rv, true) : ""}
       ${shot && shot.disc === cur.code && shot.pick ? `<p class="pickhint"><span>Which sheet does this belong on?</span> Tap it; the photo comes with you.</p>${renderGalleryGroups(cur)}` : ""}
-      ${rv ? `<h3 class="sec">Reported in ${esc(rv.title.toLowerCase())} · ${items.length}</h3>${items.length ? renderByUnit(items) : `<p class="empty">Nothing reported yet. Each deficiency you save lands here, and on the report.</p>`}${renderSiteNotes(rv, true)}` : ""}
+      ${rv ? `<h3 class="sec">Reported in ${esc(rv.title.toLowerCase())} · ${items.length}</h3>${items.length ? renderByUnit(items) : `<p class="empty">Nothing reported yet. Each deficiency you save lands here, and on the report.</p>`}${renderSiteNotes(rv, true)}${renderReportPanel(rv, cur)}` : ""}
     </section>` : head}
     ${!walking && !rv && state.starting && state.starting.code === cur.code ? renderStartPanel(cur, done) : ""}
     ${rv ? "" : renderBrief(cur)}
@@ -2827,6 +2886,7 @@ function renderField() {
     ${(() => { const show = state.finishing ? null : state.openReview ? done.find(x => x.id === state.openReview) : (!rv && done.length ? done[done.length - 1] : null); return show ? renderHandoff(show) : ""; })()}
     ${!walking && rv && items.length ? `<h3 class="sec">Reported so far in ${esc(rv.title.toLowerCase())}</h3>${renderByUnit(items)}` : ""}
     ${!walking && rv ? renderSiteNotes(rv, false) : ""}
+    ${!walking && (rv || done[done.length - 1]) ? renderReportPanel(rv || done[done.length - 1], cur) : ""}
     ${!walking ? (() => { const pins = cur.sheets.reduce((n, sh) => n + findingsOn(sh.id).length, 0); return `<h3 class="sec">Plans${pins ? ` · ${pins} spot${pins === 1 ? "" : "s"} marked across the field reviews` : ""}</h3>${renderGalleryGroups(cur)}`; })() : ""}
     ${done.length ? `<h3 class="sec">Earlier reviews</h3><table><tbody>${done.map(r => { const n = findingsIn(r.id).length, m = messageFor(r.id); return `<tr class="row" data-rv="${esc(r.id)}"><td class="id">${esc(r.title)}</td><td><div class="what">${esc(when(r.started_at))} → ${esc(when(r.finished_at))}</div><div class="where">${(() => { const sn = (p.sends || []).filter(x => x.review_id === r.id), got = (p.inbound || []).some(x => x.review_id === r.id && x.status !== "unplaced"); return sn.length ? `Sent to ${esc(sn[sn.length - 1].to_addr)} · ${got ? "reply received" : "waiting for the reply"}` : m ? "Email written, not sent yet" : n ? "No email yet" : "Nothing recorded"; })()}</div></td><td class="num">${n} item${n === 1 ? "" : "s"}</td><td class="go">›</td></tr>`; }).join("")}</tbody></table>` : ""}
     <footer><span>Numbers are ${esc(cur.code)}-01, ${esc(cur.code)}-02 … and never reused.</span><span>You write what you saw. Closeout tidies the wording only when you ask.</span></footer>`;
@@ -2848,6 +2908,7 @@ function renderField() {
   const ns = $("#noShot"); if (ns) ns.onclick = e => { e.preventDefault(); beginShot(cur.code, null); };
   wireDictate($("#tab"));
   if (shot && shot.disc === cur.code) wireWhere(cur, rv);
+  wireReportPanel(rv || done[done.length - 1]);
   $("#tab").querySelectorAll("[data-rmnote]").forEach(b => b.onclick = async () => {
     const id = b.dataset.rmnote;
     if (state.rmNote !== id) { state.rmNote = id; renderField(); return; }
@@ -3095,7 +3156,7 @@ function floorsFor(b, unitLabel) {
   const all = b ? [...new Set([...b.units.flatMap(x => x.levels), ...(b.levels || [])])] : [];
   return all.length ? all : unitLevelLists().levels;
 }
-function isPlanSheet(sh) { const k = (sh.read || {}).sheet_kind || "", t = (sh.title || "").toUpperCase(); return k === "floor_plan" || k === "plan" || /FLOOR PLAN/.test(t); }
+function isPlanSheet(sh) { const k = (sh.read || {}).sheet_kind || "", t = (sh.title || "").toUpperCase(); return k === "floor_plan" || k === "plan" || /FLOOR PLAN/.test(t) || /POWER PLAN/.test(t) || /LIGHTING PLAN/.test(t); }
 function isSiteSheet(sh) { return (sh.read || {}).sheet_kind === "site_plan" || /SITE PLAN/.test((sh.title || "").toUpperCase()); }
 function planFor(code, b, level) {
   const sheets = state.p.project.sheets, dn = groupName;
@@ -3122,6 +3183,13 @@ function planFor(code, b, level) {
   return { sheet: best.sh, view: best.view, note, warn, related, standIn: best.sh.discipline !== code };
 }
 function relatedSheets(sh) { const b = buildingOfSheet(sh); return { b, list: b ? state.p.project.sheets.filter(x => x.id !== sh.id && sheetMentions(x, b)) : [] }; }
+function electricalSheet(sh) {
+  if (!sh || sh.discipline === "EL") return null;
+  const rel = relatedSheets(sh).list || [];
+  const plans = rel.filter(x => x.discipline === "EL" && isPlanSheet(x));
+  const level = (state.viewer && state.viewer.focus && state.viewer.focus.level) || "";
+  return (level && plans.find(x => ((x.read || {}).levels || []).includes(level))) || plans[0] || null;
+}
 function cropStyle(sh, view) {
   const url = `url('${sh.thumb_url || sh.image_url}')`;
   if (!view) return `background-image:${url};background-size:contain`;
@@ -3161,7 +3229,7 @@ function renderWhere(cur, rv) {
   const b = blds.find(x => x.key === s.bld) || null, units = b ? b.units.map(u => u.label) : unitLevelLists().units, floors = floorsFor(b, s.unit);
   const pick = planFor(cur.code, b, s.level), sh = pick && pick.sheet;
   return `<div class="locate">
-    <div class="whead"><h3>Where are you?</h3>${kindToggle(s.kind, "wKind")}</div><div class="sub">${s.photo ? "Photo kept. " : ""}Building, unit, floor${sh ? ": the floor plan opens and you tap the spot" : ", and what you saw. It is saved with the unit and floor; a sheet and a pin can be added later"}. ${s.kind === "note" ? "A note for the record stays off the contractor's list and goes in the report." : "A deficiency goes on the contractor's list."}</div>
+    <div class="whead"><h3>Where are you?</h3>${kindToggle(s.kind, "wKind")}</div><div class="sub">${s.photo ? "Photo kept. " : ""}Building, unit, floor${sh ? ": the floor plan opens and you tap the spot" : ", and what you saw. It is saved with the unit and floor; a sheet and a pin can be added later"}. ${s.kind === "note" ? "An observation stays off the contractor's list and goes in the report." : "A deficiency goes on the contractor's list."}</div>
     <div class="shot"><div class="take ${s.photo ? "" : "none"}">${s.photo ? `<img src="${s.photoUrl}" alt="">` : `<span>＋<small>photo, optional</small></span>`}<input type="file" accept="image/*" capture="environment" id="shotAgain"></div>
       <div class="note"><label style="margin-top:0">What you saw${s.photo ? " (optional)" : ""}</label><div class="said"><textarea id="wNote" rows="2" placeholder="${s.kind === "note" ? "e.g. insulation in, vapour barrier not up yet" : "e.g. no GFCI beside the basin, cover plate missing"}">${esc(s.note)}</textarea>${micButton("wNote")}</div></div></div>
     <div class="row three">
@@ -3171,7 +3239,7 @@ function renderWhere(cur, rv) {
     </div>
     ${sh ? `<div class="plan-pick"><div class="crop" style="${cropStyle(sh, pick.view)}"></div><div><b>${esc(sh.sheet_number || "p." + sh.page)} · ${esc(DISC_NAMES[sh.discipline] || sh.discipline)}${pick.standIn ? " · stands in" : ""}</b><h4>${esc(sh.title || "Sheet")}</h4><p class="${pick.warn ? "warn" : ""}">${esc(pick.note || "This floor plan opens; tap where the problem is.")}</p></div></div>` : ""}
     <div class="agentnote" id="gps">${esc(s.gpsText)}</div>
-    <div class="acts">${sh ? `<button class="btn primary hot" id="wOpen">${b && s.level ? `Open the ${esc(s.level.toLowerCase())} plan` : b ? "Open the plan" : "Open this sheet"}</button>` : ""}${s.photo && state.p.project.sheets.length ? `<button class="btn" id="wFind">Pick the sheet for me</button>` : ""}<button class="btn ${sh ? "" : "primary hot"}" id="wHere">${s.kind === "note" ? "Save the note" : "Save it"} here${sh ? ", no pin" : ""}</button><button class="btn" id="wPick">${s.pick ? "Picking below ↓" : "I'll pick the plan"}</button><button class="cancel" id="wCancel">Cancel</button></div>
+    <div class="acts">${sh ? `<button class="btn primary hot" id="wOpen">${b && s.level ? `Open the ${esc(s.level.toLowerCase())} plan` : b ? "Open the plan" : "Open this sheet"}</button>` : ""}${s.photo && state.p.project.sheets.length ? `<button class="btn" id="wFind">Pick the sheet for me</button>` : ""}<button class="btn ${sh ? "" : "primary hot"}" id="wHere">${s.kind === "note" ? "Save the observation" : "Save it"} here${sh ? ", no pin" : ""}</button><button class="btn" id="wPick">${s.pick ? "Picking below ↓" : "I'll pick the plan"}</button><button class="cancel" id="wCancel">Cancel</button></div>
   </div>`;
 }
 function wireWhere(cur, rv) {
@@ -3203,19 +3271,78 @@ async function keepSiteNote(code) {
   s.busy = false;
   if (!r.ok) { renderField(); return toast(j.detail || "Could not keep it", true); }
   if (s.photoUrl) URL.revokeObjectURL(s.photoUrl); state.shot = null;
-  toast(`Note kept for the record${[s.unit, s.level].filter(Boolean).length ? " · " + [s.unit, s.level].filter(Boolean).join(" · ") : ""}`); await load();
+  toast(`Observation kept${[s.unit, s.level].filter(Boolean).length ? " · " + [s.unit, s.level].filter(Boolean).join(" · ") : ""}`); await load();
 }
 function renderSiteNotes(rv, editable) {
   const list = (state.p.notes || []).filter(n => n.review_id === rv.id);
   if (!list.length) return "";
   const when = n => { const d = new Date(n.taken_at || n.created_at); return isNaN(d) ? "" : d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }); };
   const sheetNo = id => { const sh = id && state.p.project.sheets.find(x => x.id === id); return sh ? sh.sheet_number || "p." + sh.page : ""; };
-  return `<h3 class="sec">Notes for the record · ${list.length}<small>What was seen and logged on the walk, as written. Not deficiencies; not sent to the contractor. They go in the report.</small></h3>
+  return `<h3 class="sec">Observations · ${list.length}<small>What was seen and logged on the walk, as written. Not deficiencies; not sent to the contractor. They go in the report.</small></h3>
     <div class="snotes">${list.map(n => { const where = [n.unit, n.level, n.space].filter(Boolean).join(" · "); return `<figure class="snote ${n.photo_url ? "" : "words"}">
       ${n.photo_url ? `<a href="${esc(n.photo_url)}" target="_blank" rel="noopener"><img src="${esc(n.photo_url)}" alt="" loading="lazy"></a>` : ""}
       <figcaption>${n.note ? `<b>${esc(n.note)}</b>` : `<b class="mute">Photo only</b>`}<span>${esc([where, n.sheet_id && n.pin_x != null ? "marked on " + sheetNo(n.sheet_id) : "", when(n)].filter(Boolean).join(" · ") || "On site")}</span>
       ${editable ? `<em>${state.rmNote === n.id ? `<button class="lnk warn" data-rmnote="${esc(n.id)}">Remove for sure</button> <button class="lnk" data-keepnote="${esc(n.id)}">Keep</button>` : `<button class="lnk" data-rmnote="${esc(n.id)}">Remove</button>`}</em>` : ""}</figcaption>
     </figure>`; }).join("")}</div>`;
+}
+function reportSuggestion(rv, building, level) {
+  const blds = buildings();
+  const items = findingsIn(rv.id).filter(d => (!building || itemBuilding(d, blds) === building) && (!level || d.level === level));
+  const notes = (state.p.notes || []).filter(n => n.review_id === rv.id && (!building || itemBuilding(n, blds) === building) && (!level || n.level === level));
+  const bits = [];
+  const where = [((buildings().find(b => b.key === building) || {}).name), level].filter(Boolean).join(" · ");
+  if (items.length || notes.length) bits.push(`${items.length ? items.length + " deficienc" + (items.length === 1 ? "y" : "ies") : ""}${items.length && notes.length ? ", " : ""}${notes.length ? notes.length + " observation" + (notes.length === 1 ? "" : "s") : ""}${where ? " on " + where : ""}.`);
+  items.slice(0, 5).forEach(d => bits.push(`${d.item_id}: ${(d.description || "").split(".")[0].trim()}.`));
+  notes.slice(0, 3).forEach(n => { if (n.note) bits.push("Observation: " + n.note.split(".")[0].trim() + "."); });
+  const prior = ((state.p.reports || []).filter(x => x.review_id === rv.id && (x.building || "") === (building || "") && (x.level || "") === (level || "")).slice(-1)[0]);
+  if (prior && prior.comments) bits.push("Previous report on this building/floor noted: " + prior.comments);
+  return bits.join(" ");
+}
+function renderReportPanel(rv, cur) {
+  if (!rv) return "";
+  const f = state.rpt && state.rpt.rid === rv.id ? state.rpt : (state.rpt = { rid: rv.id, building: "", level: "", comments: "", email: "", link: false, busy: false });
+  const blds = buildings();
+  const levels = [...new Set(blds.flatMap(b => [...(b.levels || []), ...(b.units || []).flatMap(u => u.levels || [])]))].filter(Boolean);
+  const sug = reportSuggestion(rv, f.building, f.level);
+  if (!f.comments && sug) f.comments = sug;
+  const prior = (state.p.reports || []).filter(x => x.review_id === rv.id && (x.building || "") === (f.building || "") && (x.level || "") === (f.level || "")).slice(-1)[0];
+  const hist = (state.p.reports || []).filter(x => x.review_id === rv.id);
+  const qs = new URLSearchParams(); if (f.building) qs.set("building", f.building); if (f.level) qs.set("level", f.level); if (f.comments) qs.set("comments", f.comments); if (f.link) qs.set("link", "1");
+  const href = pUrl(state.slug, "/reviews/" + encodeURIComponent(rv.id) + "/report") + (qs.toString() ? "?" + qs.toString() : "");
+  return `<section class="fr-report" data-rvid="${esc(rv.id)}">
+    <div class="bh"><h3>Filtered report</h3><span>${esc(cur.name)} · company header, logo, inspector signature, then the findings for this filter. Saved under Field reviews. Nothing is sent until you press Send.</span></div>
+    <div class="row">
+      <label>Building<select id="rptBld"><option value="">Every building</option>${blds.map(b => `<option value="${esc(b.key)}" ${f.building === b.key ? "selected" : ""}>${esc(b.name)}</option>`).join("")}</select></label>
+      <label>Floor<select id="rptLvl"><option value="">Every floor</option>${levels.map(l => `<option ${f.level === l ? "selected" : ""}>${esc(l)}</option>`).join("")}</select></label>
+    </div>
+    ${prior ? `<p class="prior">A report for this building and floor was already saved ${esc(when(prior.created_at))}${prior.comments ? ` · “${esc(prior.comments.slice(0, 160))}”` : ""}. Saving again keeps that history.</p>` : ""}
+    <label style="margin-top:10px">Report comments<textarea id="rptComments">${esc(f.comments)}</textarea></label>
+    <label class="chk"><input type="checkbox" id="rptLink" ${f.link ? "checked" : ""}> Link to the project on the report and in the draft</label>
+    <label style="margin-top:8px">Email for a send draft (optional)<input id="rptEmail" type="email" inputmode="email" placeholder="site@contractor.com" value="${esc(f.email)}"></label>
+    <div class="acts">
+      <a class="btn" href="${esc(href)}" target="_blank" rel="noopener">Open the report</a>
+      <button class="btn primary" id="rptSave" ${f.busy ? "disabled" : ""}>${f.busy ? "Saving…" : "Save to Field reviews folder"}</button>
+    </div>
+    ${hist.length ? `<ol class="hist">${hist.slice().reverse().map(x => `<li>${esc(x.name)} · ${esc(when(x.created_at))}${x.building || x.level ? ` · ${esc([x.building, x.level].filter(Boolean).join(" · "))}` : ""}${x.email ? ` · draft to ${esc(x.email)}` : ""}</li>`).join("")}</ol>` : ""}
+  </section>`;
+}
+function wireReportPanel(rv) {
+  const box = $("#tab") && $("#tab").querySelector(".fr-report"); if (!box || !rv) return;
+  const grab = () => { const f = state.rpt || (state.rpt = { rid: rv.id }); f.rid = rv.id; f.building = ($("#rptBld") || {}).value || ""; f.level = ($("#rptLvl") || {}).value || ""; f.comments = ($("#rptComments") || {}).value || ""; f.email = ($("#rptEmail") || {}).value || ""; f.link = !!( $("#rptLink") && $("#rptLink").checked ); };
+  ["rptBld", "rptLvl"].forEach(id => { const el = $("#" + id); if (el) el.onchange = () => { grab(); const f = state.rpt; f.comments = reportSuggestion(rv, f.building, f.level); renderField(); }; });
+  ["rptComments", "rptEmail", "rptLink"].forEach(id => { const el = $("#" + id); if (el) el.oninput = el.onchange = grab; });
+  const go = $("#rptSave"); if (go) go.onclick = async () => {
+    grab(); const f = state.rpt;
+    if (f.email && !looksLikeEmail(f.email)) { toast("That email address does not look right", true); return $("#rptEmail").focus(); }
+    f.busy = true; renderField();
+    const r = await fetch(pUrl(state.slug, "/reviews/" + encodeURIComponent(rv.id) + "/report"), { method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ building: f.building, level: f.level, comments: f.comments, email: f.email, link_project: f.link }) });
+    const j = await r.json().catch(() => ({}));
+    f.busy = false;
+    if (!r.ok) { renderField(); return toast(j.detail || "Could not save the report", true); }
+    toast(j.draft ? "Report saved in Field reviews · email draft ready, not sent" : "Report saved in the Field reviews folder");
+    await load();
+  };
 }
 /* Saved as it is: the unit, the floor and the words, the photo if there is one. No sheet, no pin, no reading of the photo. */
 async function saveHere(code) {
@@ -3405,6 +3532,14 @@ function renderSheet(sheetId) {
   const cnt = n => n ? ` ${n}` : "";
   const notePins = (p.notes || []).filter(n => n.sheet_id === sheetId && n.pin_x != null && (state.pinMode === "all" || (rv && n.review_id === rv.id)));
   const pinf = allPins.length > 1 ? `<span class="pinf">${rv ? `<button data-pins="review" class="${state.pinMode === "review" ? "on" : ""}">In this review${cnt(inRv.length)}</button>` : ""}<button data-pins="open" class="${state.pinMode === "open" ? "on" : ""}">Still open${cnt(open.length)}</button><button data-pins="all" class="${state.pinMode === "all" ? "on" : ""}">Everything${cnt(allPins.length)}</button></span>` : "";
+  const ly = state.layers || (state.layers = { outline: true, drawing: false, electrical: false });
+  const elSh = electricalSheet(sh);
+  const showEl = !!(ly.electrical && (elSh || sh.discipline === "EL"));
+  const base = (ly.outline && !ly.drawing) ? (sh.outline_url || sh.image_url) : sh.image_url;
+  const lyr = `<span class="lyr"><span class="lbl">Layers</span>
+        <button data-layer="outline" class="${ly.outline ? "on" : ""}" aria-pressed="${ly.outline}">Outline</button>
+        <button data-layer="drawing" class="${ly.drawing ? "on" : ""}" aria-pressed="${ly.drawing}">Drawing</button>
+        ${elSh || sh.discipline === "EL" ? `<button data-layer="electrical" class="${showEl || (sh.discipline === "EL" && ly.drawing) ? "on" : ""}" aria-pressed="${showEl || (sh.discipline === "EL" && ly.drawing)}">Electrical</button>` : ""}</span>`;
   $("#main").innerHTML = `
     <div class="viewer">
       <div class="vbar">
@@ -3413,13 +3548,15 @@ function renderSheet(sheetId) {
         ${rv ? `<span class="rev">● ${esc(rv.title)}</span>` : ""}
         <div class="zoom"><button id="zOut">−</button><button id="zFit">Fit</button><button id="zIn">+</button></div>
       </div>
-      ${views.length || pinf ? `<div class="floors">${views.length ? `<span class="lbl">${esc(rel.b ? rel.b.name : "Floors")}</span>${views.map((x, i) => `<button data-view="${i}" class="${v.focus && v.focus.level === x.level && v.focus.x === x.x ? "on" : ""}">${esc(x.level)}</button>`).join("")}<button data-view="all" class="${v.focus ? "" : "on"}">Whole sheet</button><button id="fixBtn" class="fix" ${v.focus ? "" : "hidden"}>Fix box</button>` : ""}${pinf}</div>` : ""}
-      <div class="stagewrap"><div class="canvas" id="canvas"><div class="stage" id="stage"><img id="sheetImg" src="${sh.image_url}" alt="">
+      <div class="floors">${views.length ? `<span class="lbl">${esc(rel.b ? rel.b.name : "Floors")}</span>${views.map((x, i) => `<button data-view="${i}" class="${v.focus && v.focus.level === x.level && v.focus.x === x.x ? "on" : ""}">${esc(x.level)}</button>`).join("")}<button data-view="all" class="${v.focus ? "" : "on"}">Whole sheet</button><button id="fixBtn" class="fix" ${v.focus ? "" : "hidden"}>Fix box</button>` : `<span class="lbl">Plan</span>`}${lyr}${pinf}</div>
+      <div class="stagewrap"><div class="canvas" id="canvas"><div class="stage" id="stage"><img id="sheetImg" src="${base}" alt="">
+        ${ly.outline && ly.drawing && sh.outline_url ? `<img class="olay" src="${esc(sh.outline_url)}" alt="">` : ""}
+        ${showEl && elSh ? `<img class="elay" src="${esc(elSh.image_url)}" alt="">` : ""}
         ${pins.map(d => `<span class="pin ${pinCls(d)}" data-id="${esc(d.item_id)}" style="left:${d.pin_x * 100}%;top:${d.pin_y * 100}%" title="${esc(d.location)}">${esc(d.item_id.replace(/^[A-Z]+-/, ""))}<small>${esc(d.item_id)}</small></span>`).join("")}
-        ${notePins.map(n => `<span class="pin note" data-note="${esc(n.id)}" style="left:${n.pin_x * 100}%;top:${n.pin_y * 100}%" title="${esc(n.note || "Note for the record")}">N</span>`).join("")}
+        ${notePins.map(n => `<span class="pin note" data-note="${esc(n.id)}" style="left:${n.pin_x * 100}%;top:${n.pin_y * 100}%" title="${esc(n.note || "Observation")}">N</span>`).join("")}
         ${v.draft ? `<span class="pin draft ${v.kind === "note" ? "asnote" : ""}" style="left:${v.draft.x * 100}%;top:${v.draft.y * 100}%"></span>` : ""}
       </div></div>
-        ${!v.draft ? `<div class="hint ${rel.list.length && !showPanel ? "up" : ""}">${v.step === "form" || v.carry ? "Tap where it is on this sheet" : rv ? "Tap the spot: a deficiency or a note" : `Start the ${esc((DISC_NAMES[v.disc] || v.disc).toLowerCase())} field review first, then tap here`}</div>` : ""}
+        ${!v.draft ? `<div class="hint ${rel.list.length && !showPanel ? "up" : ""}">${v.step === "form" || v.carry ? "Tap where it is on this sheet" : rv ? "Tap the spot: a deficiency or an observation" : `Start the ${esc((DISC_NAMES[v.disc] || v.disc).toLowerCase())} field review first, then tap here`}</div>` : ""}
         ${rel.list.length && !showPanel ? `<div class="related"><span class="lbl">Also ${esc(rel.b.name)}</span>${rel.list.map(x => `<div class="rel" data-id="${x.id}"><img src="${x.thumb_url || x.image_url}" alt="" loading="lazy"><span>${esc(x.sheet_number || "p." + x.page)}</span><small>${esc(x.title || DISC_NAMES[x.discipline] || x.discipline)}</small></div>`).join("")}</div>` : ""}
       </div>
       ${showPanel ? `<div class="panel" id="panel"></div>` : ""}
@@ -3440,6 +3577,15 @@ function renderSheet(sheetId) {
   const markFloor = () => { $("#main").querySelectorAll(".floors button[data-view]").forEach(b => b.classList.toggle("on", b.dataset.view === "all" ? !v.focus : !!v.focus && views[+b.dataset.view] && views[+b.dataset.view].level === v.focus.level && views[+b.dataset.view].x === v.focus.x)); const fb = $("#fixBtn"); if (fb) fb.hidden = !v.focus || !!v.fix; };
   $("#main").querySelectorAll(".floors button[data-view]").forEach(b => b.onclick = () => { if (v.fix) return; b.dataset.view === "all" ? fit() : focusTo(views[+b.dataset.view]); });
   $("#main").querySelectorAll(".floors button[data-pins]").forEach(b => b.onclick = () => { state.pinMode = b.dataset.pins; render(); });
+  $("#main").querySelectorAll(".floors button[data-layer]").forEach(b => b.onclick = () => {
+    const ly = state.layers, k = b.dataset.layer;
+    if (k === "electrical" && sh.discipline === "EL") { ly.drawing = !ly.drawing; ly.electrical = ly.drawing; }
+    else ly[k] = !ly[k];
+    if (!ly.outline && !ly.drawing && !ly.electrical) ly.outline = true;
+    render();
+  });
+  const sheetImg = $("#sheetImg");
+  if (sheetImg) sheetImg.onerror = () => { if (sheetImg.src.indexOf("/outline") >= 0) { sheetImg.onerror = null; sheetImg.src = sh.image_url; } };
   /* fix a floor box by hand: the box is drawn on the sheet, corners drag, Save stores every box on this sheet with this one marked as his */
   const fixBtn = $("#fixBtn");
   const endFix = () => { v.fix = null; if (v.focus) dim(v.focus); $("#main").querySelectorAll(".fixbox, .fixbar").forEach(el => el.remove()); const h = $("#main").querySelector(".hint"); if (h) h.hidden = false; if (fixBtn) fixBtn.hidden = !v.focus; };
@@ -3557,7 +3703,7 @@ function renderPanel(sh, rv) {
   const photos = [...(v.photoUrl ? [{ url: v.photoUrl }] : []), ...(v.more || [])];
   el.innerHTML = `
       <div class="whead"><h3>On ${esc(sh.sheet_number || "this sheet")}</h3>${kindToggle(v.kind, "fKind")}</div>
-      <div class="sub">${note ? "Kept for the record and shown in the report. It is not numbered and not sent to the contractor." : `Numbered ${esc(next)} and put on the contractor's list.`}${v.draft ? "" : " <b>Tap the spot on the sheet</b> to pin it."}</div>
+      <div class="sub">${note ? "Kept as an observation and shown in the report. It is not numbered and not sent to the contractor." : `Numbered ${esc(next)} and put on the contractor's list.`}${v.draft ? "" : " <b>Tap the spot on the sheet</b> to pin it."}</div>
       <div class="placing">${v.place && v.place.busy ? "Reading the spot off the plan…" : ""}</div>
       <div class="row">
         <div><label>Unit</label><select id="fUnit">${opts(units, s.unit || "")}</select></div>
@@ -3573,7 +3719,7 @@ function renderPanel(sh, rv) {
       <div class="tidyrow"><button class="lnk" id="tidy" ${v.tidying ? "disabled" : ""}>${v.tidying ? "Tidying…" : "Tidy the wording"}</button><span>${v.tidying ? "" : v.draft ? "Puts your own words in order. Adds nothing." : "Tap the spot first to tidy."}</span></div>
       ${note ? "" : `<label>What the contractor must send to close it</label><input id="fEv" value="${esc(s.evidence_required || "photo: the corrected work at this spot")}" placeholder="photo: repaired; report: test sheet">
       <div class="agentnote">Separate several with “;”</div>`}
-      <div class="acts"><button class="btn primary" id="save">${note ? "Save the note" : `Save as ${esc(next)}`}</button>${v.draft ? `<button class="btn again" id="saveAgain">Save, add another here</button>` : ""}<button class="cancel" id="cancel">${v.saved ? "Done" : "Cancel"}</button></div>`;
+      <div class="acts"><button class="btn primary" id="save">${note ? "Save the observation" : `Save as ${esc(next)}`}</button>${v.draft ? `<button class="btn again" id="saveAgain">Save, add another here</button>` : ""}<button class="cancel" id="cancel">${v.saved ? "Done" : "Cancel"}</button></div>`;
   const pin = $("#photoIn"); if (pin) pin.onchange = () => {
     const files = [...pin.files]; if (!files.length) return; captureForm();
     for (const f of files) { if (!v.photo) { v.photo = f; v.photoUrl = URL.createObjectURL(f); } else if (!note && (v.more || []).length < 7) (v.more = v.more || []).push({ file: f, url: URL.createObjectURL(f) }); }
@@ -3591,7 +3737,7 @@ function renderPanel(sh, rv) {
 }
 /* Deficiency or note for the record: the one choice on every entry */
 function kindToggle(kind, id) {
-  return `<span class="kind" id="${id}" role="group" aria-label="What this is"><button data-kind="def" class="${kind === "note" ? "" : "on"}" aria-pressed="${kind !== "note"}">Deficiency</button><button data-kind="note" class="${kind === "note" ? "on" : ""}" aria-pressed="${kind === "note"}">Note for the record</button></span>`;
+  return `<span class="kind" id="${id}" role="group" aria-label="What this is"><button data-kind="def" class="${kind === "note" ? "" : "on"}" aria-pressed="${kind !== "note"}">Deficiency</button><button data-kind="note" class="${kind === "note" ? "on" : ""}" aria-pressed="${kind === "note"}">Observation</button></span>`;
 }
 /* Dictation through the phone's own speech recognition: the words land in the box, where they can be read and changed */
 function micButton(target) {
