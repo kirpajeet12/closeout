@@ -113,3 +113,95 @@ def test_a_finding_can_be_saved_without_a_pin_and_still_reports(client, tmp_path
     assert client.get(f"/api/projects/{slug}/items/EL-01/pin.jpg").status_code == 404
     page = client.get(f"/api/projects/{slug}/reviews/{rev['id']}/report").text
     assert "Smoke alarm missing" in page and "Exterior receptacle" in page
+
+
+def _two_buildings(client, tmp_path):
+    slug, sid = _seed(client, tmp_path)
+    st = Store(client.settings.data_dir / "closeout.db")
+    prj = st.project_by_slug(slug)
+    st.set_project_model(prj["id"], {**prj["model"],
+                                     "units": [{"label": "Unit C", "address": "#1 104 Elm St", "levels": ["Main Floor", "Upper Floor"]},
+                                               {"label": "Unit A", "address": "#2 106 Elm St", "levels": ["Main Floor", "Upper Floor"]}],
+                                     "levels": [{"name": "Main Floor"}, {"name": "Upper Floor"}]})
+    return slug, sid
+
+
+def test_report_filters_by_building_and_floor_and_lists_observations(client, tmp_path):
+    slug, sid = _two_buildings(client, tmp_path)
+    rev = client.post(f"/api/projects/{slug}/reviews", json={"discipline": "EL"}).json()["review"]
+    client.post(f"/api/projects/{slug}/findings", data={"sheet_id": sid, "review_id": rev["id"],
+                "location": "Unit C, Upper Floor, Bath 2: wall behind toilet", "description": "Receptacle beside the basin has no cover plate.",
+                "evidence_required": "photo: completed", "unit": "Unit C", "level": "Upper Floor"})
+    client.post(f"/api/projects/{slug}/findings", data={"review_id": rev["id"],
+                "location": "Unit A, Main Floor, garage", "description": "Exterior receptacle has no in-use cover.",
+                "evidence_required": "photo: cover fitted", "unit": "Unit A", "level": "Main Floor"})
+    client.post(f"/api/projects/{slug}/notes", data={"review_id": rev["id"], "unit": "Unit C", "level": "Upper Floor",
+                                                    "note": "Insulation in on the upper floor, vapour barrier not up yet"})
+    all_items = client.get(f"/api/projects/{slug}/reviews/{rev['id']}/report.json").json()
+    assert all_items["count"] == 2 and len(all_items["site_notes"]) == 1
+    page = client.get(f"/api/projects/{slug}/reviews/{rev['id']}/report").text
+    assert "Observations" in page and "vapour barrier" in page and "Reviewed by" in page
+    assert 'class="brandrow"' in page and 'class="logo"' not in page  # logo only when the office uploaded one
+    one = client.get(f"/api/projects/{slug}/reviews/{rev['id']}/report.json", params={"building": "104", "level": "Upper Floor"}).json()
+    assert one["count"] == 1 and one["items"][0]["item_id"] == "EL-01"
+    assert len(one["site_notes"]) == 1 and one["filter"]["building"] == "104"
+    assert "cover plate" in one["suggested_comments"] and "vapour barrier" in one["suggested_comments"].lower()
+    other = client.get(f"/api/projects/{slug}/reviews/{rev['id']}/report.json", params={"building": "106"}).json()
+    assert other["count"] == 1 and other["items"][0]["unit"] == "Unit A" and other["site_notes"] == []
+
+
+def test_saving_a_filtered_report_files_it_under_field_reviews_and_drafts_email(client, tmp_path):
+    slug, sid = _two_buildings(client, tmp_path)
+    rev = client.post(f"/api/projects/{slug}/reviews", json={"discipline": "EL"}).json()["review"]
+    client.post(f"/api/projects/{slug}/findings", data={"review_id": rev["id"],
+                "location": "Unit C, Upper Floor, hall", "description": "Panel schedule card is missing from the sub-panel door.",
+                "evidence_required": "photo: completed", "unit": "Unit C", "level": "Upper Floor"})
+    first = client.post(f"/api/projects/{slug}/reviews/{rev['id']}/report",
+                        json={"building": "104", "level": "Upper Floor", "comments": "First walk of 104, upper.",
+                              "email": "site@contractor.test", "link_project": True})
+    assert first.status_code == 200, first.text
+    j = first.json()
+    assert j["folder"]["name"] == "Field reviews" and j["folder"]["parent"] == "site/EL"
+    assert j["document"]["kind"] == "report" and j["document"]["discipline"] == "EL"
+    assert j["save"]["email"] == "site@contractor.test" and j["draft"]["to_addr"] == "site@contractor.test"
+    assert "Nothing in this message is issued" in j["draft"]["body"]
+    assert "/#/p/" + slug in j["draft"]["body"]
+    detail = client.get(f"/api/projects/{slug}").json()
+    assert any(f["name"] == "Field reviews" for f in detail["folders"])
+    assert detail["reports"][-1]["id"] == j["save"]["id"]
+    pdf = client.get(f"/api/projects/{slug}/documents/{j['document']['id']}/file")
+    assert pdf.status_code == 200 and pdf.headers["content-type"] == "application/pdf"
+    # a second save for the same building/floor reuses history and suggests the earlier comments
+    again = client.get(f"/api/projects/{slug}/reviews/{rev['id']}/report.json",
+                       params={"building": "104", "level": "Upper Floor"}).json()
+    assert again["prior"]["id"] == j["save"]["id"]
+    assert "First walk of 104" in again["suggested_comments"]
+    second = client.post(f"/api/projects/{slug}/reviews/{rev['id']}/report",
+                         json={"building": "104", "level": "Upper Floor", "comments": "Updated after adding EL-01."})
+    assert second.status_code == 200 and len(second.json()["history"]) == 2
+    # nothing was sent
+    assert client.get(f"/api/projects/{slug}").json()["sends"] == []
+
+
+def test_office_logo_prints_on_the_report(client, tmp_path):
+    slug, sid = _seed(client, tmp_path)
+    buf = io.BytesIO()
+    Image.new("RGB", (120, 40), (20, 40, 80)).save(buf, "PNG")
+    up = client.post("/api/office/logo", files={"file": ("logo.png", buf.getvalue(), "image/png")})
+    assert up.status_code == 200 and up.json()["logo"]
+    assert client.get("/api/office/logo").status_code == 200
+    client.post("/api/office/brand", json={"office_name": "Cedar & Elm Engineering"})
+    rev = client.post(f"/api/projects/{slug}/reviews", json={"discipline": "EL"}).json()["review"]
+    page = client.get(f"/api/projects/{slug}/reviews/{rev['id']}/report").text
+    assert "Cedar &amp; Elm Engineering" in page and 'class="logo"' in page and 'src="/api/office/logo"' in page
+    assert client.get("/api/projects").json()["office"] == "Cedar & Elm Engineering"
+
+
+def test_sheet_outline_endpoint(client, tmp_path):
+    slug, sid = _seed(client, tmp_path)
+    r = client.get(f"/api/sheets/{sid}/outline")
+    assert r.status_code == 200 and r.headers["content-type"] == "image/png"
+    im = Image.open(io.BytesIO(r.content))
+    assert im.size[0] >= 100
+    detail = client.get(f"/api/projects/{slug}").json()
+    assert detail["project"]["sheets"][0]["outline_url"].endswith("/outline")

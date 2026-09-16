@@ -40,6 +40,7 @@ from . import brief as brief_mod
 from . import coverage as coverage_mod
 from . import accounts as accounts_mod
 from . import signin as signin_mod
+from . import outline as outline_mod
 from .store import Store, now
 
 log = logging.getLogger("closeout.api")
@@ -200,6 +201,18 @@ class EmailIn(BaseModel):
 
 class FinishIn(BaseModel):
     to: str = ""               # who gets the report, asked when the review is finished; kept on the draft, nothing is sent
+
+
+class SaveReportIn(BaseModel):
+    building: str = ""         # building key from the project's unit list; empty = whole site
+    level: str = ""            # floor name; empty = every floor
+    comments: str = ""         # engineer-edited notes at the top of the report
+    email: str = ""            # optional address for a send draft; nothing is sent from here
+    link_project: bool = False # put the project URL on the report and in the draft
+
+
+class BrandIn(BaseModel):
+    office_name: str = ""      # company name printed on reports; empty keeps the server default
 
 
 class SendIn(BaseModel):
@@ -436,6 +449,19 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
             raise HTTPException(404, f"no project '{slug}'")
         return prj
 
+    def _office(st: Store) -> str:
+        return (st.setting("office_name") or "").strip() or settings.office
+
+    def _logo_file() -> Path | None:
+        p = settings.data_dir / "office" / "logo.png"
+        return p if p.is_file() else None
+
+    def _logo_url() -> str:
+        return "/api/office/logo" if _logo_file() else ""
+
+    def _project_link(request: Request, slug: str) -> str:
+        return str(request.base_url).rstrip("/") + f"/#/p/{slug}"
+
     def _feed_for(run_id: str) -> RunFeed | None:
         with lock:
             return feeds.get(run_id)
@@ -499,7 +525,8 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         st = store()
         with lock:
             active = state["active"]
-        return {"model_id": settings.model_id, "active_run_id": active, "office": settings.office,
+        return {"model_id": settings.model_id, "active_run_id": active, "office": _office(st),
+                "office_logo": bool(_logo_file()),
                 "projects": [project_card(st, p, active) for p in st.projects()], "usage": usage_mod.summary(st)}
 
     @app.get("/api/activity")
@@ -591,6 +618,7 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         for sh in view["sheets"]:
             sh["image_url"] = f"/api/sheets/{sh['id']}/image"
             sh["thumb_url"] = f"/api/sheets/{sh['id']}/thumb"
+            sh["outline_url"] = f"/api/sheets/{sh['id']}/outline"
             sh.pop("image_path", None)
         batch_runs = st.runs(pid, kind="batch")
         latest = batch_runs[-1]["id"] if batch_runs else None
@@ -607,7 +635,8 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
                 "runs": runs, "latest_run_id": latest, "active_run_id": active if any(r["id"] == active for r in runs) else None,
                 "packet": build_packet(st, latest) if latest else None, "batches": batches,
                 "messages": st.all_drafts(pid), "decisions": st.decisions(pid), "model_id": settings.model_id,
-                "reviews": coverage_mod.decorate_reviews(st, prj, st.reviews(pid)), "shares": st.shares(pid), "office": settings.office,
+                "reviews": coverage_mod.decorate_reviews(st, prj, st.reviews(pid)), "shares": st.shares(pid), "office": _office(st),
+                "office_logo": bool(_logo_file()),
                 "sends": st.sends(pid), "inbound": st.inbound_for_project(pid),
                 "notes": [_note_view(prj["slug"], n) for n in st.site_notes(pid)],
                 "mail": {"from": settings.mail_from, "gmail": _mail_address(st), "can_connect": True},
@@ -616,7 +645,8 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
                 "docs_review": prj.get("docs_review"), "docs_scope": prj.get("docs_scope") or [],
                 "occupancy_docs": [list(row) for row in documents_mod.OCCUPANCY_DOCS],
                 "filings": st.filings(pid), "filing_history": st.filing_history(pid), "document_log": st.document_log(pid), "folders": st.folders(pid),
-                "drawings_reviews": st.drawings_reviews(pid), "seen": st.seen(pid)}
+                "drawings_reviews": st.drawings_reviews(pid), "seen": st.seen(pid),
+                "reports": st.report_saves(pid)}
         checks = replies_mod.check(st, pid, out["inbound"])
         for x in out["inbound"]:
             x["check"] = checks.get(x["id"])
@@ -647,6 +677,20 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
                 im.thumbnail((640, 640))
                 im.save(thumb, "JPEG", quality=82)
         return FileResponse(thumb, media_type="image/jpeg")
+
+    @app.get("/api/sheets/{sheet_id}/outline")
+    def sheet_outline(sheet_id: str):
+        """A simplified plan of the sheet: walls kept, measurements and thin pipe/wire clutter dropped.
+        Same size as the full image, so pins stay in place."""
+        sh = store().sheet(sheet_id)
+        if not sh or not Path(sh["image_path"]).exists():
+            raise HTTPException(404, "no such sheet")
+        try:
+            out = outline_mod.ensure_outline(Path(sh["image_path"]))
+        except Exception as e:  # a bad render should not block the walk; the full drawing still opens
+            log.warning("outline failed for %s: %s", sheet_id, type(e).__name__)
+            raise HTTPException(500, "the outline could not be built") from e
+        return FileResponse(out, media_type="image/png")
 
     @app.get("/api/sheets/{sheet_id}/crop")
     def sheet_crop(sheet_id: str, x: float, y: float, w: float, h: float):
@@ -1054,9 +1098,17 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         if not d:
             raise HTTPException(404, "no such document")
         root = Path(prj["source_root"] or "").resolve()
-        p = (root / d["rel_path"]).resolve()
-        if not prj["source_root"] or not p.is_relative_to(root) or not p.is_file():
-            raise HTTPException(404, "file missing from the project folder")
+        p = (root / d["rel_path"]).resolve() if prj["source_root"] else None
+        if not p or not prj["source_root"] or not p.is_relative_to(root) or not p.is_file():
+            if d.get("kind") == "report":
+                filed = (settings.data_dir / "projects" / slug / "files" / d["rel_path"]).resolve()
+                base = (settings.data_dir / "projects" / slug / "files").resolve()
+                if filed.is_relative_to(base) and filed.is_file():
+                    p = filed
+                else:
+                    raise HTTPException(404, "file missing from the project folder")
+            else:
+                raise HTTPException(404, "file missing from the project folder")
         return FileResponse(p, media_type=mimetypes.guess_type(p.name)[0] or "application/octet-stream", filename=p.name,
                             content_disposition_type="attachment" if download else "inline")
 
@@ -1345,25 +1397,93 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
         return {"review": st.review(review_id), "package": pkg, "message": message, "error": error}
 
     @app.get("/api/projects/{slug}/reviews/{review_id}/report.json")
-    def review_report_json(slug: str, review_id: str) -> dict:
-        """The field review report as data: every item with its status, the drawings on file, the sign-off fields."""
+    def review_report_json(slug: str, review_id: str, request: Request, building: str = "", level: str = "") -> dict:
+        """The field review report as data: every item with its status, the drawings on file, the sign-off fields.
+        building and level filter to one place; empty means the whole walk."""
         st = store()
         prj = _project(st, slug)
         try:
-            return report_mod.review_report(st, prj["id"], review_id, office=settings.office)
+            data = report_mod.review_report(st, prj["id"], review_id, office=_office(st), building=building.strip(),
+                                            level=level.strip(), logo_url=_logo_url(),
+                                            project_url=_project_link(request, slug) if request else "")
         except ValueError as e:
             raise HTTPException(404, str(e)) from e
+        if _logo_file():
+            data["logo_path"] = str(_logo_file())
+        return data
 
     @app.get("/api/projects/{slug}/reviews/{review_id}/report", include_in_schema=False)
-    def review_report_page(slug: str, review_id: str):
+    def review_report_page(slug: str, review_id: str, request: Request, building: str = "", level: str = "",
+                           comments: str = "", link: int = 0):
         """The printable report. Built from the saved walk; nothing is sent and no wording is generated."""
         st = store()
         prj = _project(st, slug)
         try:
-            data = report_mod.review_report(st, prj["id"], review_id, office=settings.office)
+            data = report_mod.review_report(st, prj["id"], review_id, office=_office(st), building=building.strip(),
+                                            level=level.strip(), logo_url=_logo_url(),
+                                            project_url=_project_link(request, slug) if link else "",
+                                            comments=comments)
         except ValueError as e:
             raise HTTPException(404, str(e)) from e
         return HTMLResponse(report_mod.report_html(data))
+
+    @app.post("/api/projects/{slug}/reviews/{review_id}/report")
+    def save_filtered_report(slug: str, review_id: str, body: SaveReportIn, request: Request) -> dict:
+        """Save a filtered report into the discipline's Field reviews folder. Optionally draft an email.
+        Nothing is sent; the engineer still confirms send from Messages or the field review."""
+        st = store()
+        prj = _project(st, slug)
+        r = st.review(review_id)
+        if not r or r["project_id"] != prj["id"]:
+            raise HTTPException(404, "no such review")
+        email = " ".join((body.email or "").split())
+        if email and not mail_mod.valid_address(email):
+            raise HTTPException(400, "that email address does not look right")
+        building, level = (body.building or "").strip(), (body.level or "").strip()
+        comments = (body.comments or "").strip()
+        link = _project_link(request, slug) if body.link_project else ""
+        data = report_mod.review_report(st, prj["id"], review_id, office=_office(st), building=building, level=level,
+                                        logo_url=_logo_url(), project_url=link, comments=comments)
+        if _logo_file():
+            data["logo_path"] = str(_logo_file())
+        pdf = report_mod.report_pdf(data)
+        clock = (data.get("generated_at") or "")[11:19].replace(":", "")
+        if clock:
+            data["name"] = data["name"] + "_" + clock
+        rel = f"{r['discipline']}/Field reviews/{data['name']}.pdf"
+        dest = settings.data_dir / "projects" / slug / "files" / rel
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(pdf)
+        sha = hashlib.sha256(pdf).hexdigest()
+        doc = st.add_document(prj["id"], rel, r["discipline"], data["generated_at"][:10], 1, "report", sha, dest.stat().st_size)
+        folder = st.field_review_folder(prj["id"], r["discipline"])
+        st.file_document(prj["id"], dest.name, discipline=r["discipline"], who="closeout", folder=folder["id"])
+        draft_id = ""
+        if email or body.link_project:
+            run_id = st.create_run(prj["id"], f"report:{review_id}", settings.model_id, kind="report")
+            st.finish_run(run_id, "done", {})
+            where = " · ".join(x for x in (data["filter"].get("building_name"), level, data["review"]["discipline_name"]) if x)
+            subject = f"{prj.get('name', slug)} field review report" + (f" · {where}" if where else "")
+            lines = [f"Please find the {data['review']['discipline_name'].lower()} field review report for {prj.get('name', slug)}.",
+                     f"{data['count']} deficienc{'y' if data['count'] == 1 else 'ies'}, {len(data['site_notes'])} observation{'s' if len(data['site_notes']) != 1 else ''}."]
+            if comments:
+                lines.append("")
+                lines.append(comments)
+            if link:
+                lines.append("")
+                lines.append("Project in Closeout: " + link)
+            lines.append("")
+            lines.append("Nothing in this message is issued until the reviewing engineer sends it.")
+            draft_id = st.upsert_draft(run_id, "", subject, "\n".join(lines), status="draft", review_id="")
+            if email:
+                st.update_draft(draft_id, to=email, status="draft")
+        saved = st.add_report_save(prj["id"], review_id, r["discipline"], building, level, comments, data["name"],
+                                   str(dest), document_id=doc["id"], folder_id=folder["id"], draft_id=draft_id,
+                                   link_project=body.link_project, email=email)
+        st.touch_project(prj["id"])
+        return {"save": saved, "document": doc, "folder": folder, "draft": st.draft(draft_id) if draft_id else None,
+                "suggested_comments": data.get("suggested_comments") or "", "prior": data.get("prior"),
+                "history": st.report_saves(prj["id"], review_id)}
 
     @app.get("/api/projects/{slug}/items/{item_id}/pin.jpg")
     def item_pin_crop(slug: str, item_id: str):
@@ -2601,8 +2721,45 @@ def create_app(settings: Settings = SETTINGS) -> FastAPI:
     def me(request: Request) -> dict:
         who = getattr(request.state, "who", None) or {"via": "open"}
         st = store()
-        return {"via": who["via"], "user": _person(who["user"]) if who.get("user") else None, "office": settings.office,
+        return {"via": who["via"], "user": _person(who["user"]) if who.get("user") else None, "office": _office(st),
+                "office_logo": bool(_logo_file()),
                 "office_code": bool(access_code), "can_email": _can_email(st)}
+
+    @app.get("/api/office/logo")
+    def office_logo():
+        p = _logo_file()
+        if not p:
+            raise HTTPException(404, "no office logo")
+        return FileResponse(p, media_type="image/png")
+
+    @app.post("/api/office/logo")
+    async def upload_office_logo(file: UploadFile = File(...)) -> dict:
+        """Company logo printed on field review reports, on the right of the header."""
+        raw = await file.read()
+        if len(raw) > 2_000_000:
+            raise HTTPException(400, "logo is too large (keep it under 2 MB)")
+        try:
+            from PIL import Image
+            import io
+            im = Image.open(io.BytesIO(raw))
+            im = im.convert("RGBA") if im.mode in ("P", "RGBA") else im.convert("RGB")
+            im.thumbnail((800, 400))
+        except Exception as e:
+            raise HTTPException(400, "that file is not an image") from e
+        dest = settings.data_dir / "office" / "logo.png"
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        im.save(dest, "PNG")
+        return {"logo": True, "url": "/api/office/logo"}
+
+    @app.post("/api/office/brand")
+    def save_office_brand(body: BrandIn) -> dict:
+        st = store()
+        name = " ".join((body.office_name or "").split())[:80]
+        if name:
+            st.set_setting("office_name", name)
+        else:
+            st.drop_setting("office_name")
+        return {"office": _office(st), "office_logo": bool(_logo_file())}
 
     @app.get("/api/users")
     def list_users() -> dict:
