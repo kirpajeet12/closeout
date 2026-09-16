@@ -1,0 +1,11 @@
+{
+  "name": "Closeout",
+  "install": "bash .cursor/install.sh",
+  "terminals": [
+    {
+      "name": "closeout-server",
+      "command": ".venv/bin/python -m uvicorn closeout.api:app --host 0.0.0.0 --port 8765"
+    }
+  ],
+  "ports": [8765]
+}
