@@ -122,9 +122,15 @@ app. Mailbox sign-in uses Google and Microsoft OAuth; tokens stay in the server'
   two made-up projects, 418 Alder Court and Cedar Row Townhomes, with their drawings already filed, and nothing from
   the office's real work. No mailbox is connected, so the send button opens the email in your own mail app.
 - **Upload a project yourself:** download [`samples/Alder Court.zip`](samples/Alder%20Court.zip) (made-up drawings,
-  a permit and a letter of assurance) and choose *Upload the project zip* on the Projects page. Closeout reads the
-  folder and every current sheet, so give it a few minutes.
-- **Field review:** open a project, then *Field review*: tap a spot on a plan, add a photo and a note.
+  a permit and a letter of assurance) and choose *Upload the project zip* on the Projects page. Closeout files the
+  drawings. After that you do not need to add more files for the walk or the report. Give the first read a few minutes.
+- **Field review:** open a project, then *Field review*. The plan opens as a clean outline (measurements and pipe
+  clutter stripped). Toggle the original drawing or the electrical design layer. Tap a spot: a **deficiency** (for
+  the contractor) or an **observation** (for the record). Pins stay on the same coordinates either way.
+- **Filtered report:** on Field review, pick a building and floor, edit the suggested comments, optionally add an
+  email and a project link, then *Save to Field reviews folder*. Company name and logo (Office page) print at the
+  top with the inspector signature block underneath. History of earlier saves for that building/floor is offered.
+  An email, if entered, is a draft only — the engineer still presses Send.
 
 ## Run it locally
 
@@ -135,7 +141,16 @@ cp .env.example .env        # Bedrock by default; uses the AWS credentials in yo
 ```
 
 Open <http://localhost:8765/> and create a project from a zip of drawings and documents. Data lands in `data/`,
-which is gitignored.
+which is gitignored. PDF sheet renders (and therefore outlines) need `pdftoppm` from poppler; without it the zip
+still files, but plan images will be missing.
+
+**Smoke path (no Bedrock):** zip → drawings on file → field review with outline + a deficiency and an observation →
+filtered report saved under `{discipline}/Field reviews/` with company header, signature block, history, and an
+email draft that is not sent.
+
+```bash
+.venv/bin/python -m pytest -q tests/test_outline.py tests/test_report.py tests/test_documents.py tests/test_review.py tests/test_folders.py
+```
 
 Tests (model calls are faked; tests that need Bedrock are skipped without credentials):
 

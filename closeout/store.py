@@ -335,6 +335,24 @@ CREATE TABLE IF NOT EXISTS issues (
   created_at TEXT NOT NULL,
   closed_at TEXT NOT NULL DEFAULT ''
 );
+CREATE TABLE IF NOT EXISTS report_saves (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL,
+  review_id TEXT NOT NULL,
+  discipline TEXT NOT NULL DEFAULT '',
+  building TEXT NOT NULL DEFAULT '',   -- building key, '' = whole site
+  level TEXT NOT NULL DEFAULT '',      -- floor name, '' = every floor
+  comments TEXT NOT NULL DEFAULT '',
+  name TEXT NOT NULL,                  -- file stem as filed
+  path TEXT NOT NULL,                  -- absolute path of the PDF on disk
+  document_id TEXT NOT NULL DEFAULT '',
+  folder_id TEXT NOT NULL DEFAULT '',
+  draft_id TEXT NOT NULL DEFAULT '',
+  link_project INTEGER NOT NULL DEFAULT 0,
+  email TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS report_saves_by_project ON report_saves(project_id, created_at);
 """
 
 
@@ -615,6 +633,10 @@ class Store:
 
     def draft_for_review(self, review_id: str) -> dict | None:
         r = self.conn.execute("SELECT * FROM drafts WHERE review_id=? ORDER BY updated_at DESC, rowid DESC LIMIT 1", (review_id,)).fetchone()
+        return dict(r) if r else None
+
+    def draft(self, draft_id: str) -> dict | None:
+        r = self.conn.execute("SELECT * FROM drafts WHERE id=?", (draft_id,)).fetchone()
         return dict(r) if r else None
 
     def review_items(self, project_id: str, review_id: str) -> list[dict]:
@@ -1181,7 +1203,9 @@ class Store:
         self.conn.commit()
 
     def replace_documents(self, project_id: str, docs: list[dict]) -> list[str]:
-        self.conn.execute("DELETE FROM documents WHERE project_id=?", (project_id,))
+        # Generated field-review reports live in the same table so they show in Documents;
+        # a zip re-import must not wipe them.
+        self.conn.execute("DELETE FROM documents WHERE project_id=? AND kind != 'report'", (project_id,))
         ids = []
         for d in docs:
             did = new_id("doc")
@@ -1192,6 +1216,56 @@ class Store:
             ids.append(did)
         self.conn.commit()
         return ids
+
+    def add_document(self, project_id: str, rel_path: str, discipline: str, dated: str | None, pages: int, kind: str,
+                     sha256: str, size: int, is_current: int = 0) -> dict:
+        did = new_id("doc")
+        self.conn.execute("INSERT INTO documents(id, project_id, rel_path, discipline, dated, pages, kind, sha256, size, is_current) "
+                          "VALUES(?,?,?,?,?,?,?,?,?,?)",
+                          (did, project_id, rel_path, discipline, dated, pages, kind, sha256, size, is_current))
+        self.conn.commit()
+        r = self.conn.execute("SELECT * FROM documents WHERE id=?", (did,)).fetchone()
+        return dict(r)
+
+    def field_review_folder(self, project_id: str, discipline: str) -> dict:
+        """The 'Field reviews' folder under that discipline on the site. Created the first time a report is saved."""
+        parent = f"site/{discipline}"
+        for f in self.folders(project_id):
+            if f["parent"] == parent and f["name"].lower() == "field reviews":
+                return f
+        return self.add_folder(project_id, parent, "Field reviews")
+
+    def add_report_save(self, project_id: str, review_id: str, discipline: str, building: str, level: str, comments: str,
+                        name: str, path: str, document_id: str = "", folder_id: str = "", draft_id: str = "",
+                        link_project: bool = False, email: str = "") -> dict:
+        rid = new_id("rsv")
+        self.conn.execute(
+            "INSERT INTO report_saves(id, project_id, review_id, discipline, building, level, comments, name, path, "
+            "document_id, folder_id, draft_id, link_project, email, created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            (rid, project_id, review_id, discipline, building or "", level or "", comments or "", name, path,
+             document_id or "", folder_id or "", draft_id or "", 1 if link_project else 0, email or "", now()))
+        self.conn.commit()
+        return self.report_save(rid)
+
+    def report_save(self, save_id: str) -> dict | None:
+        r = self.conn.execute("SELECT * FROM report_saves WHERE id=?", (save_id,)).fetchone()
+        return dict(r) if r else None
+
+    def report_saves(self, project_id: str, review_id: str | None = None) -> list[dict]:
+        if review_id:
+            rows = self.conn.execute("SELECT * FROM report_saves WHERE project_id=? AND review_id=? ORDER BY created_at, rowid",
+                                     (project_id, review_id))
+        else:
+            rows = self.conn.execute("SELECT * FROM report_saves WHERE project_id=? ORDER BY created_at, rowid", (project_id,))
+        return [dict(r) for r in rows]
+
+    def prior_report_save(self, project_id: str, review_id: str, building: str, level: str) -> dict | None:
+        """The most recent saved report for this review + building + floor, if one exists."""
+        r = self.conn.execute(
+            "SELECT * FROM report_saves WHERE project_id=? AND review_id=? AND building=? AND level=? "
+            "ORDER BY created_at DESC, rowid DESC LIMIT 1",
+            (project_id, review_id, building or "", level or "")).fetchone()
+        return dict(r) if r else None
 
     def documents(self, project_id: str) -> list[dict]:
         return [dict(r) for r in self.conn.execute("SELECT * FROM documents WHERE project_id=? ORDER BY discipline, dated, rel_path", (project_id,))]
