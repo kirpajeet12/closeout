@@ -8,11 +8,16 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from PIL import Image, ImageFilter, ImageOps, ImageStat
+from PIL import Image, ImageFilter, ImageOps, ImageStat, PngImagePlugin
 
 # Room labels, fixtures and other fine linework are kept at this grey so the sheet stays readable
 # while the wall structure (drawn in black) still reads as the outline. 0 = black, 255 = paper.
 DETAIL_GREY = 145
+
+# Bumped whenever simplify_plan changes so already-cached outlines are rebuilt on next request,
+# even where the source render is older than the cached file (e.g. a running deployment).
+OUTLINE_VERSION = "2"
+_VERSION_KEY = "closeout_outline_version"
 
 
 def outline_path(image_path: Path) -> Path:
@@ -25,11 +30,22 @@ def ensure_outline(image_path: Path) -> Path:
     """Build (or reuse) the simplified outline for a sheet image."""
     src = Path(image_path)
     out = outline_path(src)
-    if out.exists() and out.stat().st_mtime >= src.stat().st_mtime:
+    if out.exists() and out.stat().st_mtime >= src.stat().st_mtime and _is_current(out):
         return out
     with Image.open(src) as im:
-        simplify_plan(im).save(out, "PNG")
+        meta = PngImagePlugin.PngInfo()
+        meta.add_text(_VERSION_KEY, OUTLINE_VERSION)
+        simplify_plan(im).save(out, "PNG", pnginfo=meta)
     return out
+
+
+def _is_current(cached: Path) -> bool:
+    """True when the cached outline was produced by the current simplify_plan version."""
+    try:
+        with Image.open(cached) as im:
+            return im.info.get(_VERSION_KEY) == OUTLINE_VERSION
+    except Exception:
+        return False
 
 
 def simplify_plan(im: Image.Image) -> Image.Image:
