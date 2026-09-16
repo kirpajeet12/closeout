@@ -1,4 +1,4 @@
-"""Clean plan outlines for field review: keep walls, drop dimension ticks and thin pipe clutter.
+"""Clean plan outlines for field review: bold walls, faint-but-readable labels, dropped hairline clutter.
 
 Deterministic image processing. No model. Pin coordinates stay on the original sheet, so a pin
 tapped on the outline is the same spot as on the full drawing.
@@ -9,6 +9,10 @@ import re
 from pathlib import Path
 
 from PIL import Image, ImageFilter, ImageOps, ImageStat
+
+# Room labels, fixtures and other fine linework are kept at this grey so the sheet stays readable
+# while the wall structure (drawn in black) still reads as the outline. 0 = black, 255 = paper.
+DETAIL_GREY = 145
 
 
 def outline_path(image_path: Path) -> Path:
@@ -29,7 +33,11 @@ def ensure_outline(image_path: Path) -> Path:
 
 
 def simplify_plan(im: Image.Image) -> Image.Image:
-    """Keep wall-like strokes; drop measurements and thin electrical/plumbing linework.
+    """Bold the wall structure and keep the labels readable; drop only hairline clutter.
+
+    Two tiers on white paper: every stroke that survives a light clean (room labels, doors,
+    fixtures, stairs) is drawn in grey so the engineer can still read the plan, and the
+    wall-thick strokes are drawn over them in black so the outline still reads at a glance.
 
     The result is the same size as `im`, so a pin at (x, y) on the outline is the same
     place as on the original sheet.
@@ -41,12 +49,16 @@ def simplify_plan(im: Image.Image) -> Image.Image:
     # Ink is dark on paper. A high threshold keeps only the heavier strokes.
     bw = gray.point(lambda p: 0 if p < 170 else 255)
     ink = ImageOps.invert(bw)  # white = ink, for morphological filters
-    cleaned = ink.filter(ImageFilter.MinFilter(3)).filter(ImageFilter.MaxFilter(3))
-    # Opening with a 5px window drops 1px dimension ticks and pipe/wire clutter.
-    walls = cleaned.filter(ImageFilter.MinFilter(5)).filter(ImageFilter.MaxFilter(5))
+    # A 3px opening drops single-pixel dimension ticks and pipe/wire hairlines but keeps text.
+    detail = ink.filter(ImageFilter.MinFilter(3)).filter(ImageFilter.MaxFilter(3))
+    # A wider 5px opening isolates the wall-thick strokes from the readable detail.
+    walls = detail.filter(ImageFilter.MinFilter(5)).filter(ImageFilter.MaxFilter(5))
     if ImageStat.Stat(walls).mean[0] < 1:
-        walls = cleaned  # a hairline set would otherwise go blank
-    return ImageOps.invert(walls).convert("RGB")
+        walls = detail  # a hairline set would otherwise go blank
+    out = Image.new("L", im.size, 255)
+    out.paste(DETAIL_GREY, (0, 0), detail)  # labels, doors, fixtures kept legible
+    out.paste(0, (0, 0), walls)             # wall structure on top, in black
+    return out.convert("RGB")
 
 
 def electrical_overlay(sheet: dict, sheets: list[dict]) -> dict | None:
